@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance Analytics Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+:root {
+  --bg: #080d18;
+  --surface: #0f1829;
+  --surface2: #162035;
+  --surface3: #1c2a44;
+  --border: #1e3050;
+  --text: #e2e8f0;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
+  --accent: #3b82f6;
+  --accent2: #8b5cf6;
+  --income: #10b981;
+  --expense: #ef4444;
+  --invest: #3b82f6;
+  --dividend: #8b5cf6;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --success: #10b981;
+  --radius: 12px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;overflow-x:hidden;}
+/* UPLOAD SCREEN */
+#upload-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:radial-gradient(ellipse at 50% 0%,#0d1f3c 0%,var(--bg) 60%);}
+.upload-logo{font-size:2.5rem;font-weight:800;background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem;letter-spacing:-1px;}
+.upload-sub{color:var(--text-muted);font-size:1rem;margin-bottom:3rem;}
+.upload-zone{border:2px dashed var(--border);border-radius:20px;padding:4rem 5rem;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface);position:relative;max-width:560px;width:100%;}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--surface2);transform:translateY(-2px);box-shadow:0 8px 40px rgba(59,130,246,.15);}
+.upload-icon{font-size:3.5rem;margin-bottom:1rem;filter:grayscale(0.3);}
+.upload-title{font-size:1.3rem;font-weight:600;margin-bottom:.5rem;}
+.upload-hint{color:var(--text-muted);font-size:.9rem;line-height:1.6;}
+.upload-hint span{color:var(--accent);font-weight:500;}
+#file-input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.upload-features{display:flex;gap:1.5rem;margin-top:2.5rem;flex-wrap:wrap;justify-content:center;}
+.upload-feat{display:flex;align-items:center;gap:.4rem;color:var(--text-muted);font-size:.85rem;}
+.upload-feat .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+/* DASHBOARD */
+#dashboard{display:none;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);}
+.topbar-logo{font-size:1.2rem;font-weight:800;background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap;}
+.topbar-file{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.25rem .75rem;font-size:.8rem;color:var(--text-dim);display:flex;align-items:center;gap:.4rem;}
+.topbar-file span{color:var(--text-muted);}
+.topbar-reload{margin-left:auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.4rem .9rem;color:var(--text-muted);font-size:.8rem;cursor:pointer;transition:all .2s;}
+.topbar-reload:hover{color:var(--text);border-color:var(--accent);}
+/* TABS */
+.tabs-bar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;padding:0 1rem;gap:0;scrollbar-width:none;}
+.tabs-bar::-webkit-scrollbar{display:none;}
+.tab-btn{padding:.75rem 1.2rem;font-size:.82rem;font-weight:500;color:var(--text-muted);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-content{display:none;padding:1.5rem;max-width:1400px;margin:0 auto;}
+.tab-content.active{display:block;}
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;}
+.grid-6{display:grid;grid-template-columns:repeat(6,1fr);gap:1rem;}
+@media(max-width:900px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-6{grid-template-columns:repeat(3,1fr);}.grid-3{grid-template-columns:1fr 1fr;}}
+@media(max-width:600px){.grid-2,.grid-3,.grid-4,.grid-6{grid-template-columns:1fr;}}
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+.card-title{font-size:.8rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
+/* KPI CARDS */
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem 1.4rem;position:relative;overflow:hidden;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kpi-card.income::before{background:var(--income);}
+.kpi-card.expense::before{background:var(--expense);}
+.kpi-card.balance::before{background:linear-gradient(90deg,var(--income),var(--invest));}
+.kpi-card.invest::before{background:var(--invest);}
+.kpi-card.dividend::before{background:var(--dividend);}
+.kpi-card.neutral::before{background:var(--text-muted);}
+.kpi-label{font-size:.75rem;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem;}
+.kpi-value{font-size:1.7rem;font-weight:800;letter-spacing:-1px;line-height:1;}
+.kpi-value.income{color:var(--income);}
+.kpi-value.expense{color:var(--expense);}
+.kpi-value.invest{color:var(--invest);}
+.kpi-value.dividend{color:var(--dividend);}
+.kpi-sub{font-size:.75rem;color:var(--text-muted);margin-top:.3rem;}
+/* CHART CONTAINERS */
+.chart-wrap{position:relative;width:100%;height:300px;}
+.chart-wrap.tall{height:380px;}
+.chart-wrap.short{height:220px;}
+/* TABLE */
+.data-table{width:100%;border-collapse:collapse;font-size:.82rem;}
+.data-table th{text-align:left;padding:.6rem .8rem;color:var(--text-muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);font-weight:600;}
+.data-table td{padding:.6rem .8rem;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text-dim);}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--surface2);}
+.amount-positive{color:var(--income);font-weight:600;}
+.amount-negative{color:var(--expense);font-weight:600;}
+.amount-neutral{color:var(--invest);}
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:.2rem .6rem;border-radius:20px;font-size:.72rem;font-weight:600;}
+.badge-green{background:rgba(16,185,129,.15);color:var(--success);}
+.badge-red{background:rgba(239,68,68,.15);color:var(--danger);}
+.badge-yellow{background:rgba(245,158,11,.15);color:var(--warning);}
+.badge-blue{background:rgba(59,130,246,.15);color:var(--accent);}
+.badge-purple{background:rgba(139,92,246,.15);color:var(--accent2);}
+/* TRAFFIC LIGHT */
+.risk-row{display:flex;align-items:flex-start;gap:.8rem;padding:.8rem;border-radius:8px;background:var(--surface2);margin-bottom:.6rem;}
+.risk-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:.2rem;}
+.risk-dot.green{background:var(--success);box-shadow:0 0 8px var(--success);}
+.risk-dot.yellow{background:var(--warning);box-shadow:0 0 8px var(--warning);}
+.risk-dot.red{background:var(--danger);box-shadow:0 0 8px var(--danger);}
+.risk-title{font-size:.85rem;font-weight:600;margin-bottom:.2rem;}
+.risk-desc{font-size:.78rem;color:var(--text-muted);line-height:1.5;}
+/* SECTION TITLE */
+.section-title{font-size:1.1rem;font-weight:700;margin-bottom:1rem;color:var(--text);}
+.section-gap{margin-top:1.5rem;}
+/* CONTROLS */
+.controls{display:flex;gap:.5rem;flex-wrap:wrap;}
+.ctrl-btn{padding:.35rem .9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-size:.78rem;cursor:pointer;transition:all .2s;}
+.ctrl-btn:hover{border-color:var(--accent);color:var(--text);}
+.ctrl-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+/* DONUT LEGEND */
+.donut-legend{list-style:none;margin-top:1rem;}
+.donut-legend li{display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;}
+.donut-legend li:last-child{border:none;}
+.legend-label{display:flex;align-items:center;gap:.5rem;}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.legend-pct{color:var(--text-muted);font-size:.75rem;}
+/* UPLOAD2 in Tab 7 */
+.upload2-zone{border:2px dashed var(--border);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface2);position:relative;}
+.upload2-zone:hover{border-color:var(--accent);background:var(--surface3);}
+/* TOOLTIP */
+.custom-tooltip{position:fixed;background:var(--surface3);border:1px solid var(--border);border-radius:8px;padding:.6rem .9rem;font-size:.78rem;pointer-events:none;z-index:999;display:none;max-width:200px;}
+/* PROGRESS BAR */
+.progress-bar-wrap{background:var(--surface3);border-radius:4px;height:6px;overflow:hidden;margin-top:.3rem;}
+.progress-bar-fill{height:100%;border-radius:4px;transition:width .6s ease;}
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;height:200px;color:var(--text-muted);flex-direction:column;gap:1rem;}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+/* HIGHLIGHT ROW */
+.row-best td{background:rgba(16,185,129,.07)!important;}
+.row-worst td{background:rgba(239,68,68,.07)!important;}
+/* DIVIDER */
+.divider{border:none;border-top:1px solid var(--border);margin:1.2rem 0;}
+/* COMPARE SIDE */
+.compare-side{background:var(--surface2);border-radius:10px;padding:1rem;}
+.compare-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.8rem;}
+.compare-label.base{color:var(--accent);}
+.compare-label.comp{color:var(--accent2);}
+/* DELTA */
+.delta-positive{color:var(--income);}
+.delta-negative{color:var(--expense);}
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- ==================== UPLOAD SCREEN ==================== -->
+<div id="upload-screen">
+  <div class="upload-logo">FinanceIQ</div>
+  <div class="upload-sub">CSV Analytics Dashboard &mdash; Finanzdaten-Analyse</div>
+  <div class="upload-zone" id="upload-zone">
+    <input type="file" id="file-input" accept=".csv">
+    <div class="upload-icon">📊</div>
+    <div class="upload-title">CSV-Datei hochladen</div>
+    <div class="upload-hint">Datei hier ablegen oder <span>klicken zum Auswählen</span><br>Unterstützt: Trade Republic, Sparkasse, DKB & mehr</div>
+  </div>
+  <div class="upload-features">
+    <div class="upload-feat"><div class="dot"></div>8 Analyse-Tabs</div>
+    <div class="upload-feat"><div class="dot"></div>KI-Empfehlungen</div>
+    <div class="upload-feat"><div class="dot"></div>Prognose &amp; Trends</div>
+    <div class="upload-feat"><div class="dot"></div>Ausreißer-Erkennung</div>
+    <div class="upload-feat"><div class="dot"></div>CSV-Vergleich</div>
+  </div>
+</div>
+
+<!-- ==================== DASHBOARD ==================== -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-logo">FinanceIQ</div>
+    <div class="topbar-file"><span>📄</span><span id="topbar-filename">—</span></div>
+    <div class="topbar-reload" onclick="resetDashboard()">⟳ Neue Datei</div>
+  </div>
+  <div class="tabs-bar">
+    <button class="tab-btn active" onclick="showTab(0)">📊 Übersicht</button>
+    <button class="tab-btn" onclick="showTab(1)">📈 Zeitverlauf</button>
+    <button class="tab-btn" onclick="showTab(2)">📅 Monats-Breakdown</button>
+    <button class="tab-btn" onclick="showTab(3)">🏷️ Kategorien</button>
+    <button class="tab-btn" onclick="showTab(4)">⚠️ Ausreißer</button>
+    <button class="tab-btn" onclick="showTab(5)">🔮 Prognose</button>
+    <button class="tab-btn" onclick="showTab(6)">⚖️ Vergleich</button>
+    <button class="tab-btn" onclick="showTab(7)">💡 Empfehlungen</button>
+  </div>
+
+  <!-- TAB 1: ÜBERSICHT -->
+  <div class="tab-content active" id="tab-0">
+    <div class="grid-6" id="kpi-grid" style="margin-bottom:1.2rem;"></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Einnahmen vs. Ausgaben</span></div>
+        <div class="chart-wrap short"><canvas id="chart-overview-bar"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Transaktionstypen</span></div>
+        <div class="chart-wrap short"><canvas id="chart-overview-donut"></canvas></div>
+      </div>
+    </div>
+    <div class="section-gap">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Auffälligkeiten auf einen Blick</span></div>
+        <div id="overview-alerts"></div>
+      </div>
+    </div>
+    <div class="section-gap">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Größte Transaktionen</span></div>
+        <table class="data-table" id="overview-top-table"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: ZEITVERLAUF -->
+  <div class="tab-content" id="tab-1">
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header">
+        <span class="card-title">Kumulierter Cashflow</span>
+        <div class="controls" id="timeline-controls">
+          <button class="ctrl-btn active" onclick="setTimelineView('daily',this)">Täglich</button>
+          <button class="ctrl-btn" onclick="setTimelineView('monthly',this)">Monatlich</button>
+          <button class="ctrl-btn" onclick="setTimelineView('quarterly',this)">Quartalsweise</button>
+        </div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="chart-timeline"></canvas></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Monatliche Netto-Cashflows</span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-monthly-net"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Investitionsvolumen über Zeit</span></div>
+        <div class="chart-wrap"><canvas id="chart-invest-time"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: MONATS-BREAKDOWN -->
+  <div class="tab-content" id="tab-2">
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header"><span class="card-title">Einnahmen &amp; Ausgaben je Monat</span></div>
+      <div class="chart-wrap tall"><canvas id="chart-monthly-grouped"></canvas></div>
+    </div>
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header"><span class="card-title">Kumulierter Saldo</span></div>
+      <div class="chart-wrap"><canvas id="chart-cumulative"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Monatliche Übersicht</span></div>
+      <div style="overflow-x:auto;"><table class="data-table" id="monthly-table"></table></div>
+    </div>
+  </div>
+
+  <!-- TAB 4: KATEGORIEN -->
+  <div class="tab-content" id="tab-3">
+    <div class="grid-2" style="margin-bottom:1.2rem;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Ausgaben nach Typ</span></div>
+        <div class="chart-wrap"><canvas id="chart-cat-donut"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Top-Kategorien Ranking</span></div>
+        <ul class="donut-legend" id="cat-legend"></ul>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header"><span class="card-title">Einnahmen &amp; Ausgaben je Kategorie</span></div>
+      <div class="chart-wrap tall"><canvas id="chart-cat-bar"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Dividenden nach Wertpapier</span></div>
+      <div style="overflow-x:auto;"><table class="data-table" id="dividend-table"></table></div>
+    </div>
+  </div>
+
+  <!-- TAB 5: AUSREISSER & RISIKEN -->
+  <div class="tab-content" id="tab-4">
+    <div class="grid-3" id="risk-kpis" style="margin-bottom:1.2rem;"></div>
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header"><span class="card-title">Risikoampel</span></div>
+      <div id="risk-lights"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Auffällige Transaktionen (&gt;2σ)</span></div>
+      <div style="overflow-x:auto;"><table class="data-table" id="outlier-table"></table></div>
+    </div>
+  </div>
+
+  <!-- TAB 6: PROGNOSE -->
+  <div class="tab-content" id="tab-5">
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header">
+        <span class="card-title">Prognose: Kumulierter Cashflow</span>
+        <div class="controls">
+          <button class="ctrl-btn active" onclick="setForecast(3,this)">3 Monate</button>
+          <button class="ctrl-btn" onclick="setForecast(6,this)">6 Monate</button>
+          <button class="ctrl-btn" onclick="setForecast(12,this)">12 Monate</button>
+        </div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="chart-forecast"></canvas></div>
+    </div>
+    <div class="grid-3" id="forecast-kpis"></div>
+  </div>
+
+  <!-- TAB 7: VERGLEICH -->
+  <div class="tab-content" id="tab-6">
+    <div id="compare-upload-area">
+      <div class="card" style="max-width:500px;">
+        <div class="card-header"><span class="card-title">Vergleichsdatei hochladen</span></div>
+        <div class="upload2-zone" id="upload2-zone">
+          <input type="file" id="file-input-2" accept=".csv" onchange="loadCompareFile(this)">
+          <div style="font-size:2rem;margin-bottom:.5rem;">📂</div>
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:.3rem;">Zweite CSV-Datei auswählen</div>
+          <div style="font-size:.78rem;color:var(--text-muted);">Gleiche Spaltenstruktur empfohlen</div>
+        </div>
+      </div>
+    </div>
+    <div id="compare-content" style="display:none;">
+      <div class="grid-2" style="margin-bottom:1.2rem;">
+        <div class="compare-side">
+          <div class="compare-label base">Basis: <span id="compare-base-name">—</span></div>
+          <div id="compare-base-kpis"></div>
+        </div>
+        <div class="compare-side">
+          <div class="compare-label comp">Vergleich: <span id="compare-comp-name">—</span></div>
+          <div id="compare-comp-kpis"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-header"><span class="card-title">Direkte Gegenüberstellung</span></div>
+        <div class="chart-wrap tall"><canvas id="chart-compare"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Delta-Übersicht</span></div>
+        <table class="data-table" id="compare-delta-table"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 8: EMPFEHLUNGEN -->
+  <div class="tab-content" id="tab-7">
+    <div id="recommendations-list"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// GLOBAL STATE
+// ============================================================
+let G = { rows:[], analyzed:null, charts:{}, forecastMonths:3, timelineView:'daily', compareData:null, fileName:'' };
+
+// ============================================================
+// CSV PARSER
+// ============================================================
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return [];
+  // Detect delimiter
+  const delimiters = [',', ';', '\t'];
+  const firstLine = lines[0];
+  let delim = ',';
+  let maxCount = 0;
+  for (const d of delimiters) {
+    const c = (firstLine.match(new RegExp('\\' + d, 'g')) || []).length;
+    if (c > maxCount) { maxCount = c; delim = d; }
+  }
+  const headers = parseLine(lines[0], delim).map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g,'_'));
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parseLine(lines[i], delim);
+    const row = {};
+    headers.forEach((h, idx) => { row[h] = (vals[idx] || '').trim(); });
+    rows.push(row);
+  }
+  return rows;
+}
+
+function parseLine(line, delim) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (ch === delim && !inQ) {
+      result.push(cur); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+// ============================================================
+// COLUMN AUTO-DETECTION
+// ============================================================
+function detectColumns(rows) {
+  if (!rows.length) return {};
+  const sample = rows.slice(0, Math.min(50, rows.length));
+  const cols = Object.keys(rows[0]);
+  const info = {};
+  for (const col of cols) {
+    const vals = sample.map(r => r[col]).filter(v => v !== '');
+    if (!vals.length) { info[col] = 'empty'; continue; }
+    const dateCount = vals.filter(v => /^\d{4}-\d{2}/.test(v) || /^\d{2}[.\-\/]\d{2}[.\-\/]\d{4}/.test(v)).length;
+    const numCount = vals.filter(v => !isNaN(parseFloat(v.replace(',', '.')))).length;
+    if (dateCount / vals.length > 0.7) info[col] = 'date';
+    else if (numCount / vals.length > 0.7) info[col] = 'numeric';
+    else info[col] = 'categorical';
+  }
+  return info;
+}
+
+// ============================================================
+// FINANCIAL ANALYSIS
+// ============================================================
+function analyzeFinancial(rows) {
+  const colInfo = detectColumns(rows);
+  // Find key columns
+  const amountCol = findCol(rows, ['amount','betrag','value','wert']);
+  const dateCol   = findCol(rows, ['date','datum','buchungsdatum','valuta','booking_date']);
+  const typeCol   = findCol(rows, ['type','typ','buchungstext','verwendungszweck','transaction_type']);
+  const catCol    = findCol(rows, ['category','kategorie','cat']);
+  const nameCol   = findCol(rows, ['name','bezeichnung','empfaenger','recipient','asset_name']);
+  const feeCol    = findCol(rows, ['fee','gebuehr','gebuehren','fees']);
+  const taxCol    = findCol(rows, ['tax','steuer','taxes']);
+  const assetCol  = findCol(rows, ['asset_class','assetclass','asset_typ']);
+  const symbolCol = findCol(rows, ['symbol','isin','wkn']);
+  const descCol   = findCol(rows, ['description','beschreibung','text','verwendungszweck']);
+
+  function toNum(v) {
+    if (v === '' || v == null) return 0;
+    return parseFloat(String(v).replace(/[€$£\s]/g,'').replace(',','.')) || 0;
+  }
+  function toDate(v) {
+    if (!v) return null;
+    // ISO format
+    if (/^\d{4}-\d{2}-\d{2}/.test(v)) return new Date(v.substring(0,10));
+    // German format
+    const m = v.match(/^(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);
+    if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}`);
+    return null;
+  }
+
+  const enriched = rows.map(r => {
+    const amount  = amountCol ? toNum(r[amountCol]) : 0;
+    const fee     = feeCol    ? toNum(r[feeCol])    : 0;
+    const tax     = taxCol    ? toNum(r[taxCol])    : 0;
+    const date    = dateCol   ? toDate(r[dateCol])  : null;
+    const type    = typeCol   ? r[typeCol] : '';
+    const cat     = catCol    ? r[catCol]  : '';
+    const name    = nameCol   ? r[nameCol] : '';
+    const asset   = assetCol  ? r[assetCol]: '';
+    const desc    = descCol   ? r[descCol] : '';
+    const month   = date ? `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}` : '';
+    const isIncome    = amount > 0;
+    const isExpense   = amount < 0;
+    const isCash      = cat === 'CASH'    || type === 'CARD_TRANSACTION' || type === 'CARD_TRANSACTION_INTERNATIONAL' || type.includes('TRANSFER') || type === 'DIVIDEND' || type === 'INTEREST_PAYMENT' || type === 'BENEFITS_SAVEBACK';
+    const isTrading   = cat === 'TRADING' || type === 'BUY' || type === 'SELL';
+    const isBuy       = type === 'BUY';
+    const isSell      = type === 'SELL';
+    const isDividend  = type === 'DIVIDEND';
+    const isInterest  = type === 'INTEREST_PAYMENT';
+    const isCardTx    = type === 'CARD_TRANSACTION' || type === 'CARD_TRANSACTION_INTERNATIONAL';
+    const isTransferIn  = type.includes('INBOUND')  && amount > 0;
+    const isTransferOut = type.includes('OUTBOUND') || type === 'TRANSFER_DIRECT_DEBIT_INBOUND';
+    return { ...r, _amount: amount, _fee: fee, _tax: tax, _date: date, _month: month,
+             _type: type, _cat: cat, _name: name, _asset: asset, _desc: desc,
+             _isIncome: isIncome && !isBuy, _isExpense: isExpense && !isBuy,
+             _isBuy: isBuy, _isSell: isSell, _isDividend: isDividend, _isInterest: isInterest,
+             _isCardTx: isCardTx, _isTransferIn: isTransferIn, _isTransferOut: isTransferOut };
+  }).filter(r => r._date);
+
+  enriched.sort((a,b) => a._date - b._date);
+
+  // Aggregates
+  const cashRows   = enriched.filter(r => !r._isBuy && !r._isSell);
+  const incomeRows = cashRows.filter(r => r._amount > 0);
+  const expenseRows= cashRows.filter(r => r._amount < 0);
+  const buyRows    = enriched.filter(r => r._isBuy);
+  const sellRows   = enriched.filter(r => r._isSell);
+  const divRows    = enriched.filter(r => r._isDividend);
+
+  const totalIncome   = incomeRows.reduce((s,r) => s + r._amount, 0);
+  const totalExpense  = expenseRows.reduce((s,r) => s + r._amount, 0);
+  const totalInvested = buyRows.reduce((s,r) => s + Math.abs(r._amount), 0);
+  const totalSold     = sellRows.reduce((s,r) => s + r._amount, 0);
+  const totalDividend = divRows.reduce((s,r) => s + r._amount, 0);
+  const netBalance    = totalIncome + totalExpense;
+  const totalFees     = enriched.reduce((s,r) => s + Math.abs(r._fee), 0);
+  const totalTax      = enriched.reduce((s,r) => s + Math.abs(r._tax), 0);
+
+  // Monthly
+  const months = {};
+  for (const r of enriched) {
+    if (!r._month) continue;
+    if (!months[r._month]) months[r._month] = { income:0, expense:0, invested:0, sold:0, dividend:0, count:0, rows:[] };
+    const m = months[r._month];
+    m.count++;
+    m.rows.push(r);
+    if (r._isBuy)       m.invested  += Math.abs(r._amount);
+    else if (r._isSell) m.sold      += r._amount;
+    else if (r._amount > 0) m.income += r._amount;
+    else                m.expense   += r._amount;
+    if (r._isDividend)  m.dividend  += r._amount;
+  }
+
+  const monthKeys = Object.keys(months).sort();
+  let cumBalance = 0;
+  for (const mk of monthKeys) {
+    const m = months[mk];
+    m.net = m.income + m.expense;
+    cumBalance += m.net;
+    m.cumBalance = cumBalance;
+  }
+
+  // By type
+  const byType = {};
+  for (const r of enriched) {
+    const t = r._type || 'Unbekannt';
+    if (!byType[t]) byType[t] = { income:0, expense:0, count:0 };
+    if (r._amount > 0) byType[t].income  += r._amount;
+    else               byType[t].expense += r._amount;
+    byType[t].count++;
+  }
+
+  // By asset (dividends)
+  const byAsset = {};
+  for (const r of divRows) {
+    const n = r._name || 'Unbekannt';
+    if (!byAsset[n]) byAsset[n] = { total:0, count:0, tax:0 };
+    byAsset[n].total += r._amount;
+    byAsset[n].count++;
+    byAsset[n].tax += Math.abs(r._tax);
+  }
+
+  // Expense by category (card transactions & transfers)
+  const expCat = {};
+  for (const r of expenseRows) {
+    const t = mapTypeLabel(r._type);
+    if (!expCat[t]) expCat[t] = 0;
+    expCat[t] += Math.abs(r._amount);
+  }
+
+  // Outliers (z-score on absolute amounts, cash only)
+  const cashAmounts = cashRows.map(r => Math.abs(r._amount));
+  const mean = cashAmounts.reduce((s,v) => s+v, 0) / cashAmounts.length;
+  const std  = Math.sqrt(cashAmounts.reduce((s,v) => s + Math.pow(v-mean,2), 0) / cashAmounts.length);
+  const outliers = cashRows.filter(r => Math.abs(Math.abs(r._amount) - mean) / std > 2)
+    .map(r => ({ ...r, _zscore: (Math.abs(r._amount) - mean) / std }))
+    .sort((a,b) => b._zscore - a._zscore);
+
+  // Averages
+  const monthCount = monthKeys.length || 1;
+  const avgMonthlyIncome  = totalIncome  / monthCount;
+  const avgMonthlyExpense = Math.abs(totalExpense) / monthCount;
+  const avgMonthlyNet     = netBalance   / monthCount;
+
+  return {
+    enriched, cashRows, incomeRows, expenseRows, buyRows, sellRows, divRows,
+    totalIncome, totalExpense, totalInvested, totalSold, totalDividend, netBalance,
+    totalFees, totalTax, months, monthKeys, byType, byAsset, expCat, outliers,
+    avgMonthlyIncome, avgMonthlyExpense, avgMonthlyNet, mean, std,
+    colInfo, amountCol, dateCol, typeCol, nameCol
+  };
+}
+
+function findCol(rows, candidates) {
+  if (!rows.length) return null;
+  const keys = Object.keys(rows[0]);
+  for (const c of candidates) {
+    const match = keys.find(k => k.toLowerCase() === c.toLowerCase());
+    if (match) return match;
+  }
+  // fuzzy
+  for (const c of candidates) {
+    const match = keys.find(k => k.toLowerCase().includes(c.toLowerCase()));
+    if (match) return match;
+  }
+  return null;
+}
+
+function mapTypeLabel(type) {
+  const map = {
+    'CARD_TRANSACTION': 'Kartenzahlungen',
+    'CARD_TRANSACTION_INTERNATIONAL': 'Karte Ausland',
+    'TRANSFER_INSTANT_OUTBOUND': 'Überweisungen',
+    'TRANSFER_OUTBOUND': 'Überweisungen',
+    'TRANSFER_DIRECT_DEBIT_INBOUND': 'Lastschriften',
+    'BUY': 'Käufe',
+    'SELL': 'Verkäufe',
+    'DIVIDEND': 'Dividenden',
+    'INTEREST_PAYMENT': 'Zinsen',
+    'BENEFITS_SAVEBACK': 'Saveback',
+    'TRANSFER_INBOUND': 'Eingehend',
+    'TRANSFER_INSTANT_INBOUND': 'Eingehend Sofort',
+  };
+  return map[type] || type;
+}
+
+// ============================================================
+// FORMAT HELPERS
+// ============================================================
+function fmt(v, decimals=2) {
+  if (isNaN(v)) return '—';
+  return new Intl.NumberFormat('de-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(v) + ' €';
+}
+function fmtNum(v) {
+  return new Intl.NumberFormat('de-DE').format(Math.round(v));
+}
+function fmtPct(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
+function fmtDate(d) {
+  if (!d) return '—';
+  return d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function monthLabel(mk) {
+  const [y,m] = mk.split('-');
+  return new Date(y, m-1).toLocaleDateString('de-DE', {month:'short',year:'2-digit'});
+}
+
+// ============================================================
+// CHART HELPERS
+// ============================================================
+const PALETTE = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1','#14b8a6','#a855f7'];
+const PALETTE2 = PALETTE.map(c => c + 'aa');
+
+function destroyChart(id) {
+  if (G.charts[id]) { G.charts[id].destroy(); delete G.charts[id]; }
+}
+function createChart(id, config) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  G.charts[id] = new Chart(ctx, config);
+  return G.charts[id];
+}
+
+const CHART_DEFAULTS = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { labels: { color:'#94a3b8', font:{ size:11 } } } },
+  scales: {}
+};
+
+function darkScales(stacked) {
+  return {
+    x: { grid:{ color:'rgba(255,255,255,.05)' }, ticks:{ color:'#64748b', font:{size:10} } },
+    y: { grid:{ color:'rgba(255,255,255,.05)' }, ticks:{ color:'#64748b', font:{size:10}, callback: v => fmtNum(v)+'€' }, stacked:!!stacked },
+    ...(stacked ? {x:{stacked:true,grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#64748b',font:{size:10}}}} : {})
+  };
+}
+
+// ============================================================
+// TAB 1: OVERVIEW
+// ============================================================
+function renderOverview(a) {
+  // KPIs
+  const kpis = [
+    { label:'Gesamteinnahmen', value:fmt(a.totalIncome),      cls:'income',  sub:`Ø ${fmt(a.avgMonthlyIncome)}/Monat` },
+    { label:'Gesamtausgaben',  value:fmt(Math.abs(a.totalExpense)), cls:'expense', sub:`Ø ${fmt(a.avgMonthlyExpense)}/Monat` },
+    { label:'Netto-Saldo',     value:fmt(a.netBalance),       cls:'balance', sub: a.netBalance>=0?'Positiv ✓':'Negativ ⚠️' },
+    { label:'Investiert',      value:fmt(a.totalInvested),    cls:'invest',  sub:`Verkauft: ${fmt(a.totalSold)}` },
+    { label:'Dividenden',      value:fmt(a.totalDividend),    cls:'dividend',sub:`Steuern: ${fmt(a.totalTax)}` },
+    { label:'Gebühren',        value:fmt(a.totalFees),        cls:'neutral', sub:`${a.enriched.length} Transaktionen` },
+  ];
+  document.getElementById('kpi-grid').innerHTML = kpis.map(k =>
+    `<div class="kpi-card ${k.cls}"><div class="kpi-label">${k.label}</div>
+     <div class="kpi-value ${k.cls}">${k.value}</div>
+     <div class="kpi-sub">${k.sub}</div></div>`
+  ).join('');
+
+  // Income vs Expense by month (last 6 months)
+  const last6 = a.monthKeys.slice(-6);
+  createChart('chart-overview-bar', {
+    type: 'bar',
+    data: {
+      labels: last6.map(monthLabel),
+      datasets: [
+        { label:'Einnahmen', data: last6.map(m => a.months[m]?.income||0), backgroundColor:'rgba(16,185,129,.7)', borderRadius:4 },
+        { label:'Ausgaben',  data: last6.map(m => Math.abs(a.months[m]?.expense||0)), backgroundColor:'rgba(239,68,68,.7)', borderRadius:4 }
+      ]
+    },
+    options: { ...CHART_DEFAULTS, plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`}}}, scales: darkScales() }
+  });
+
+  // Donut by type
+  const typeEntries = Object.entries(a.byType).sort((x,y)=>((y[1].income+Math.abs(y[1].expense))-(x[1].income+Math.abs(x[1].expense)))).slice(0,8);
+  createChart('chart-overview-donut', {
+    type: 'doughnut',
+    data: {
+      labels: typeEntries.map(([t]) => mapTypeLabel(t)),
+      datasets: [{ data: typeEntries.map(([,v]) => v.income+Math.abs(v.expense)), backgroundColor: PALETTE.slice(0,typeEntries.length), borderWidth:0 }]
+    },
+    options: { ...CHART_DEFAULTS, cutout:'65%', plugins: { legend:{ position:'right', labels:{ color:'#94a3b8', font:{size:10}, boxWidth:10 } } } }
+  });
+
+  // Alerts
+  const alerts = [];
+  if (a.netBalance < 0) alerts.push({ cls:'red', txt:`<strong>Negativer Saldo:</strong> Ausgaben übersteigen Einnahmen um ${fmt(Math.abs(a.netBalance))}.` });
+  const largestExpense = a.expenseRows.reduce((m,r) => r._amount < m._amount ? r : m, { _amount:0 });
+  if (largestExpense._amount < -500) alerts.push({ cls:'yellow', txt:`<strong>Große Ausgabe:</strong> ${fmtDate(largestExpense._date)} — ${largestExpense._name||largestExpense._desc||largestExpense._type}: ${fmt(Math.abs(largestExpense._amount))}` });
+  if (a.totalDividend > 0) alerts.push({ cls:'green', txt:`<strong>Passive Einnahmen:</strong> ${fmt(a.totalDividend)} Dividenden aus ${Object.keys(a.byAsset).length} Positionen erhalten.` });
+  if (a.totalInvested > 0) alerts.push({ cls:'green', txt:`<strong>Sparplan aktiv:</strong> ${fmt(a.totalInvested)} in Wertpapiere investiert.` });
+  if (a.totalFees > 0) alerts.push({ cls:'yellow', txt:`<strong>Handelsgebühren:</strong> ${fmt(a.totalFees)} an Transaktionsgebühren angefallen.` });
+
+  document.getElementById('overview-alerts').innerHTML = alerts.map(al =>
+    `<div class="risk-row"><div class="risk-dot ${al.cls}"></div><div class="risk-desc">${al.txt}</div></div>`
+  ).join('') || '<div class="risk-desc" style="padding:.5rem;">Keine besonderen Auffälligkeiten gefunden.</div>';
+
+  // Top transactions table
+  const topTx = [...a.cashRows].sort((a,b) => Math.abs(b._amount)-Math.abs(a._amount)).slice(0,10);
+  document.getElementById('overview-top-table').innerHTML =
+    `<thead><tr><th>Datum</th><th>Name / Typ</th><th>Kategorie</th><th>Betrag</th></tr></thead><tbody>` +
+    topTx.map(r =>
+      `<tr><td>${fmtDate(r._date)}</td><td>${r._name||r._desc||'—'}</td><td><span class="badge badge-blue">${mapTypeLabel(r._type)}</span></td>
+       <td class="${r._amount>=0?'amount-positive':'amount-negative'}">${fmt(r._amount)}</td></tr>`
+    ).join('') + '</tbody>';
+}
+
+// ============================================================
+// TAB 2: ZEITVERLAUF
+// ============================================================
+function renderTimeline(a) {
+  buildTimelineChart(a, G.timelineView);
+
+  // Monthly net
+  createChart('chart-monthly-net', {
+    type: 'bar',
+    data: {
+      labels: a.monthKeys.map(monthLabel),
+      datasets: [{
+        label:'Netto-Cashflow',
+        data: a.monthKeys.map(m => a.months[m]?.net||0),
+        backgroundColor: a.monthKeys.map(m => (a.months[m]?.net||0) >= 0 ? 'rgba(16,185,129,.7)' : 'rgba(239,68,68,.7)'),
+        borderRadius: 4
+      }]
+    },
+    options: { ...CHART_DEFAULTS, plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`Netto: ${fmt(ctx.parsed.y)}`}}}, scales: darkScales() }
+  });
+
+  // Invest over time
+  createChart('chart-invest-time', {
+    type: 'bar',
+    data: {
+      labels: a.monthKeys.map(monthLabel),
+      datasets: [
+        { label:'Käufe', data: a.monthKeys.map(m => -(a.months[m]?.invested||0)), backgroundColor:'rgba(59,130,246,.7)', borderRadius:4 },
+        { label:'Verkäufe', data: a.monthKeys.map(m => a.months[m]?.sold||0), backgroundColor:'rgba(139,92,246,.7)', borderRadius:4 }
+      ]
+    },
+    options: { ...CHART_DEFAULTS, scales: darkScales() }
+  });
+}
+
+function buildTimelineChart(a, view) {
+  destroyChart('chart-timeline');
+  let labels, cumData, maData, expData, incData;
+
+  if (view === 'daily') {
+    // Build daily cumulative
+    const daily = {};
+    for (const r of a.cashRows) {
+      const dk = r._date.toISOString().substring(0,10);
+      if (!daily[dk]) daily[dk] = 0;
+      daily[dk] += r._amount;
+    }
+    const dayKeys = Object.keys(daily).sort();
+    labels = dayKeys;
+    let cum = 0;
+    cumData = dayKeys.map(d => { cum += daily[d]; return { x:d, y:cum }; });
+    // 30-day MA
+    maData = cumData.map((p,i) => {
+      const window = cumData.slice(Math.max(0,i-29),i+1).map(x=>x.y);
+      return { x:p.x, y: window.reduce((s,v)=>s+v,0)/window.length };
+    });
+  } else if (view === 'monthly') {
+    labels = a.monthKeys.map(monthLabel);
+    let cum = 0;
+    cumData = a.monthKeys.map(m => { cum += a.months[m]?.net||0; return cum; });
+    maData = cumData.map((v,i) => {
+      const w = cumData.slice(Math.max(0,i-2),i+1);
+      return w.reduce((s,x)=>s+x,0)/w.length;
+    });
+  } else {
+    // Quarterly
+    const qMap = {};
+    for (const mk of a.monthKeys) {
+      const [y,m] = mk.split('-');
+      const q = `${y}-Q${Math.ceil(parseInt(m)/3)}`;
+      if (!qMap[q]) qMap[q] = 0;
+      qMap[q] += a.months[mk]?.net||0;
+    }
+    const qKeys = Object.keys(qMap).sort();
+    labels = qKeys;
+    let cum = 0;
+    cumData = qKeys.map(q => { cum += qMap[q]; return cum; });
+    maData = cumData;
+  }
+
+  const isDateAxis = view === 'daily';
+  const scaleConfig = {
+    x: isDateAxis
+      ? { type:'time', time:{unit:'month'}, grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:'#64748b',font:{size:10}} }
+      : { grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:'#64748b',font:{size:10}}, labels },
+    y: { grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:'#64748b',font:{size:10},callback:v=>fmtNum(v)+'€'} }
+  };
+
+  G.charts['chart-timeline'] = new Chart(document.getElementById('chart-timeline'), {
+    type: 'line',
+    data: {
+      labels: isDateAxis ? undefined : labels,
+      datasets: [
+        { label:'Kumuliert', data: isDateAxis ? cumData : cumData, borderColor:'#3b82f6', borderWidth:2, pointRadius:0, fill:{ target:'origin', above:'rgba(59,130,246,.08)', below:'rgba(239,68,68,.08)' }, tension:.3 },
+        { label:'Gleit. Ø (30T)', data: isDateAxis ? maData : maData, borderColor:'#f59e0b', borderWidth:1.5, borderDash:[4,4], pointRadius:0, tension:.3 }
+      ]
+    },
+    options: { ...CHART_DEFAULTS, interaction:{mode:'index',intersect:false}, scales: scaleConfig,
+      plugins: { ...CHART_DEFAULTS.plugins, tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` } } } }
+  });
+}
+
+function setTimelineView(view, btn) {
+  G.timelineView = view;
+  document.querySelectorAll('#timeline-controls .ctrl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildTimelineChart(G.analyzed, view);
+}
+
+// ============================================================
+// TAB 3: MONTHLY BREAKDOWN
+// ============================================================
+function renderMonthly(a) {
+  // Grouped bar
+  createChart('chart-monthly-grouped', {
+    type: 'bar',
+    data: {
+      labels: a.monthKeys.map(monthLabel),
+      datasets: [
+        { label:'Einnahmen',  data: a.monthKeys.map(m => a.months[m]?.income||0),            backgroundColor:'rgba(16,185,129,.75)', borderRadius:3 },
+        { label:'Ausgaben',   data: a.monthKeys.map(m => Math.abs(a.months[m]?.expense||0)), backgroundColor:'rgba(239,68,68,.75)',   borderRadius:3 },
+        { label:'Investiert', data: a.monthKeys.map(m => a.months[m]?.invested||0),          backgroundColor:'rgba(59,130,246,.75)',  borderRadius:3 }
+      ]
+    },
+    options: { ...CHART_DEFAULTS, interaction:{mode:'index',intersect:false}, scales: darkScales(),
+      plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`}}} }
+  });
+
+  // Cumulative
+  createChart('chart-cumulative', {
+    type: 'line',
+    data: {
+      labels: a.monthKeys.map(monthLabel),
+      datasets: [{ label:'Kum. Saldo', data: a.monthKeys.map(m => a.months[m]?.cumBalance||0), borderColor:'#8b5cf6', borderWidth:2, pointRadius:3, pointBackgroundColor:'#8b5cf6', fill:{ target:'origin', above:'rgba(139,92,246,.1)' }, tension:.3 }]
+    },
+    options: { ...CHART_DEFAULTS, scales: darkScales(), plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`Saldo: ${fmt(ctx.parsed.y)}`}}} }
+  });
+
+  // Monthly table
+  const nets = a.monthKeys.map(m => a.months[m]?.net||0);
+  const bestIdx  = nets.indexOf(Math.max(...nets));
+  const worstIdx = nets.indexOf(Math.min(...nets));
+
+  let html = `<thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Investiert</th><th>Dividenden</th><th>Netto</th><th>Kum. Saldo</th></tr></thead><tbody>`;
+  a.monthKeys.forEach((mk, idx) => {
+    const m = a.months[mk];
+    const cls = idx===bestIdx?'row-best':idx===worstIdx?'row-worst':'';
+    html += `<tr class="${cls}">
+      <td><strong>${monthLabel(mk)}</strong></td>
+      <td class="amount-positive">${fmt(m.income)}</td>
+      <td class="amount-negative">${fmt(Math.abs(m.expense))}</td>
+      <td class="amount-neutral">${fmt(m.invested)}</td>
+      <td style="color:var(--dividend)">${fmt(m.dividend)}</td>
+      <td class="${m.net>=0?'amount-positive':'amount-negative'}">${fmt(m.net)}</td>
+      <td class="${m.cumBalance>=0?'amount-positive':'amount-negative'}">${fmt(m.cumBalance)}</td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('monthly-table').innerHTML = html;
+}
+
+// ============================================================
+// TAB 4: KATEGORIEN
+// ============================================================
+function renderCategories(a) {
+  // Expense categories donut
+  const expEntries = Object.entries(a.expCat).sort((x,y)=>y[1]-x[1]).slice(0,10);
+  const totalExp = expEntries.reduce((s,[,v])=>s+v,0);
+
+  createChart('chart-cat-donut', {
+    type: 'doughnut',
+    data: {
+      labels: expEntries.map(([t])=>t),
+      datasets: [{ data: expEntries.map(([,v])=>v), backgroundColor: PALETTE.slice(0,expEntries.length), borderWidth:0, hoverOffset:8 }]
+    },
+    options: { ...CHART_DEFAULTS, cutout:'60%', plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmt(ctx.parsed)} (${(ctx.parsed/totalExp*100).toFixed(1)}%)`}} } }
+  });
+
+  // Legend
+  document.getElementById('cat-legend').innerHTML = expEntries.map(([t,v],i) =>
+    `<li><div class="legend-label"><div class="legend-dot" style="background:${PALETTE[i]}"></div>${t}</div>
+     <div><strong>${fmt(v)}</strong> <span class="legend-pct">${(v/totalExp*100).toFixed(1)}%</span>
+     <div class="progress-bar-wrap" style="width:80px"><div class="progress-bar-fill" style="width:${v/totalExp*100}%;background:${PALETTE[i]}"></div></div>
+     </div></li>`
+  ).join('');
+
+  // Income vs expense by type bar
+  const allTypes = [...new Set([...a.incomeRows.map(r=>r._type), ...a.expenseRows.map(r=>r._type)])];
+  const typeInc = {}, typeExp = {};
+  for (const r of a.incomeRows)  { typeInc[r._type] = (typeInc[r._type]||0) + r._amount; }
+  for (const r of a.expenseRows) { typeExp[r._type] = (typeExp[r._type]||0) + Math.abs(r._amount); }
+  const topTypes = allTypes.sort((a,b) => ((typeInc[b]||0)+(typeExp[b]||0))-((typeInc[a]||0)+(typeExp[a]||0))).slice(0,10);
+
+  createChart('chart-cat-bar', {
+    type: 'bar',
+    data: {
+      labels: topTypes.map(mapTypeLabel),
+      datasets: [
+        { label:'Einnahmen', data: topTypes.map(t=>typeInc[t]||0), backgroundColor:'rgba(16,185,129,.75)', borderRadius:4 },
+        { label:'Ausgaben',  data: topTypes.map(t=>typeExp[t]||0), backgroundColor:'rgba(239,68,68,.75)',  borderRadius:4 }
+      ]
+    },
+    options: { ...CHART_DEFAULTS, indexAxis:'y', scales: { x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#64748b',font:{size:10},callback:v=>fmtNum(v)+'€'}}, y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#64748b',font:{size:10}}} },
+      plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmt(ctx.parsed.x)}`}}} }
+  });
+
+  // Dividend table
+  const divEntries = Object.entries(a.byAsset).sort((x,y)=>y[1].total-x[1].total);
+  document.getElementById('dividend-table').innerHTML =
+    `<thead><tr><th>Wertpapier</th><th>Zahlungen</th><th>Brutto</th><th>Steuern</th><th>Netto</th></tr></thead><tbody>` +
+    divEntries.map(([name,v]) =>
+      `<tr><td>${name}</td><td>${v.count}×</td><td class="amount-positive">${fmt(v.total+v.tax)}</td>
+       <td class="amount-negative">${fmt(v.tax)}</td><td class="amount-positive">${fmt(v.total)}</td></tr>`
+    ).join('') + '</tbody>';
+}
+
+// ============================================================
+// TAB 5: AUSREISSER
+// ============================================================
+function renderOutliers(a) {
+  const maxExpense = a.expenseRows.length ? Math.abs(a.expenseRows.reduce((m,r)=>r._amount<m._amount?r:m).amount||0) : 0;
+  const topOut = a.outliers[0];
+  document.getElementById('risk-kpis').innerHTML = [
+    { label:'Erkannte Ausreißer', value: a.outliers.length, cls:'expense', sub:'Transaktionen >2σ' },
+    { label:'Stärkstes Signal',   value: topOut ? fmt(Math.abs(topOut._amount)) : '—', cls:'neutral', sub: topOut ? (topOut._name||topOut._type) : '—' },
+    { label:'Stichproben-Ø',     value: fmt(a.mean), cls:'neutral', sub:`σ = ${fmt(a.std)}` }
+  ].map(k =>
+    `<div class="kpi-card ${k.cls}"><div class="kpi-label">${k.label}</div>
+     <div class="kpi-value ${k.cls}" style="font-size:1.4rem">${k.value}</div>
+     <div class="kpi-sub">${k.sub}</div></div>`
+  ).join('');
+
+  // Risk lights
+  const risks = [];
+  if (a.netBalance < 0) risks.push({ level:'red', title:'Negativer Gesamtsaldo', desc:`Die Ausgaben übersteigen die Einnahmen um ${fmt(Math.abs(a.netBalance))}. Ausgaben reduzieren oder Einnahmen steigern.` });
+  const dentistTx = a.cashRows.filter(r => r._desc?.toLowerCase().includes('zahnarzt') || r._name?.toLowerCase().includes('zahnarzt') || r._name?.toLowerCase().includes('zahnkultur'));
+  if (dentistTx.length > 0) {
+    const dentistSum = dentistTx.reduce((s,r)=>s+Math.abs(r._amount),0);
+    risks.push({ level:'yellow', title:'Hohe Gesundheitsausgaben (Zahnarzt)', desc:`${fmt(dentistSum)} für Zahnarztbehandlungen im Zeitraum. Krankenkasse oder Beihilfe prüfen.` });
+  }
+  const cardTotal = a.expenseRows.filter(r=>r._isCardTx).reduce((s,r)=>s+Math.abs(r._amount),0);
+  if (cardTotal > a.avgMonthlyExpense * a.monthKeys.length * 0.4) risks.push({ level:'yellow', title:'Hohe Kartenzahlungen', desc:`${fmt(cardTotal)} per Karte ausgegeben. Anteil am Gesamtbudget: ${(cardTotal/Math.abs(a.totalExpense)*100).toFixed(1)}%.` });
+  if (a.totalFees > 100) risks.push({ level:'yellow', title:'Handelsgebühren', desc:`${fmt(a.totalFees)} an Ordergebühren angefallen. Sparplan-Käufe oft günstiger als Einzelorders.` });
+  if (a.totalDividend > 0) risks.push({ level:'green', title:'Passives Einkommen aktiv', desc:`${fmt(a.totalDividend)} Dividenden aus ${Object.keys(a.byAsset).length} Positionen — passives Einkommensnetz wächst.` });
+  if (a.totalInvested > 0) risks.push({ level:'green', title:'Regelmäßige Investitionen', desc:`${fmt(a.totalInvested)} investiert über ${a.monthKeys.length} Monate. Langfristige Vermögensbildung läuft.` });
+
+  document.getElementById('risk-lights').innerHTML = risks.map(r =>
+    `<div class="risk-row"><div class="risk-dot ${r.level}"></div><div><div class="risk-title">${r.title}</div><div class="risk-desc">${r.desc}</div></div></div>`
+  ).join('') || '<div class="risk-desc" style="padding:.5rem;">Keine Risiken erkannt.</div>';
+
+  // Outlier table
+  document.getElementById('outlier-table').innerHTML =
+    `<thead><tr><th>Datum</th><th>Typ</th><th>Name / Beschreibung</th><th>Betrag</th><th>Z-Score</th><th>Bewertung</th></tr></thead><tbody>` +
+    a.outliers.slice(0,30).map(r => {
+      const z = r._zscore;
+      const badge = z > 4 ? '<span class="badge badge-red">Kritisch</span>' : z > 3 ? '<span class="badge badge-yellow">Erhöht</span>' : '<span class="badge badge-blue">Auffällig</span>';
+      return `<tr><td>${fmtDate(r._date)}</td><td>${mapTypeLabel(r._type)}</td>
+        <td>${r._name||r._desc||'—'}</td>
+        <td class="${r._amount>=0?'amount-positive':'amount-negative'}">${fmt(r._amount)}</td>
+        <td>${z.toFixed(2)}σ</td><td>${badge}</td></tr>`;
+    }).join('') + '</tbody>';
+}
+
+// ============================================================
+// TAB 6: PROGNOSE
+// ============================================================
+function renderForecast(a) {
+  buildForecastChart(a, G.forecastMonths);
+  updateForecastKPIs(a, G.forecastMonths);
+}
+
+function linearRegression(ys) {
+  const n = ys.length;
+  const xs = ys.map((_,i) => i);
+  const sumX  = xs.reduce((s,v)=>s+v,0);
+  const sumY  = ys.reduce((s,v)=>s+v,0);
+  const sumXY = xs.reduce((s,v,i)=>s+v*ys[i],0);
+  const sumXX = xs.reduce((s,v)=>s+v*v,0);
+  const slope = (n*sumXY - sumX*sumY) / (n*sumXX - sumX*sumX);
+  const intercept = (sumY - slope*sumX) / n;
+  const residuals = ys.map((y,i) => y - (slope*i+intercept));
+  const residStd  = Math.sqrt(residuals.reduce((s,r)=>s+r*r,0)/n);
+  return { slope, intercept, residStd };
+}
+
+function buildForecastChart(a, months) {
+  destroyChart('chart-forecast');
+  const nets = a.monthKeys.map(m => a.months[m]?.net||0);
+  let cum = 0;
+  const cumActual = nets.map(v => { cum += v; return cum; });
+  const { slope, intercept, residStd } = linearRegression(nets);
+
+  const histLabels = a.monthKeys.map(monthLabel);
+  const lastIdx = a.monthKeys.length - 1;
+  const lastDate = new Date(a.monthKeys[lastIdx] + '-01');
+  const forecastLabels = [];
+  const forecastData = [];
+  const ciUpper = [];
+  const ciLower = [];
+  let runCum = cumActual[cumActual.length-1];
+  for (let i = 1; i <= months; i++) {
+    const nd = new Date(lastDate);
+    nd.setMonth(nd.getMonth() + i);
+    forecastLabels.push(nd.toLocaleDateString('de-DE',{month:'short',year:'2-digit'}));
+    const projNet = slope * (lastIdx + i) + intercept;
+    runCum += projNet;
+    forecastData.push(runCum);
+    const ci = residStd * Math.sqrt(i) * 1.96;
+    ciUpper.push(runCum + ci);
+    ciLower.push(runCum - ci);
+  }
+
+  const allLabels = [...histLabels, ...forecastLabels];
+  const historicPadded = [...cumActual, ...Array(months).fill(null)];
+  const forecastPadded = [...Array(histLabels.length-1).fill(null), cumActual[cumActual.length-1], ...forecastData];
+  const upperPadded    = [...Array(histLabels.length-1).fill(null), cumActual[cumActual.length-1], ...ciUpper];
+  const lowerPadded    = [...Array(histLabels.length-1).fill(null), cumActual[cumActual.length-1], ...ciLower];
+
+  G.charts['chart-forecast'] = new Chart(document.getElementById('chart-forecast'), {
+    type: 'line',
+    data: {
+      labels: allLabels,
+      datasets: [
+        { label:'Ist-Verlauf', data: historicPadded, borderColor:'#3b82f6', borderWidth:2.5, pointRadius:3, pointBackgroundColor:'#3b82f6', tension:.3, spanGaps:false },
+        { label:'Prognose',   data: forecastPadded, borderColor:'#f59e0b', borderWidth:2, borderDash:[6,4], pointRadius:3, pointBackgroundColor:'#f59e0b', tension:.3, spanGaps:false },
+        { label:'95% Konfidenz oben', data: upperPadded, borderColor:'rgba(245,158,11,.2)', borderWidth:1, pointRadius:0, fill:'+1', backgroundColor:'rgba(245,158,11,.08)', tension:.3, spanGaps:false },
+        { label:'95% Konfidenz unten',data: lowerPadded, borderColor:'rgba(245,158,11,.2)', borderWidth:1, pointRadius:0, tension:.3, spanGaps:false }
+      ]
+    },
+    options: { ...CHART_DEFAULTS, interaction:{mode:'index',intersect:false},
+      scales: { x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#64748b',font:{size:10}}}, y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#64748b',font:{size:10},callback:v=>fmtNum(v)+'€'}} },
+      plugins: { ...CHART_DEFAULTS.plugins, tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`}},
+        annotation: {} } }
+  });
+
+  updateForecastKPIs(a, months, forecastData, nets);
+}
+
+function updateForecastKPIs(a, months, forecastData, nets) {
+  if (!forecastData || !nets) return;
+  const { slope } = linearRegression(nets);
+  const projNet3  = forecastData[Math.min(2,forecastData.length-1)] - (G.analyzed.netBalance||0);
+  const projNet12 = forecastData[forecastData.length-1] - (G.analyzed.netBalance||0);
+  document.getElementById('forecast-kpis').innerHTML = [
+    { label:'Trend (monatlich)', value: fmt(slope), cls: slope>=0?'income':'expense', sub: slope>=0?'Wachsend':'Abnehmend' },
+    { label:`Proj. Zuwachs (${months}M)`, value: fmt(forecastData[forecastData.length-1]-(G.analyzed.netBalance||0)), cls:'invest', sub:`Endwert: ${fmt(forecastData[forecastData.length-1])}` },
+    { label:'Basis-Saldo', value: fmt(G.analyzed.netBalance), cls: G.analyzed.netBalance>=0?'income':'expense', sub:`Über ${a.monthKeys.length} Monate` }
+  ].map(k =>
+    `<div class="kpi-card ${k.cls}"><div class="kpi-label">${k.label}</div>
+     <div class="kpi-value ${k.cls}" style="font-size:1.4rem">${k.value}</div>
+     <div class="kpi-sub">${k.sub}</div></div>`
+  ).join('');
+}
+
+function setForecast(months, btn) {
+  G.forecastMonths = months;
+  document.querySelectorAll('#tab-5 .controls .ctrl-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const nets = G.analyzed.monthKeys.map(m => G.analyzed.months[m]?.net||0);
+  let cum = 0;
+  const cumActual = nets.map(v=>{cum+=v;return cum;});
+  const { slope, intercept, residStd } = linearRegression(nets);
+  const lastIdx = G.analyzed.monthKeys.length-1;
+  const lastDate = new Date(G.analyzed.monthKeys[lastIdx]+'-01');
+  const fd=[], fu=[], fl=[];
+  let rc = cumActual[cumActual.length-1];
+  for (let i=1;i<=months;i++){
+    const pn=slope*(lastIdx+i)+intercept; rc+=pn; fd.push(rc);
+    const ci=residStd*Math.sqrt(i)*1.96; fu.push(rc+ci); fl.push(rc-ci);
+  }
+  buildForecastChart(G.analyzed, months);
+}
+
+// ============================================================
+// TAB 7: VERGLEICH
+// ============================================================
+function loadCompareFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows2 = parseCSV(e.target.result);
+    G.compareData = analyzeFinancial(rows2);
+    document.getElementById('compare-comp-name').textContent = file.name;
+    document.getElementById('compare-base-name').textContent = G.fileName;
+    renderCompare(G.analyzed, G.compareData);
+    document.getElementById('compare-upload-area').style.display = 'none';
+    document.getElementById('compare-content').style.display = 'block';
+  };
+  reader.readAsText(file);
+}
+
+function renderCompare(a1, a2) {
+  const kpiDef = [
+    { label:'Einnahmen',  v1: a1.totalIncome,           v2: a2.totalIncome },
+    { label:'Ausgaben',   v1: Math.abs(a1.totalExpense), v2: Math.abs(a2.totalExpense) },
+    { label:'Saldo',      v1: a1.netBalance,             v2: a2.netBalance },
+    { label:'Investiert', v1: a1.totalInvested,          v2: a2.totalInvested },
+    { label:'Dividenden', v1: a1.totalDividend,          v2: a2.totalDividend },
+  ];
+
+  const mismatched = Object.keys(a1.colInfo).sort().join() !== Object.keys(a2.colInfo).sort().join();
+  if (mismatched) {
+    document.getElementById('compare-content').insertAdjacentHTML('afterbegin',
+      '<div class="risk-row" style="margin-bottom:1rem"><div class="risk-dot yellow"></div><div class="risk-desc"><strong>Hinweis:</strong> Die Spaltenstruktur der Dateien unterscheidet sich. Vergleich erfolgt auf Basis gemeinsamer Spalten.</div></div>'
+    );
+  }
+
+  document.getElementById('compare-base-kpis').innerHTML = kpiDef.map(k =>
+    `<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
+     <span style="color:var(--text-muted)">${k.label}</span><strong>${fmt(k.v1)}</strong></div>`
+  ).join('');
+
+  document.getElementById('compare-comp-kpis').innerHTML = kpiDef.map(k =>
+    `<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
+     <span style="color:var(--text-muted)">${k.label}</span><strong>${fmt(k.v2)}</strong></div>`
+  ).join('');
+
+  // Combined bar chart
+  const commonMonths = [...new Set([...a1.monthKeys, ...a2.monthKeys])].sort().slice(-12);
+  destroyChart('chart-compare');
+  G.charts['chart-compare'] = new Chart(document.getElementById('chart-compare'), {
+    type: 'bar',
+    data: {
+      labels: commonMonths.map(monthLabel),
+      datasets: [
+        { label:'Basis: Netto',     data: commonMonths.map(m => a1.months[m]?.net||0),  backgroundColor:'rgba(59,130,246,.7)',  borderRadius:3 },
+        { label:'Vergleich: Netto', data: commonMonths.map(m => a2.months[m]?.net||null), backgroundColor:'rgba(139,92,246,.7)', borderRadius:3 }
+      ]
+    },
+    options: { ...CHART_DEFAULTS, scales: darkScales(), plugins:{...CHART_DEFAULTS.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`}}} }
+  });
+
+  // Delta table
+  const rows = kpiDef.map(k => {
+    const delta = k.v2 - k.v1;
+    const pct = k.v1 !== 0 ? delta/Math.abs(k.v1)*100 : 0;
+    return `<tr><td>${k.label}</td><td>${fmt(k.v1)}</td><td>${fmt(k.v2)}</td>
+      <td class="${delta>=0?'delta-positive':'delta-negative'}">${delta>=0?'+':''}${fmt(delta)}</td>
+      <td class="${pct>=0?'delta-positive':'delta-negative'}">${fmtPct(pct)}</td></tr>`;
+  }).join('');
+  document.getElementById('compare-delta-table').innerHTML =
+    `<thead><tr><th>Kennzahl</th><th>Basis</th><th>Vergleich</th><th>Delta</th><th>Änderung</th></tr></thead><tbody>${rows}</tbody>`;
+}
+
+// ============================================================
+// TAB 8: EMPFEHLUNGEN
+// ============================================================
+function renderRecommendations(a) {
+  const recs = [];
+
+  // 1. Saldo
+  if (a.netBalance < 0) {
+    recs.push({ level:'red', priority:1, title:'Ausgaben übersteigen Einnahmen', action:`Ihr Netto-Saldo ist negativ (${fmt(a.netBalance)}). Analysieren Sie Ihre größten Ausgabenposten und reduzieren Sie nicht-notwendige Kosten. Ziel: positiver monatlicher Cashflow.` });
+  } else {
+    recs.push({ level:'green', priority:5, title:'Positiver Cashflow', action:`Ihr Netto-Saldo ist positiv: ${fmt(a.netBalance)}. Weiterhin so wirtschaften und Überschüsse gezielt anlegen.` });
+  }
+
+  // 2. Investitionsquote
+  const investRatio = a.totalInvested / (a.totalIncome||1) * 100;
+  if (investRatio < 10) {
+    recs.push({ level:'yellow', priority:2, title:'Niedrige Investitionsquote', action:`Nur ${investRatio.toFixed(1)}% des Einkommens fließen in Investitionen. Empfehlung: mindestens 15–20% des Nettoeinkommens anlegen (Sparplan-Strategie).` });
+  } else if (investRatio >= 20) {
+    recs.push({ level:'green', priority:6, title:'Starke Investitionsquote', action:`${investRatio.toFixed(1)}% des Einkommens werden investiert — hervorragend. Diversifikation über Asset-Klassen im Blick behalten.` });
+  } else {
+    recs.push({ level:'yellow', priority:4, title:'Moderate Investitionsquote', action:`${investRatio.toFixed(1)}% des Einkommens fließen in Investitionen. Steigerung Richtung 20%+ empfohlen.` });
+  }
+
+  // 3. Dividendenstrategie
+  const divYield = a.totalDividend / (a.totalInvested||1) * 100;
+  if (a.totalDividend > 0) {
+    recs.push({ level:'green', priority:3, title:'Dividenden-Einkommensstrom', action:`${fmt(a.totalDividend)} Dividenden erhalten (${divYield.toFixed(1)}% auf investiertes Kapital). Dividenden-Reinvestition steigert den Zinseszinseffekt erheblich.` });
+  }
+
+  // 4. Gebühren
+  if (a.totalFees > 0) {
+    const feeRatio = a.totalFees / a.totalInvested * 100;
+    if (feeRatio > 0.5) {
+      recs.push({ level:'yellow', priority:2, title:'Handelsgebühren optimieren', action:`${fmt(a.totalFees)} Gebühren (${feeRatio.toFixed(2)}% auf Investitionen). Sparpläne statt Einzelorders wo möglich nutzen; manche Broker bieten kostenlose Sparpläne an.` });
+    }
+  }
+
+  // 5. Steuern
+  if (a.totalTax > 0) {
+    recs.push({ level:'yellow', priority:3, title:'Kapitalertragsteuer prüfen', action:`${fmt(a.totalTax)} Kapitalertragsteuer angefallen. Freistellungsauftrag (801€/1602€ für Ehepaare) beim Broker eintragen, sofern noch nicht geschehen.` });
+  }
+
+  // 6. Große Einzel-Ausgaben
+  const bigExpenses = a.expenseRows.filter(r=>Math.abs(r._amount)>500);
+  if (bigExpenses.length > 0) {
+    const bigSum = bigExpenses.reduce((s,r)=>s+Math.abs(r._amount),0);
+    recs.push({ level:'yellow', priority:2, title:'Große Einzel-Ausgaben', action:`${bigExpenses.length} Transaktionen über 500€ (Gesamt: ${fmt(bigSum)}). Prüfen Sie, ob diese geplant und notwendig waren. Notfallrücklage von 3–6 Monatsgehältern empfohlen.` });
+  }
+
+  // 7. Regelmäßige Abbuchungen
+  const directDebits = a.cashRows.filter(r=>r._type==='TRANSFER_DIRECT_DEBIT_INBOUND');
+  if (directDebits.length > 0) {
+    const ddSum = directDebits.reduce((s,r)=>s+Math.abs(r._amount),0);
+    recs.push({ level:'yellow', priority:3, title:'Lastschriften & Abonnements', action:`${directDebits.length} Lastschriften für ${fmt(ddSum)} erkannt. Überprüfen Sie regelmäßig alle laufenden Abonnements auf Notwendigkeit.` });
+  }
+
+  // 8. Monatliche Volatilität
+  const nets = a.monthKeys.map(m=>a.months[m]?.net||0);
+  const netStd = Math.sqrt(nets.reduce((s,v)=>s+Math.pow(v-a.avgMonthlyNet,2),0)/nets.length);
+  if (netStd > Math.abs(a.avgMonthlyNet) * 2) {
+    recs.push({ level:'yellow', priority:3, title:'Hohe Cashflow-Volatilität', action:`Ihr monatlicher Cashflow schwankt stark (σ = ${fmt(netStd)}). Unregelmäßiges Einkommen oder saisonale Ausgaben — Rücklagen-Puffer empfohlen.` });
+  }
+
+  // 9. Diversifikation Dividenden
+  if (Object.keys(a.byAsset).length > 5) {
+    recs.push({ level:'green', priority:5, title:'Gute Dividenden-Diversifikation', action:`${Object.keys(a.byAsset).length} verschiedene Dividendenzahler im Portfolio — gute Streuung. Klumpenrisiko vermeiden: kein Einzeltitel >20% des Dividendeneinkommens.` });
+  }
+
+  // Sort by priority
+  recs.sort((a,b) => a.priority-b.priority);
+
+  document.getElementById('recommendations-list').innerHTML =
+    `<div style="margin-bottom:1rem;color:var(--text-muted);font-size:.85rem;">
+       ${recs.length} Empfehlungen — sortiert nach Relevanz
+     </div>` +
+    recs.map((r,i) => `
+      <div class="risk-row" style="margin-bottom:.8rem;">
+        <div class="risk-dot ${r.level}"></div>
+        <div style="flex:1">
+          <div class="risk-title" style="display:flex;align-items:center;gap:.5rem;">
+            ${r.title}
+            <span class="badge ${r.level==='red'?'badge-red':r.level==='green'?'badge-green':'badge-yellow'}">${r.level==='red'?'Kritisch':r.level==='green'?'Positiv':'Empfohlen'}</span>
+          </div>
+          <div class="risk-desc">${r.action}</div>
+        </div>
+      </div>`
+    ).join('');
+}
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+const TAB_RENDERERS = [null, renderTimeline, renderMonthly, renderCategories, renderOutliers, renderForecast, null, renderRecommendations];
+const tabsRendered = new Set([0]);
+
+function showTab(idx) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+  document.querySelectorAll('.tab-content').forEach((c,i) => c.classList.toggle('active', i===idx));
+  if (!tabsRendered.has(idx) && TAB_RENDERERS[idx]) {
+    TAB_RENDERERS[idx](G.analyzed);
+    tabsRendered.add(idx);
+  }
+}
+
+// ============================================================
+// INIT & UPLOAD
+// ============================================================
+function initDashboard(text, filename) {
+  const rows = parseCSV(text);
+  if (!rows.length) { alert('Keine Daten gefunden.'); return; }
+  G.rows = rows;
+  G.fileName = filename;
+  G.analyzed = analyzeFinancial(rows);
+  G.charts = {};
+  tabsRendered.clear(); tabsRendered.add(0);
+
+  document.getElementById('topbar-filename').textContent = filename;
+  document.getElementById('upload-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  renderOverview(G.analyzed);
+}
+
+function resetDashboard() {
+  // Destroy all charts
+  Object.values(G.charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  G = { rows:[], analyzed:null, charts:{}, forecastMonths:3, timelineView:'daily', compareData:null, fileName:'' };
+  tabsRendered.clear();
+  document.getElementById('upload-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  // Reset compare tab
+  document.getElementById('compare-upload-area').style.display = 'block';
+  document.getElementById('compare-content').style.display = 'none';
+  showTab(0);
+}
+
+// File input
+document.getElementById('file-input').addEventListener('change', function() {
+  if (!this.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => initDashboard(e.target.result, this.files[0].name);
+  reader.readAsText(this.files[0]);
+});
+
+// Drag & drop
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => initDashboard(ev.target.result, file.name);
+  reader.readAsText(file);
+});
+</script>
+</body>
+</html>
