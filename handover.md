@@ -197,10 +197,17 @@ Ziel: schrittweiser Umbau auf TypeScript + Komponenten + State-Store, ohne die l
     - Transaktions-Filter (`tx-year`, `tx-search` etc.) existieren heute NUR als DOM-Werte, nirgends in JS — der Store bildet sie erstmals als echten State ab
   - `appStore.ts` — `createAppStore()` liefert `{ store, actions }`; Actions bilden 1:1 die heutigen Verhaltensdetails nach, z.B. dass `cmpMetric` beim Laden/Zurücksetzen einer Vergleichsdatei **nicht** zurückgesetzt wird (nur `resetAll()` tut das), oder dass jede Filter-/Sortierungsänderung bei Transaktionen die Pagination auf Seite 0 zurücksetzt
   - **Wie Phase 1:** noch nicht in `index.html` verdrahtet — reine, unit-getestete Infrastruktur, die Phase 3 anzapft
-- **Phase 3 (offen):** Tabs einzeln auf Komponenten umstellen (Reihenfolge: Transaktionen → Übersicht → Kategorien/Jahre/Monate → Ausreißer/Prognose → Deep-Dive/Vergleich → Empfehlungen).
+- **Phase 3 (gestartet, Transaktionen fertig):** Tabs einzeln auf Komponenten umstellen. Als Rendering-Library kommt **lit-html** zum Einsatz (~5kb, Template-Literal-basiert, kein virtuelles DOM, keine transitiven Dependencies) — passt zum bisherigen "Funktion baut Markup"-Stil, aber mit gezieltem statt komplettem Re-Render und echten Event-Listenern statt `onclick="..."`-Strings.
+  - `src/features/transactions/selectors.ts` — reine, DOM-freie Logik (Filtern, Sortieren, Paginieren, KPI-Berechnung), 1:1 aus `applyTxFilters()`/`renderTxKpis()`/`renderTxPage()` portiert, aber jede Funktion einzeln unit-testbar (21 Tests)
+  - `src/features/transactions/TransactionsView.ts` — die lit-html-Komponente selbst, abonniert den Store, rendert bei jeder Änderung neu
+  - `src/styles/base.css` — **neu**, extrahiert nur die von diesem Tab benötigten CSS-Regeln aus `index.html`s Inline-`<style>`. `index.html` bleibt unangetastet und behält ihre eigene Kopie; diese Datei ist der Grundstock für das, was Phase 5 später komplett übernehmen wird
+  - `src/dev/transactions-preview.{html,ts}` — eigenständige Vite-Entry-Seite zum Anschauen/Testen der Komponente in echt (CSV hochladen, Filter/Sortierung/Pagination live ausprobieren), ohne `index.html` anzurühren
+  - `vite.config.ts` erweitert um einen zweiten Rollup-Input (`src/dev/transactions-preview.html`) — verifiziert, dass `dist/index.html` dadurch **nicht** verändert wird (weiterhin byte-identisch)
+  - **Wichtiger Erkenntnisgewinn beim Testen:** ES-Module lassen sich nicht über `file://` laden (CORS-Block, `origin 'null'`) — anders als die bisherige `index.html` mit ihrem reinen, nicht-modularen `<script>`. Für Playwright-Tests gegen die neue Komponente muss `vite preview` (oder `vite dev`) einen echten HTTP-Server bereitstellen. Relevant für Phase 5: der Cutover-Workflow braucht ohnehin schon HTTP-Deployment (GitHub Pages), betrifft also nur lokales Testen.
+  - Noch offen: restliche Tabs (Übersicht → Kategorien/Jahre/Monate → Ausreißer/Prognose → Deep-Dive/Vergleich → Empfehlungen)
 - **Phase 4 (offen):** IndexedDB-Persistenz.
 - **Phase 5 (offen):** Cutover — `index.html`s Inline-Script wird durch den `src/`-Bundle ersetzt, Pages-Source wird auf den neuen Workflow umgestellt.
 
 ## Offene PRs
 
-- PR #14: Deep-Dive Fixes, Transaktionen-Tab, Vergleich-Fix, Handover-Docs, V2-Migration Phase 0+1
+- PR #14: Deep-Dive Fixes, Transaktionen-Tab, Vergleich-Fix, Handover-Docs, V2-Migration Phase 0–3
