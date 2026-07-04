@@ -308,7 +308,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="card" style="margin-bottom:1.2rem;">
         <div class="card-header">
           <span class="card-title">Veränderungen zum Vormonat</span>
-          <div class="controls" id="mc-detail-month-controls"></div>
+          <select id="mc-month-select" onchange="setMCMonth(this.value)" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.35rem .6rem;color:var(--text);font-size:.78rem;cursor:pointer;outline:none;"></select>
         </div>
         <div id="mc-changes"></div>
       </div>
@@ -582,7 +582,7 @@ function analyze(rows) {
     return{...r,_amt:amt,_fee:fee,_tax:tax,_date:date,_month:month,_year:year,
            _type:type,_cat:cat,_name:name,_asset:asset,_desc:desc,
            _isBuy:isBuy,_isSell:isSell,_isDiv:isDiv,_isInterest:isInterest,_isCard:isCard};
-  }).filter(r=>r._date&&r._date>=new Date('2023-01-01'));
+  }).filter(r=>r._date&&r._date>=new Date('2024-01-01'));
   enriched.sort((a,b)=>a._date-b._date);
 
   const cash=enriched.filter(r=>!r._isBuy&&!r._isSell);
@@ -1527,8 +1527,8 @@ function renderMCDashboard() {
 
   document.getElementById('mc-subtitle').textContent = `${n} Monate: ${mLabel(months[0])} bis ${mLabel(months[n - 1])}`;
 
-  document.getElementById('mc-detail-month-controls').innerHTML = months.slice(1).map(m =>
-    `<button class="cb${m === MC.selectedMonth ? ' active' : ''}" onclick="setMCMonth('${m}',this)">${mLabel(m)}</button>`
+  document.getElementById('mc-month-select').innerHTML = months.slice(1).map(m =>
+    `<option value="${m}"${m === MC.selectedMonth ? ' selected' : ''}>${mLabel(m)}</option>`
   ).join('');
 
   renderMCKpis(months);
@@ -1543,10 +1543,8 @@ function renderMCDashboard() {
   renderMCDetailTable(months);
 }
 
-function setMCMonth(month, btn) {
+function setMCMonth(month) {
   MC.selectedMonth = month;
-  document.querySelectorAll('#mc-detail-month-controls .cb').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
   renderMCChanges(month);
 }
 
