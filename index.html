@@ -166,14 +166,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="topbar-logo">FinanceIQ</div>
     <button class="tab-btn active" onclick="showTab(0)">📊 Übersicht</button>
     <button class="tab-btn" onclick="showTab(1)">📈 Zeitverlauf</button>
-    <button class="tab-btn" onclick="showTab(2)" id="tab-btn-2">📆 Jahres</button>
-    <button class="tab-btn" onclick="showTab(3)">📅 Monate</button>
-    <button class="tab-btn" onclick="showTab(4)">🏷️ Kategorien</button>
-    <button class="tab-btn" onclick="showTab(5)">⚠️ Ausreißer</button>
-    <button class="tab-btn" onclick="showTab(6)">🔮 Prognose</button>
-    <button class="tab-btn" onclick="showTab(7)">⚖️ Vergleich</button>
-    <button class="tab-btn" onclick="showTab(8)">💡 Empfehlungen</button>
-    <button class="tab-btn" onclick="showTab(9)">🔄 Monatsvergleich</button>
+    <button class="tab-btn" onclick="showTab(2)">🔍 Deep-Dive</button>
+    <button class="tab-btn" onclick="showTab(3)" id="tab-btn-3">📆 Jahre</button>
+    <button class="tab-btn" onclick="showTab(4)">📅 Monate</button>
+    <button class="tab-btn" onclick="showTab(5)">🏷️ Kategorien</button>
+    <button class="tab-btn" onclick="showTab(6)">⚠️ Ausreißer</button>
+    <button class="tab-btn" onclick="showTab(7)">🔮 Prognose</button>
+    <button class="tab-btn" onclick="showTab(8)">⚖️ Vergleich</button>
+    <button class="tab-btn" onclick="showTab(9)">💡 Empfehlungen</button>
     <div class="topbar-reload" onclick="resetDashboard()">⟳ Neue Datei</div>
   </div>
 
@@ -192,12 +192,32 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <div class="g2" style="margin-bottom:1.2rem;">
       <div class="card">
+        <div class="card-header"><span class="card-title">Monatlicher Trend — Sparquote</span></div>
+        <div class="chart-wrap short"><canvas id="c-ov-sr"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Top-5 Ausgabenkategorien</span></div>
+        <div class="chart-wrap short"><canvas id="c-ov-catbar"></canvas></div>
+      </div>
+    </div>
+    <div class="g2" style="margin-bottom:1.2rem;">
+      <div class="card">
         <div class="card-header"><span class="card-title">Finanz-Kennzahlen</span></div>
         <div id="ov-ratios"></div>
       </div>
       <div class="card">
         <div class="card-header"><span class="card-title">Top-Händler / Empfänger</span></div>
         <table class="dt" id="ov-merchants"></table>
+      </div>
+    </div>
+    <div class="g2" style="margin-bottom:1.2rem;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Einnahmenquellen</span></div>
+        <div id="ov-income-sources"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Wiederkehrende Ausgaben</span></div>
+        <div id="ov-recurring"></div>
       </div>
     </div>
     <div class="card" style="margin-bottom:1.2rem;">
@@ -246,166 +266,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
   </div>
 
-  <!-- TAB 2: JAHRES-BREAKDOWN -->
+  <!-- TAB 2: DEEP-DIVE -->
   <div class="tab-content" id="tab-2">
-    <div id="yearly-content"></div>
-  </div>
-
-  <!-- TAB 3: MONATS-BREAKDOWN -->
-  <div class="tab-content" id="tab-3">
-    <div class="card" style="margin-bottom:1.2rem;">
-      <div class="card-header"><span class="card-title">Einnahmen, Ausgaben &amp; Investitionen je Monat</span></div>
-      <div class="chart-wrap tall"><canvas id="c-mo-grouped"></canvas></div>
-    </div>
-    <div class="g2" style="margin-bottom:1.2rem;">
-      <div class="card">
-        <div class="card-header"><span class="card-title">Kumulierter Netto-Saldo</span></div>
-        <div class="chart-wrap"><canvas id="c-mo-cum"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Monatliche Sparquote</span></div>
-        <div class="chart-wrap"><canvas id="c-mo-savings"></canvas></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Monatliche Detailübersicht</span></div>
-      <div style="overflow-x:auto"><table class="dt" id="mo-table"></table></div>
-    </div>
-  </div>
-
-  <!-- TAB 4: KATEGORIEN -->
-  <div class="tab-content" id="tab-4">
-    <div class="g2" style="margin-bottom:1.2rem;">
-      <div class="card">
-        <div class="card-header"><span class="card-title">Ausgaben nach Typ</span></div>
-        <div class="chart-wrap"><canvas id="c-cat-donut"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Ranking &amp; Anteil</span></div>
-        <ul class="leg" id="cat-leg"></ul>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:1.2rem;">
-      <div class="card-header"><span class="card-title">Einnahmen &amp; Ausgaben je Kategorie</span></div>
-      <div class="chart-wrap tall"><canvas id="c-cat-bar"></canvas></div>
-    </div>
-    <div class="g2" style="margin-bottom:1.2rem;">
-      <div class="card">
-        <div class="card-header"><span class="card-title">Investitionen nach Asset-Klasse</span></div>
-        <div class="chart-wrap short"><canvas id="c-cat-asset"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Top-Händler (Kartenzahlungen)</span></div>
-        <div style="overflow-x:auto"><table class="dt" id="cat-merchants"></table></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Dividenden nach Wertpapier</span></div>
-      <div style="overflow-x:auto"><table class="dt" id="cat-divs"></table></div>
-    </div>
-  </div>
-
-  <!-- TAB 5: AUSREISSER -->
-  <div class="tab-content" id="tab-5">
-    <div class="g4" id="out-kpis" style="margin-bottom:1.2rem;"></div>
-    <div class="g2" style="margin-bottom:1.2rem;">
-      <div class="card">
-        <div class="card-header"><span class="card-title">Risikoampel</span></div>
-        <div id="out-lights"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Erkannte Abonnements / Wiederkehrende Beträge</span></div>
-        <div style="overflow-x:auto"><table class="dt" id="out-subs"></table></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Statistische Ausreißer (&gt;2σ vom Durchschnitt)</span></div>
-      <div style="overflow-x:auto"><table class="dt" id="out-table"></table></div>
-    </div>
-  </div>
-
-  <!-- TAB 6: PROGNOSE -->
-  <div class="tab-content" id="tab-6">
-    <div class="card" style="margin-bottom:1.2rem;">
-      <div class="card-header">
-        <span class="card-title">Cashflow-Prognose (Lineartrend + Konfidenzband)</span>
-        <div class="controls" id="fc-controls">
-          <button class="cb active" onclick="setForecast(3,this)">3 Monate</button>
-          <button class="cb" onclick="setForecast(6,this)">6 Monate</button>
-          <button class="cb" onclick="setForecast(12,this)">12 Monate</button>
-        </div>
-      </div>
-      <div class="chart-wrap tall"><canvas id="c-fc-main"></canvas></div>
-    </div>
-    <div class="g3" id="fc-kpis" style="margin-bottom:1.2rem;"></div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Szenarien &amp; Milestones</span></div>
-      <div id="fc-scenarios"></div>
-    </div>
-  </div>
-
-  <!-- TAB 7: VERGLEICH -->
-  <div class="tab-content" id="tab-7">
-    <div id="cmp-upload-area">
-      <div class="card" style="max-width:520px;">
-        <div class="card-header"><span class="card-title">Vergleichsdatei hochladen</span></div>
-        <div class="section-note">Lade eine zweite CSV-Datei (z.B. Vorjahr) für einen direkten Jahresvergleich mit monatlichen Deltas, Kategorien-Analyse und automatisch generierten Erkenntnissen.</div>
-        <div class="upload2" id="upload2-zone">
-          <input type="file" id="file-input-2" accept=".csv" onchange="loadCompareFile(this)">
-          <div style="font-size:2rem;margin-bottom:.5rem;">📂</div>
-          <div style="font-size:.9rem;font-weight:600;margin-bottom:.3rem;">Zweite CSV auswählen</div>
-          <div style="font-size:.77rem;color:var(--text-muted);">Gleiche Spaltenstruktur empfohlen (z.B. Vorjahresdatei)</div>
-        </div>
-      </div>
-    </div>
-    <div id="cmp-content" style="display:none;">
-      <div class="compare-header">
-        <div class="compare-title" id="cmp-headline">Vergleich</div>
-        <button class="cb" onclick="resetCompare()">× Vergleich zurücksetzen</button>
-      </div>
-      <!-- KPI 3-column: Basis | Delta | Vergleich -->
-      <div style="margin-bottom:1.2rem;" id="cmp-kpi-section"></div>
-      <!-- Charts -->
-      <div class="card" style="margin-bottom:1.2rem;">
-        <div class="card-header">
-          <span class="card-title">Monatlicher Vergleich — Einnahmen</span>
-          <div class="controls" id="cmp-metric-controls">
-            <button class="cb active" onclick="setCmpMetric('income',this)">Einnahmen</button>
-            <button class="cb" onclick="setCmpMetric('expense',this)">Ausgaben</button>
-            <button class="cb" onclick="setCmpMetric('net',this)">Netto</button>
-            <button class="cb" onclick="setCmpMetric('invested',this)">Investitionen</button>
-          </div>
-        </div>
-        <div class="chart-wrap tall"><canvas id="c-cmp-monthly"></canvas></div>
-      </div>
-      <div class="card" style="margin-bottom:1.2rem;">
-        <div class="card-header"><span class="card-title">Monatliches Delta (Vergleich minus Basis)</span></div>
-        <div class="chart-wrap"><canvas id="c-cmp-delta"></canvas></div>
-      </div>
-      <div class="g2" style="margin-bottom:1.2rem;">
-        <div class="card">
-          <div class="card-header"><span class="card-title">Kategorie-Vergleich</span></div>
-          <div class="chart-wrap tall"><canvas id="c-cmp-cat"></canvas></div>
-        </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title">Automatische Erkenntnisse</span></div>
-          <div id="cmp-insights"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Vollständige KPI-Gegenüberstellung</span></div>
-        <div style="overflow-x:auto"><table class="dt" id="cmp-delta-table"></table></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB 8: EMPFEHLUNGEN -->
-  <div class="tab-content" id="tab-8">
-    <div id="rec-list"></div>
-  </div>
-
-  <!-- TAB 9: MONATSVERGLEICH -->
-  <div class="tab-content" id="tab-9">
     <div id="mc-loading" style="text-align:center;padding:3rem;">
       <div style="font-size:2rem;margin-bottom:1rem;">⏳</div>
       <div style="font-size:1rem;color:var(--text-muted);">Lade monatliche Snapshots…</div>
@@ -418,7 +280,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div id="mc-content" style="display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;">
         <div>
-          <div style="font-size:1.2rem;font-weight:800;letter-spacing:-.5px;">Monatsvergleich — Einnahmen & Ausgaben</div>
+          <div style="font-size:1.2rem;font-weight:800;letter-spacing:-.5px;">Deep-Dive — Einnahmen & Ausgaben</div>
           <div style="font-size:.78rem;color:var(--text-muted);margin-top:.2rem;" id="mc-subtitle"></div>
         </div>
       </div>
@@ -500,6 +362,162 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <div style="overflow-x:auto"><table class="dt" id="mc-detail-table"></table></div>
       </div>
     </div>
+  </div>
+
+  <!-- TAB 3: JAHRES-BREAKDOWN -->
+  <div class="tab-content" id="tab-3">
+    <div id="yearly-content"></div>
+  </div>
+
+  <!-- TAB 4: MONATS-BREAKDOWN -->
+  <div class="tab-content" id="tab-4">
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header"><span class="card-title">Einnahmen, Ausgaben &amp; Investitionen je Monat</span></div>
+      <div class="chart-wrap tall"><canvas id="c-mo-grouped"></canvas></div>
+    </div>
+    <div class="g2" style="margin-bottom:1.2rem;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Kumulierter Netto-Saldo</span></div>
+        <div class="chart-wrap"><canvas id="c-mo-cum"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Monatliche Sparquote</span></div>
+        <div class="chart-wrap"><canvas id="c-mo-savings"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Monatliche Detailübersicht</span></div>
+      <div style="overflow-x:auto"><table class="dt" id="mo-table"></table></div>
+    </div>
+  </div>
+
+  <!-- TAB 5: KATEGORIEN -->
+  <div class="tab-content" id="tab-5">
+    <div class="g2" style="margin-bottom:1.2rem;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Ausgaben nach Typ</span></div>
+        <div class="chart-wrap"><canvas id="c-cat-donut"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Ranking &amp; Anteil</span></div>
+        <ul class="leg" id="cat-leg"></ul>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header"><span class="card-title">Einnahmen &amp; Ausgaben je Kategorie</span></div>
+      <div class="chart-wrap tall"><canvas id="c-cat-bar"></canvas></div>
+    </div>
+    <div class="g2" style="margin-bottom:1.2rem;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Investitionen nach Asset-Klasse</span></div>
+        <div class="chart-wrap short"><canvas id="c-cat-asset"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Top-Händler (Kartenzahlungen)</span></div>
+        <div style="overflow-x:auto"><table class="dt" id="cat-merchants"></table></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Dividenden nach Wertpapier</span></div>
+      <div style="overflow-x:auto"><table class="dt" id="cat-divs"></table></div>
+    </div>
+  </div>
+
+  <!-- TAB 6: AUSREISSER -->
+  <div class="tab-content" id="tab-6">
+    <div class="g4" id="out-kpis" style="margin-bottom:1.2rem;"></div>
+    <div class="g2" style="margin-bottom:1.2rem;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Risikoampel</span></div>
+        <div id="out-lights"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Erkannte Abonnements / Wiederkehrende Beträge</span></div>
+        <div style="overflow-x:auto"><table class="dt" id="out-subs"></table></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Statistische Ausreißer (&gt;2σ vom Durchschnitt)</span></div>
+      <div style="overflow-x:auto"><table class="dt" id="out-table"></table></div>
+    </div>
+  </div>
+
+  <!-- TAB 7: PROGNOSE -->
+  <div class="tab-content" id="tab-7">
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header">
+        <span class="card-title">Cashflow-Prognose (Lineartrend + Konfidenzband)</span>
+        <div class="controls" id="fc-controls">
+          <button class="cb active" onclick="setForecast(3,this)">3 Monate</button>
+          <button class="cb" onclick="setForecast(6,this)">6 Monate</button>
+          <button class="cb" onclick="setForecast(12,this)">12 Monate</button>
+        </div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="c-fc-main"></canvas></div>
+    </div>
+    <div class="g3" id="fc-kpis" style="margin-bottom:1.2rem;"></div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Szenarien &amp; Milestones</span></div>
+      <div id="fc-scenarios"></div>
+    </div>
+  </div>
+
+  <!-- TAB 8: VERGLEICH -->
+  <div class="tab-content" id="tab-8">
+    <div id="cmp-upload-area">
+      <div class="card" style="max-width:520px;">
+        <div class="card-header"><span class="card-title">Vergleichsdatei hochladen</span></div>
+        <div class="section-note">Lade eine zweite CSV-Datei (z.B. Vorjahr) für einen direkten Jahresvergleich mit monatlichen Deltas, Kategorien-Analyse und automatisch generierten Erkenntnissen.</div>
+        <div class="upload2" id="upload2-zone">
+          <input type="file" id="file-input-2" accept=".csv" onchange="loadCompareFile(this)">
+          <div style="font-size:2rem;margin-bottom:.5rem;">📂</div>
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:.3rem;">Zweite CSV auswählen</div>
+          <div style="font-size:.77rem;color:var(--text-muted);">Gleiche Spaltenstruktur empfohlen (z.B. Vorjahresdatei)</div>
+        </div>
+      </div>
+    </div>
+    <div id="cmp-content" style="display:none;">
+      <div class="compare-header">
+        <div class="compare-title" id="cmp-headline">Vergleich</div>
+        <button class="cb" onclick="resetCompare()">× Vergleich zurücksetzen</button>
+      </div>
+      <div style="margin-bottom:1.2rem;" id="cmp-kpi-section"></div>
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-header">
+          <span class="card-title">Monatlicher Vergleich — Einnahmen</span>
+          <div class="controls" id="cmp-metric-controls">
+            <button class="cb active" onclick="setCmpMetric('income',this)">Einnahmen</button>
+            <button class="cb" onclick="setCmpMetric('expense',this)">Ausgaben</button>
+            <button class="cb" onclick="setCmpMetric('net',this)">Netto</button>
+            <button class="cb" onclick="setCmpMetric('invested',this)">Investitionen</button>
+          </div>
+        </div>
+        <div class="chart-wrap tall"><canvas id="c-cmp-monthly"></canvas></div>
+      </div>
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-header"><span class="card-title">Monatliches Delta (Vergleich minus Basis)</span></div>
+        <div class="chart-wrap"><canvas id="c-cmp-delta"></canvas></div>
+      </div>
+      <div class="g2" style="margin-bottom:1.2rem;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Kategorie-Vergleich</span></div>
+          <div class="chart-wrap tall"><canvas id="c-cmp-cat"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Automatische Erkenntnisse</span></div>
+          <div id="cmp-insights"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Vollständige KPI-Gegenüberstellung</span></div>
+        <div style="overflow-x:auto"><table class="dt" id="cmp-delta-table"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 9: EMPFEHLUNGEN -->
+  <div class="tab-content" id="tab-9">
+    <div id="rec-list"></div>
   </div>
 </div>
 
@@ -744,14 +762,38 @@ function renderOverview(a) {
     datasets:[{data:te.map(([,v])=>v.income+Math.abs(v.expense)),backgroundColor:PAL.slice(0,te.length),borderWidth:0}]},
     options:{...BASE,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:10},boxWidth:10}}}}});
 
+  // Savings rate trend chart
+  const srData=a.mKeys.map(mk=>{const m=a.months[mk];return m.income>0?m.net/m.income*100:0;});
+  mkChart('c-ov-sr',{type:'line',data:{labels:a.mKeys.map(mLabel),datasets:[
+    {label:'Sparquote',data:srData,borderColor:'#f59e0b',borderWidth:2,pointRadius:3,pointBackgroundColor:'#f59e0b',tension:.3,fill:{target:'origin',above:'rgba(245,158,11,.1)'}},
+    {label:'Ziel 20%',data:a.mKeys.map(()=>20),borderColor:'rgba(16,185,129,.4)',borderDash:[5,5],borderWidth:1,pointRadius:0,fill:false}
+  ]},options:{...BASE,scales:{x:xScale(),y:{...yScale(false),ticks:{color:'#64748b',font:{size:10},callback:v=>v+'%'}}},
+    plugins:{...BASE.plugins,tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)+'%'}}}}});
+
+  // Top 5 expense categories bar
+  const topCats=Object.entries(a.expCat).sort((x,y)=>y[1]-x[1]).slice(0,5);
+  mkChart('c-ov-catbar',{type:'bar',data:{labels:topCats.map(([k])=>k),datasets:[
+    {data:topCats.map(([,v])=>v),backgroundColor:PAL.slice(0,5).map(c=>c+'CC'),borderRadius:4}
+  ]},options:{...BASE,indexAxis:'y',scales:{x:yScale(),y:{...xScale(),ticks:{color:'#94a3b8',font:{size:9}}}},
+    plugins:{...BASE.plugins,legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.parsed.x)}}}}});
+
   // Ratios
+  const cardTotal=a.exp.filter(r=>r._isCard).reduce((s,r)=>s+Math.abs(r._amt),0);
+  const cardRatio=Math.abs(a.totalExp)>0?cardTotal/Math.abs(a.totalExp)*100:0;
+  const avgTxSize=a.exp.length>0?Math.abs(a.totalExp)/a.exp.length:0;
+  const maxMonth=a.mKeys.reduce((best,mk)=>{const n=a.months[mk]?.net||0;return n>best.v?{k:mk,v:n}:best;},{k:'',v:-Infinity});
+  const minMonth=a.mKeys.reduce((worst,mk)=>{const n=a.months[mk]?.net||0;return n<worst.v?{k:mk,v:n}:worst;},{k:'',v:Infinity});
   document.getElementById('ov-ratios').innerHTML=[
     {label:'Sparquote (Netto/Einnahmen)',value:fmtP(savingsRate),good:savingsRate>=15},
     {label:'Passives Einkommen',value:fmtP(passiveRatio),good:passiveRatio>=5},
     {label:'Investitionsrate',value:fmtP(investRate),good:investRate>=15},
+    {label:'Kartenzahlungsanteil',value:fmtP(cardRatio),good:cardRatio<50},
+    {label:'Ø Ausgabe pro Transaktion',value:fmt(avgTxSize),good:true},
     {label:'Gebührenquote',value:a.totalInv>0?fmtP(a.totalFee/a.totalInv*100):'-',good:a.totalFee/a.totalInv*100<0.5},
     {label:'Steuerbelastung Dividenden',value:a.totalDiv>0?fmtP(a.totalTax/(a.totalDiv+a.totalTax)*100):'-',good:false},
     {label:'Ø Monats-Transaktionen',value:Math.round(a.enriched.length/a.mc)+'×',good:true},
+    {label:'Bester Monat',value:`${mLabel(maxMonth.k)} (${fmt(maxMonth.v)})`,good:true},
+    {label:'Schwächster Monat',value:`${mLabel(minMonth.k)} (${fmt(minMonth.v)})`,good:minMonth.v>=0},
   ].map(({label,value,good})=>
     `<div style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
        <span style="color:var(--text-muted)">${label}</span>
@@ -759,10 +801,39 @@ function renderOverview(a) {
   ).join('');
 
   // Top merchants
-  const topM=Object.entries(a.merchants).sort((x,y)=>y[1].total-x[1].total).slice(0,8);
+  const topM=Object.entries(a.merchants).sort((x,y)=>y[1].total-x[1].total).slice(0,10);
   document.getElementById('ov-merchants').innerHTML=
-    '<thead><tr><th>Händler</th><th>Zahlungen</th><th>Gesamt</th></tr></thead><tbody>'+
-    topM.map(([nm,v])=>`<tr><td>${nm}</td><td>${v.count}×</td><td class="neg">${fmt(v.total)}</td></tr>`).join('')+'</tbody>';
+    '<thead><tr><th>Händler</th><th>Zahlungen</th><th>Ø Betrag</th><th>Gesamt</th></tr></thead><tbody>'+
+    topM.map(([nm,v])=>`<tr><td>${nm}</td><td>${v.count}×</td><td class="neg">${fmt(v.total/v.count)}</td><td class="neg">${fmt(v.total)}</td></tr>`).join('')+'</tbody>';
+
+  // Income sources
+  const incByType={};
+  for(const r of a.inc){const t=typeLabel(r._type);if(!incByType[t])incByType[t]={total:0,count:0};incByType[t].total+=r._amt;incByType[t].count++;}
+  const incSources=Object.entries(incByType).sort((x,y)=>y[1].total-x[1].total);
+  document.getElementById('ov-income-sources').innerHTML=incSources.map(([t,v])=>{
+    const pct=a.totalInc>0?v.total/a.totalInc*100:0;
+    return`<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
+      <div><span style="color:var(--text)">${t}</span> <span style="color:var(--text-muted);font-size:.72rem;">(${v.count}×)</span></div>
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <div style="width:60px;background:var(--surface3);border-radius:3px;height:4px;overflow:hidden;">
+          <div style="width:${Math.min(pct,100)}%;height:100%;background:var(--income);border-radius:3px;"></div></div>
+        <strong class="pos" style="min-width:80px;text-align:right;">${fmt(v.total)}</strong>
+        <span style="color:var(--text-muted);min-width:40px;text-align:right;">${fmtP(pct)}</span></div></div>`;
+  }).join('')||'<div style="padding:.5rem;color:var(--text-muted);font-size:.82rem;">Keine Einnahmen erkannt.</div>';
+
+  // Recurring expenses (subscriptions)
+  document.getElementById('ov-recurring').innerHTML=a.subscriptions.length?
+    a.subscriptions.slice(0,8).map(s=>{
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
+        <div><span style="color:var(--text)">${s.name}</span> <span style="color:var(--text-muted);font-size:.72rem;">(${s.months.size} Monate)</span></div>
+        <div style="display:flex;align-items:center;gap:.6rem;">
+          <span class="neg">${fmt(s.amt)}/Mo</span>
+          <span style="color:var(--text-muted);font-size:.72rem;">≈ ${fmt(s.amt*12)}/Jahr</span></div></div>`;
+    }).join('')+
+    `<div style="padding:.5rem 0;font-size:.78rem;color:var(--text-muted);border-top:1px solid rgba(255,255,255,.08);margin-top:.3rem;">
+      Gesamt: <strong style="color:var(--expense)">${fmt(a.subscriptions.reduce((s,x)=>s+x.amt,0))}/Mo</strong>
+      (≈ ${fmt(a.subscriptions.reduce((s,x)=>s+x.amt,0)*12)}/Jahr)</div>`:
+    '<div style="padding:.5rem;color:var(--text-muted);font-size:.82rem;">Keine wiederkehrenden Zahlungen erkannt.</div>';
 
   // Alerts
   const alerts=[];
@@ -773,6 +844,25 @@ function renderOverview(a) {
   if(a.totalFee>100) alerts.push({c:'yellow',t:`<strong>Handelsgebühren:</strong> ${fmt(a.totalFee)} an Gebühren — Sparpläne prüfen.`});
   const bigExp=a.exp.filter(r=>Math.abs(r._amt)>500);
   if(bigExp.length) alerts.push({c:'yellow',t:`<strong>${bigExp.length} große Ausgaben</strong> (>500€) — ${fmt(bigExp.reduce((s,r)=>s+Math.abs(r._amt),0))} gesamt.`});
+  // Expense trend
+  if(a.mKeys.length>=3){
+    const last3Exp=a.mKeys.slice(-3).map(mk=>Math.abs(a.months[mk]?.expense||0));
+    if(last3Exp[2]>last3Exp[1]&&last3Exp[1]>last3Exp[0]) alerts.push({c:'yellow',t:`<strong>Steigende Ausgaben:</strong> Die Ausgaben sind 3 Monate in Folge gestiegen (${last3Exp.map(v=>fmt(v)).join(' → ')}).`});
+    const last3Inc=a.mKeys.slice(-3).map(mk=>a.months[mk]?.income||0);
+    if(last3Inc[2]<last3Inc[1]&&last3Inc[1]<last3Inc[0]) alerts.push({c:'yellow',t:`<strong>Sinkende Einnahmen:</strong> Die Einnahmen sind 3 Monate in Folge gesunken.`});
+  }
+  // Subscription burden
+  if(a.subscriptions.length>0){
+    const subTotal=a.subscriptions.reduce((s,x)=>s+x.amt,0);
+    const subPct=Math.abs(a.totalExp)/a.mc>0?subTotal/(Math.abs(a.totalExp)/a.mc)*100:0;
+    if(subPct>15) alerts.push({c:'yellow',t:`<strong>Hoher Abo-Anteil:</strong> ${a.subscriptions.length} Abos kosten Ø ${fmt(subTotal)}/Monat (${fmtP(subPct)} der Ausgaben).`});
+  }
+  // Card spending dominance
+  if(cardRatio>60) alerts.push({c:'blue',t:`<strong>Kartenlastig:</strong> ${fmtP(cardRatio)} aller Ausgaben über Kartenzahlungen — Budgetierung prüfen.`});
+  // Negative months
+  const negMonths=a.mKeys.filter(mk=>(a.months[mk]?.net||0)<0);
+  if(negMonths.length>=2) alerts.push({c:'red',t:`<strong>${negMonths.length} negative Monate:</strong> ${negMonths.map(mLabel).join(', ')} — wiederkehrendes Problem.`});
+
   document.getElementById('ov-alerts').innerHTML=alerts.map(al=>
     `<div class="insight"><div class="dot ${al.c}"></div><div class="ins-desc">${al.t}</div></div>`).join('')||
     '<div class="ins-desc" style="padding:.5rem">Keine besonderen Auffälligkeiten.</div>';
@@ -1308,39 +1398,105 @@ function renderRecommendations(a){
   const sr=a.totalInc>0?a.netBal/a.totalInc*100:0;
   const ir=a.totalInc>0?a.totalInv/a.totalInc*100:0;
   const pr=a.totalInc>0?a.totalDiv/a.totalInc*100:0;
+  const avgMonthlyExp=Math.abs(a.totalExp)/a.mc;
+  const avgMonthlyInc=a.totalInc/a.mc;
 
-  if(a.netBal<0) recs.push({l:'red',p:1,t:'Negativer Cashflow — sofort handeln',a:`Ausgaben (${fmt(Math.abs(a.totalExp))}) übersteigen Einnahmen (${fmt(a.totalInc)}) um ${fmt(Math.abs(a.netBal))}. Größte Posten: ${Object.entries(a.expCat).sort((x,y)=>y[1]-x[1]).slice(0,3).map(([k,v])=>`${k}: ${fmt(v)}`).join(', ')}.`});
-  else recs.push({l:'green',p:6,t:'Positiver Cashflow',a:`Einnahmen übersteigen Ausgaben um ${fmt(a.netBal)} (Sparquote: ${fmtP(sr)}). Überschüsse gezielt investieren.`});
+  // 1. Cashflow status
+  if(a.netBal<0) recs.push({l:'red',p:1,cat:'Cashflow',t:'Negativer Cashflow — sofort handeln',a:`Ausgaben (${fmt(Math.abs(a.totalExp))}) übersteigen Einnahmen (${fmt(a.totalInc)}) um ${fmt(Math.abs(a.netBal))}. Größte Posten: ${Object.entries(a.expCat).sort((x,y)=>y[1]-x[1]).slice(0,3).map(([k,v])=>`${k}: ${fmt(v)}`).join(', ')}. Sofort: Top-3-Kategorien um 10% reduzieren spart ${fmt(Object.entries(a.expCat).sort((x,y)=>y[1]-x[1]).slice(0,3).reduce((s,[,v])=>s+v*0.1,0))}.`});
+  else recs.push({l:'green',p:6,cat:'Cashflow',t:'Positiver Cashflow',a:`Einnahmen übersteigen Ausgaben um ${fmt(a.netBal)} (Sparquote: ${fmtP(sr)}). Überschüsse gezielt investieren.`});
 
-  if(sr<10&&a.netBal>=0) recs.push({l:'yellow',p:2,t:'Sparquote unter 10% — steigern',a:`Aktuell ${fmtP(sr)}. Ziel: 20%+. Monatlich ${fmt(a.totalInc/a.mc*0.2)} für Investitionen reservieren.`});
-  else if(sr>=20) recs.push({l:'green',p:5,t:`Starke Sparquote: ${fmtP(sr)}`,a:'Exzellente Finanzlage. Investmentallokation diversifizieren und Notfallrücklage sicherstellen.'});
+  // 2. Savings rate
+  if(sr<10&&a.netBal>=0) recs.push({l:'yellow',p:2,cat:'Sparen',t:'Sparquote unter 10% — steigern',a:`Aktuell ${fmtP(sr)}. Ziel: 20%+. Monatlich ${fmt(avgMonthlyInc*0.2)} für Investitionen reservieren. Konkret: ${fmt(avgMonthlyInc*0.2-a.avgNet)} mehr sparen durch Fixkosten-Reduktion.`});
+  else if(sr>=10&&sr<20) recs.push({l:'yellow',p:3,cat:'Sparen',t:`Sparquote ${fmtP(sr)} — weiter steigern`,a:`Guter Anfang, aber unter dem Zielwert von 20%. Noch ${fmt(avgMonthlyInc*0.2-a.avgNet)}/Monat mehr sparen. Tipp: Automatischen Dauerauftrag auf Spar-/Investmentkonto einrichten.`});
+  else if(sr>=20&&sr<35) recs.push({l:'green',p:5,cat:'Sparen',t:`Starke Sparquote: ${fmtP(sr)}`,a:`Über dem 20%-Ziel. ${fmt(a.avgNet)}/Monat verfügbar für Vermögensaufbau. Nächstes Ziel: 35% für beschleunigten Vermögensaufbau.`});
+  else if(sr>=35) recs.push({l:'green',p:6,cat:'Sparen',t:`Exzellente Sparquote: ${fmtP(sr)}`,a:`Weit über dem Ziel. Bei diesem Tempo in ${Math.round(25*(1-sr/100)/(sr/100))} Jahren finanziell unabhängig (4%-Regel). Fokus auf optimale Anlageallokation.`});
 
-  if(ir<15) recs.push({l:'yellow',p:2,t:`Investitionsrate ${fmtP(ir)} — Potenzial vorhanden`,a:`Zielwert: 15–25% des Einkommens. Aktuell ${fmt(a.totalInv/a.mc)}/Monat — Sparplan auf ${fmt(a.totalInc/a.mc*0.2)}/Monat erhöhen.`});
-  else recs.push({l:'green',p:4,t:`Gute Investitionsrate: ${fmtP(ir)}`,a:`${fmt(a.totalInv)} investiert. Asset-Allokation regelmäßig prüfen.`});
+  // 3. Investment rate
+  if(ir<15) recs.push({l:'yellow',p:2,cat:'Investieren',t:`Investitionsrate ${fmtP(ir)} — Potenzial vorhanden`,a:`Zielwert: 15–25% des Einkommens. Aktuell ${fmt(a.totalInv/a.mc)}/Monat — Sparplan auf ${fmt(avgMonthlyInc*0.2)}/Monat erhöhen. Automatische Sparpläne sind gebührenfrei und disziplinieren.`});
+  else recs.push({l:'green',p:4,cat:'Investieren',t:`Gute Investitionsrate: ${fmtP(ir)}`,a:`${fmt(a.totalInv)} investiert (${fmt(a.totalInv/a.mc)}/Mo). Asset-Allokation regelmäßig prüfen, Rebalancing 1–2× jährlich empfohlen.`});
 
+  // 4. Dividends
   if(a.totalDiv>0){
     const divYield=a.totalInv>0?a.totalDiv/a.totalInv*100:0;
-    recs.push({l:'green',p:3,t:'Dividenden-Portfolio wächst',a:`${fmt(a.totalDiv)} Dividenden aus ${Object.keys(a.byAsset).length} Positionen (${fmtP(divYield)} auf Invest). Reinvestition maximiert den Zinseszinseffekt.`});
+    const divMonthly=a.totalDiv/a.mc;
+    const divCoverage=avgMonthlyExp>0?divMonthly/avgMonthlyExp*100:0;
+    recs.push({l:'green',p:3,cat:'Dividenden',t:'Dividenden-Portfolio wächst',a:`${fmt(a.totalDiv)} Dividenden aus ${Object.keys(a.byAsset).length} Positionen (${fmtP(divYield)} auf Invest). Ø ${fmt(divMonthly)}/Monat decken ${fmtP(divCoverage)} der Ausgaben. Reinvestition maximiert den Zinseszinseffekt.`});
     const topDiv=Object.entries(a.byAsset).sort((x,y)=>y[1].total-x[1].total)[0];
-    if(topDiv&&topDiv[1].total/a.totalDiv>0.3) recs.push({l:'yellow',p:3,t:'Dividenden-Klumpenrisiko',a:`${topDiv[0]} macht ${(topDiv[1].total/a.totalDiv*100).toFixed(1)}% aller Dividenden aus. Diversifikation empfohlen.`});
+    if(topDiv&&topDiv[1].total/a.totalDiv>0.3) recs.push({l:'yellow',p:3,cat:'Dividenden',t:'Dividenden-Klumpenrisiko',a:`${topDiv[0]} macht ${(topDiv[1].total/a.totalDiv*100).toFixed(1)}% aller Dividenden aus. Max. 25% pro Position empfohlen. Diversifikation in andere Sektoren/Regionen senkt das Risiko.`});
   }
 
+  // 5. Fees
   if(a.totalFee>0){const fr=a.totalInv>0?a.totalFee/a.totalInv*100:0;
-    if(fr>0.3) recs.push({l:'yellow',p:2,t:`Gebühren optimieren: ${fmt(a.totalFee)} (${fmtP(fr)})`,a:'Sparpläne oft gebührenfrei vs. Einzelorders. Jährliche Gebühren reduzieren langfristig die Rendite erheblich.'});}
+    if(fr>0.3) recs.push({l:'yellow',p:2,cat:'Kosten',t:`Gebühren optimieren: ${fmt(a.totalFee)} (${fmtP(fr)})`,a:`Bei ${fmt(a.totalInv)} Investvolumen kosten Gebühren langfristig erheblich Rendite. Sparpläne (oft kostenlos) statt Einzelorders nutzen. Hochrechnung: ${fmt(a.totalFee/a.mc*12)}/Jahr an Gebühren.`});
+    else recs.push({l:'green',p:5,cat:'Kosten',t:`Gebühren im Griff: ${fmt(a.totalFee)} (${fmtP(fr)})`,a:`Niedrige Gebührenquote. Weiterhin auf kosteneffiziente Instrumente (ETFs, Sparpläne) setzen.`});}
 
-  if(a.totalTax>0) recs.push({l:'yellow',p:3,t:'Freistellungsauftrag prüfen',a:`${fmt(a.totalTax)} Kapitalertragsteuer. Freistellungsauftrag 1.000€/2.000€ (Ehepaar) beim Broker eintragen.`});
+  // 6. Tax
+  if(a.totalTax>0){
+    const freibetrag=a.totalTax>0?a.totalDiv+a.totalTax:0;
+    recs.push({l:'yellow',p:3,cat:'Steuern',t:'Freistellungsauftrag prüfen',a:`${fmt(a.totalTax)} Kapitalertragsteuer auf ${fmt(freibetrag)} Brutto-Erträge. Freibetrag: 1.000€/2.000€ (Ehepaar). ${freibetrag<1000?'Liegt unter dem Freibetrag — Freistellungsauftrag sollte volle Steuer verhindern.':'Über dem Freibetrag — Steuer unvermeidbar, Verlustverrechnungstopf nutzen.'}`});
+  }
 
+  // 7. Large expenses
   const bigExp=a.exp.filter(r=>Math.abs(r._amt)>500);
-  if(bigExp.length) recs.push({l:'yellow',p:2,t:`${bigExp.length} Großausgaben >500€`,a:`Gesamt: ${fmt(bigExp.reduce((s,r)=>s+Math.abs(r._amt),0))}. Notfallrücklage von 3–6 Monatsausgaben (${fmt(Math.abs(a.totalExp)/a.mc*4)}) sicherstellen.`});
+  if(bigExp.length) recs.push({l:'yellow',p:2,cat:'Ausgaben',t:`${bigExp.length} Großausgaben >500€`,a:`Gesamt: ${fmt(bigExp.reduce((s,r)=>s+Math.abs(r._amt),0))}. Top: ${bigExp.sort((x,y)=>Math.abs(y._amt)-Math.abs(x._amt)).slice(0,3).map(r=>`${r._name||typeLabel(r._type)}: ${fmt(Math.abs(r._amt))}`).join(', ')}. Notfallrücklage 3–6 Monatsausgaben (${fmt(avgMonthlyExp*4)}) empfohlen.`});
 
-  if(a.subscriptions.length>0){const subSum=a.subscriptions.reduce((s,x)=>s+x.amt,0);
-    recs.push({l:'yellow',p:3,t:`${a.subscriptions.length} Abonnements — ${fmt(subSum)}/Monat`,a:`Hochrechnung: ${fmt(subSum*12)}/Jahr. Top: ${a.subscriptions.slice(0,3).map(s=>`${s.name} (${fmt(s.amt)})`).join(', ')}. Regelmäßig auf Notwendigkeit prüfen.`});}
+  // 8. Subscriptions
+  if(a.subscriptions.length>0){
+    const subSum=a.subscriptions.reduce((s,x)=>s+x.amt,0);
+    const subPct=avgMonthlyExp>0?subSum/avgMonthlyExp*100:0;
+    recs.push({l:'yellow',p:3,cat:'Abos',t:`${a.subscriptions.length} Abonnements — ${fmt(subSum)}/Monat`,a:`Hochrechnung: ${fmt(subSum*12)}/Jahr (${fmtP(subPct)} der Ausgaben). Top: ${a.subscriptions.slice(0,3).map(s=>`${s.name} (${fmt(s.amt)})`).join(', ')}. Tipp: Jeden Abo-Dienst auf Nutzung prüfen — ungenutzte Abos kündigen spart direkt.`});
+    if(subSum>avgMonthlyExp*0.2) recs.push({l:'yellow',p:2,cat:'Abos',t:'Abo-Anteil über 20% der Ausgaben',a:`Wiederkehrende Zahlungen binden ${fmtP(subPct)} der monatlichen Ausgaben. Jährliche Zahlweise nutzen (oft 15–20% Rabatt). Alternativ: Shared-Accounts oder günstigere Alternativen prüfen.`});
+  }
 
+  // 9. Volatility
   const nets=a.mKeys.map(m=>a.months[m]?.net||0);
   const nStd=Math.sqrt(nets.reduce((s,v)=>s+Math.pow(v-a.avgNet,2),0)/nets.length);
-  if(nStd>Math.abs(a.avgNet)*1.5) recs.push({l:'yellow',p:3,t:'Hohe Cashflow-Volatilität',a:`Monatliche Schwankung σ=${fmt(nStd)} — deutlich über dem Mittelwert von ${fmt(a.avgNet)}. Liquiditätspuffer von 2–3 Monatsdurchschnitten empfohlen.`});
+  if(nStd>Math.abs(a.avgNet)*1.5&&a.avgNet!==0) recs.push({l:'yellow',p:3,cat:'Stabilität',t:'Hohe Cashflow-Volatilität',a:`Monatliche Schwankung σ=${fmt(nStd)} — deutlich über dem Mittelwert von ${fmt(a.avgNet)}. Bandbreite: ${fmt(Math.min(...nets))} bis ${fmt(Math.max(...nets))}. Liquiditätspuffer von 2–3 Monatsdurchschnitten (${fmt(avgMonthlyExp*2.5)}) empfohlen.`});
 
-  if(Object.keys(a.byAsset).length>=5) recs.push({l:'green',p:5,t:'Gute Portfolio-Diversifikation',a:`${Object.keys(a.byAsset).length} verschiedene Dividendenpositionen. Weiterhin auf Sektor- und Länderstreuung achten.`});
+  // 10. Portfolio diversification
+  if(Object.keys(a.byAsset).length>=5) recs.push({l:'green',p:5,cat:'Portfolio',t:'Gute Portfolio-Diversifikation',a:`${Object.keys(a.byAsset).length} verschiedene Dividendenpositionen. Weiterhin auf Sektor- und Länderstreuung achten.`});
+  else if(Object.keys(a.byAsset).length>0&&Object.keys(a.byAsset).length<5) recs.push({l:'yellow',p:3,cat:'Portfolio',t:`Nur ${Object.keys(a.byAsset).length} Dividendenpositionen — diversifizieren`,a:`Wenige Positionen erhöhen das Klumpenrisiko. Ziel: 10+ Positionen über verschiedene Sektoren und Regionen. Breit gestreute Dividenden-ETFs als Basis nutzen.`});
+
+  // 11. Card spending analysis
+  const cardTotal=a.exp.filter(r=>r._isCard).reduce((s,r)=>s+Math.abs(r._amt),0);
+  const cardRatio=Math.abs(a.totalExp)>0?cardTotal/Math.abs(a.totalExp)*100:0;
+  if(cardRatio>60) recs.push({l:'blue',p:4,cat:'Verhalten',t:`${fmtP(cardRatio)} Kartenzahlungen — bewusst ausgeben`,a:`Hoher Kartenanteil kann zu unbewussten Ausgaben führen. Tipp: Wochenbudget für Karte festlegen. Ø ${fmt(cardTotal/a.mc)}/Monat über Karte — prüfen, ob bar/Überweisung für manche Kategorien besser kontrollierbar wäre.`});
+
+  // 12. Emergency fund
+  const monthlyNet=a.avgNet;
+  if(monthlyNet>0){
+    const target=avgMonthlyExp*4;
+    const monthsNeeded=target/monthlyNet;
+    recs.push({l:monthlyNet>avgMonthlyExp*0.2?'green':'yellow',p:4,cat:'Rücklage',t:`Notfallrücklage: ${fmt(target)} ansparen`,a:`Ziel: 3–6 Monatsausgaben (${fmt(avgMonthlyExp*3)}–${fmt(avgMonthlyExp*6)}). Bei aktuellem Überschuss (${fmt(monthlyNet)}/Mo) in ${monthsNeeded.toFixed(0)} Monaten erreichbar. Auf separatem Tagesgeldkonto parken.`});
+  }
+
+  // 13. Spending trends
+  if(a.mKeys.length>=3){
+    const last3=a.mKeys.slice(-3).map(mk=>Math.abs(a.months[mk]?.expense||0));
+    if(last3[2]>last3[1]&&last3[1]>last3[0]){
+      const growth=last3[2]-last3[0];
+      recs.push({l:'yellow',p:2,cat:'Trend',t:'Ausgaben 3 Monate steigend',a:`${fmt(last3[0])} → ${fmt(last3[1])} → ${fmt(last3[2])} — Anstieg um ${fmt(growth)} in 3 Monaten. Wenn dieser Trend anhält, steigen die Jahresausgaben um ${fmt(growth*4)}. Jetzt gegensteuern.`});
+    }
+    const last3Inc=a.mKeys.slice(-3).map(mk=>a.months[mk]?.income||0);
+    if(last3Inc[2]>last3Inc[1]&&last3Inc[1]>last3Inc[0]) recs.push({l:'green',p:5,cat:'Trend',t:'Einnahmen 3 Monate steigend',a:`Positiver Einnahmentrend: ${last3Inc.map(v=>fmt(v)).join(' → ')}. Zusätzliche Einnahmen direkt in Investitionen oder Rücklagen lenken.`});
+  }
+
+  // 14. Merchant concentration
+  const topMerch=Object.entries(a.merchants).sort((x,y)=>y[1].total-x[1].total);
+  if(topMerch.length>=3){
+    const top3Total=topMerch.slice(0,3).reduce((s,[,v])=>s+v.total,0);
+    const top3Pct=Math.abs(a.totalExp)>0?top3Total/Math.abs(a.totalExp)*100:0;
+    if(top3Pct>30) recs.push({l:'blue',p:4,cat:'Ausgaben',t:`Top-3-Händler: ${fmtP(top3Pct)} der Ausgaben`,a:`${topMerch.slice(0,3).map(([nm,v])=>`${nm}: ${fmt(v.total)}`).join(', ')}. Bei hoher Konzentration: Preise vergleichen, Cashback-Optionen prüfen, Alternativen evaluieren.`});
+  }
+
+  // 15. Weekend spending
+  const weekdayExp=a.exp.filter(r=>r._date&&r._date.getDay()>=1&&r._date.getDay()<=5).reduce((s,r)=>s+Math.abs(r._amt),0);
+  const weekendExp=a.exp.filter(r=>r._date&&(r._date.getDay()===0||r._date.getDay()===6)).reduce((s,r)=>s+Math.abs(r._amt),0);
+  if(weekendExp>0&&weekdayExp>0){
+    const weDays=a.mc*8.7,wdDays=a.mc*21.7;
+    const weDaily=weekendExp/weDays,wdDaily=weekdayExp/wdDays;
+    if(weDaily>wdDaily*1.5) recs.push({l:'blue',p:4,cat:'Verhalten',t:`Wochenende: ${fmtP(weDaily/wdDaily*100-100)} höhere Tagesausgaben`,a:`Ø ${fmt(weDaily)}/Tag am Wochenende vs. ${fmt(wdDaily)}/Tag unter der Woche. Wochenend-Budget setzen kann helfen, impulsive Ausgaben zu reduzieren.`});
+  }
 
   recs.sort((a,b)=>a.p-b.p);
   document.getElementById('rec-list').innerHTML=
@@ -1348,7 +1504,7 @@ function renderRecommendations(a){
     recs.map(r=>`<div class="insight" style="margin-bottom:.7rem">
       <div class="dot ${r.l}"></div>
       <div style="flex:1"><div class="ins-title" style="display:flex;align-items:center;gap:.5rem">${r.t}
-        <span class="badge ${r.l==='red'?'br':r.l==='green'?'bg':'by'}">${r.l==='red'?'Kritisch':r.l==='green'?'Positiv':'Empfohlen'}</span></div>
+        <span class="badge ${r.l==='red'?'br':r.l==='green'?'bg':r.l==='blue'?'bb':'by'}">${r.cat||'Empfohlen'}</span></div>
         <div class="ins-desc">${r.a}</div></div></div>`).join('');
 }
 
@@ -1869,7 +2025,7 @@ function renderMCDetailTable(months) {
 }
 
 // ── TAB NAVIGATION ───────────────────────────────────────────
-const TAB_FNS=[null,renderTimeline,renderYearly,renderMonthly,renderCategories,renderOutliers,renderForecast,null,renderRecommendations,renderMonthlyComparison];
+const TAB_FNS=[null,renderTimeline,renderMonthlyComparison,renderYearly,renderMonthly,renderCategories,renderOutliers,renderForecast,null,renderRecommendations];
 const rendered=new Set([0]);
 
 function showTab(i){
@@ -1877,7 +2033,7 @@ function showTab(i){
   document.querySelectorAll('.tab-content').forEach((c,j)=>c.classList.toggle('active',j===i));
   if(!rendered.has(i)&&TAB_FNS[i]){TAB_FNS[i](G.a);rendered.add(i);}
   // Compare tab: re-render metric chart on revisit if data loaded
-  if(i===7&&G.cmpData&&G._cmpAlign) setCmpMetric(G.cmpMetric,null);
+  if(i===8&&G.cmpData&&G._cmpAlign) setCmpMetric(G.cmpMetric,null);
 }
 
 // ── INIT ─────────────────────────────────────────────────────
