@@ -20,6 +20,7 @@
     "vitest": "^4.1.9"
   },
   "dependencies": {
+    "chart.js": "^4.5.1",
     "lit-html": "^3.3.3"
   }
 }

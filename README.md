@@ -121,7 +121,7 @@ npm run typecheck # TypeScript, no build
 
 Both currently need to pass independently, since `index.html`'s inline script and `src/domain/` are — for now, deliberately — two copies of the same logic. See `handover.md` for the migration plan.
 
-To preview a migrated component standalone (e.g. the new Transaktionen tab): `npm run dev`, then open `/src/dev/transactions-preview.html`.
+To preview a migrated component standalone: `npm run dev`, then open `/src/dev/transactions-preview.html` or `/src/dev/overview-preview.html`.
 
 🏗️ V2 Migration (in progress)
 
@@ -130,7 +130,11 @@ The app is being incrementally rewritten into a typed, componentized architectur
 * ✅ **Phase 0** — Vite + TypeScript build pipeline, proven to produce a byte-identical `dist/index.html` from the untouched source.
 * ✅ **Phase 1** — Domain layer (`parseCSV`, `analyze`, formatting/stats helpers) ported to typed, unit-tested modules in `src/domain/`. Not yet wired into `index.html`.
 * ✅ **Phase 2** — Typed state store (`src/state/`) designed to replace the `G`/`MC`/`TX` globals: a small generic `createStore()` plus a typed `AppState` and action functions (`loadFile`, `setTimelineView`, `setTransactionFilters`, …). Not yet wired into `index.html` — same reasoning as Phase 1.
-* 🔶 **Phase 3 (started)** — Tabs migrated to components one at a time, starting with **Transaktionen**: `src/features/transactions/` has pure, unit-tested selectors (filter/sort/paginate/KPIs) plus a `lit-html`-based view wired to the Phase 2 store. Preview it standalone at `src/dev/transactions-preview.html` (`npm run dev`, or built via `npm run build` into `dist/src/dev/...` — verified working with Playwright against the built output, all filters/sort/pagination/reset behave identically to the live tab). Not wired into `index.html` yet; remaining tabs (Übersicht → Kategorien/Jahre/Monate → Ausreißer/Prognose → Deep-Dive/Vergleich → Empfehlungen) still to come.
+* 🔶 **Phase 3 (started)** — Tabs migrated to components one at a time.
+  - **Transaktionen**: `src/features/transactions/` — pure selectors (filter/sort/paginate/KPIs) + a `lit-html` view wired to the Phase 2 store.
+  - **Übersicht**: `src/features/overview/` — pure selectors (KPIs, ratios, alerts, chart data, merchants/income-sources/recurring-expenses lists) + a `lit-html` view. Charts now use `chart.js` as a real npm dependency (registered via `Chart.register(...registerables)` in `src/charts/chartManager.ts`) instead of the CDN global, with shared theming in `src/charts/chartTheme.ts`.
+  - Both previewable standalone (`npm run dev`, open `/src/dev/{transactions,overview}-preview.html`), both verified with Playwright against the *built* output — not just unit tests.
+  - Not wired into `index.html` yet; remaining tabs (Kategorien/Jahre/Monate → Ausreißer/Prognose → Deep-Dive/Vergleich → Empfehlungen) still to come.
 * ⬜ Phase 4 — IndexedDB persistence.
 * ⬜ Phase 5 — Cut over: `index.html`'s inline script is replaced by the `src/` bundle, GitHub Pages source switches to the Actions-based deploy.
 
