@@ -26,6 +26,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .kpi.expense::before{background:var(--expense);}
 .kpi.invest::before{background:var(--invest);}
 .kpi.dividend::before{background:var(--dividend);}
+.kpi.warn::before{background:var(--warning);}
+.kpi.neutral::before{background:var(--text-muted);}
 .kpi-label{font-size:.72rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem;}
 .kpi-value{font-size:1.5rem;font-weight:800;letter-spacing:-1px;line-height:1;}
 .kpi-value.income{color:var(--income);}
@@ -49,6 +51,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .dot.red{background:var(--expense);box-shadow:0 0 8px var(--expense);}
 .dot.blue{background:var(--accent);box-shadow:0 0 6px var(--accent);}
 .ins-desc{font-size:.77rem;color:var(--text-muted);line-height:1.55;}
+.ins-title{font-size:.84rem;font-weight:600;margin-bottom:.15rem;}
 
 .dt{width:100%;border-collapse:collapse;font-size:.81rem;}
 .dt th{text-align:left;padding:.55rem .8rem;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);font-weight:600;}
@@ -67,6 +70,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .bg{background:rgba(16,185,129,.15);color:var(--income);}
 .br{background:rgba(239,68,68,.15);color:var(--expense);}
 .bb{background:rgba(59,130,246,.15);color:var(--accent);}
+.by{background:rgba(245,158,11,.15);color:var(--warning);}
 
 .controls{display:flex;gap:.4rem;flex-wrap:wrap;}
 .cb{padding:.3rem .8rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-size:.76rem;cursor:pointer;transition:all .2s;}
