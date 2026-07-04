@@ -127,7 +127,7 @@ The app is being incrementally rewritten into a typed, componentized architectur
 
 * ✅ **Phase 0** — Vite + TypeScript build pipeline, proven to produce a byte-identical `dist/index.html` from the untouched source.
 * ✅ **Phase 1** — Domain layer (`parseCSV`, `analyze`, formatting/stats helpers) ported to typed, unit-tested modules in `src/domain/`. Not yet wired into `index.html`.
-* ⬜ Phase 2 — Typed state store replacing the `G`/`MC`/`TX` globals.
+* ✅ **Phase 2** — Typed state store (`src/state/`) designed to replace the `G`/`MC`/`TX` globals: a small generic `createStore()` plus a typed `AppState` and action functions (`loadFile`, `setTimelineView`, `setTransactionFilters`, …). Not yet wired into `index.html` — same reasoning as Phase 1.
 * ⬜ Phase 3 — Tabs migrated to components one at a time.
 * ⬜ Phase 4 — IndexedDB persistence.
 * ⬜ Phase 5 — Cut over: `index.html`'s inline script is replaced by the `src/` bundle, GitHub Pages source switches to the Actions-based deploy.
