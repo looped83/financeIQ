@@ -134,8 +134,10 @@ The app is being incrementally rewritten into a typed, componentized architectur
   - **Transaktionen**: `src/features/transactions/` — pure selectors (filter/sort/paginate/KPIs) + a `lit-html` view wired to the Phase 2 store.
   - **Übersicht**: `src/features/overview/` — pure selectors (KPIs, ratios, alerts, chart data, merchants/income-sources/recurring-expenses lists) + a `lit-html` view. Charts now use `chart.js` as a real npm dependency (registered via `Chart.register(...registerables)` in `src/charts/chartManager.ts`) instead of the CDN global, with shared theming in `src/charts/chartTheme.ts`.
   - **Kategorien**: `src/features/categories/` — pure selectors (expense-category donut/legend, income-vs-expense-by-type bar, asset-class donut, dividends-by-security) + a `lit-html` view. `getTopMerchants` moved to `src/features/shared/commonSelectors.ts` since both Übersicht and Kategorien need it (re-exported from Übersicht's `selectors.ts` for backward compatibility).
-  - All three previewable standalone (`npm run dev`, open `/src/dev/{transactions,overview,categories}-preview.html`), all verified with Playwright against the *built* output — not just unit tests.
-  - Not wired into `index.html` yet; remaining tabs (Jahre/Monate → Ausreißer/Prognose → Deep-Dive/Vergleich → Empfehlungen) still to come.
+  - **Jahre**: `src/features/yearly/` — handles both of the original's two modes (single-year quarterly breakdown, multi-year comparison with YoY deltas) as one component that switches on `isMultiYear()`.
+  - **Monate**: `src/features/monthly/` — grouped bar, cumulative balance line, savings-rate line, detail table with best/worst-month highlighting.
+  - All five previewable standalone (`npm run dev`, open `/src/dev/{transactions,overview,categories,yearly,monthly}-preview.html`), all verified with Playwright against the *built* output — not just unit tests.
+  - Not wired into `index.html` yet; remaining tabs (Ausreißer/Prognose → Deep-Dive/Vergleich → Empfehlungen) still to come.
 * ⬜ Phase 4 — IndexedDB persistence.
 * ⬜ Phase 5 — Cut over: `index.html`'s inline script is replaced by the `src/` bundle, GitHub Pages source switches to the Actions-based deploy.
 
