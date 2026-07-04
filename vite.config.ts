@@ -17,6 +17,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         transactionsPreview: resolve(__dirname, 'src/dev/transactions-preview.html'),
+        overviewPreview: resolve(__dirname, 'src/dev/overview-preview.html'),
       },
     },
   },
