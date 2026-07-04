@@ -21,6 +21,8 @@ export default defineConfig({
         categoriesPreview: resolve(__dirname, 'src/dev/categories-preview.html'),
         yearlyPreview: resolve(__dirname, 'src/dev/yearly-preview.html'),
         monthlyPreview: resolve(__dirname, 'src/dev/monthly-preview.html'),
+        outliersPreview: resolve(__dirname, 'src/dev/outliers-preview.html'),
+        forecastPreview: resolve(__dirname, 'src/dev/forecast-preview.html'),
       },
     },
   },

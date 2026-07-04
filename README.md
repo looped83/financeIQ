@@ -136,8 +136,10 @@ The app is being incrementally rewritten into a typed, componentized architectur
   - **Kategorien**: `src/features/categories/` — pure selectors (expense-category donut/legend, income-vs-expense-by-type bar, asset-class donut, dividends-by-security) + a `lit-html` view. `getTopMerchants` moved to `src/features/shared/commonSelectors.ts` since both Übersicht and Kategorien need it (re-exported from Übersicht's `selectors.ts` for backward compatibility).
   - **Jahre**: `src/features/yearly/` — handles both of the original's two modes (single-year quarterly breakdown, multi-year comparison with YoY deltas) as one component that switches on `isMultiYear()`.
   - **Monate**: `src/features/monthly/` — grouped bar, cumulative balance line, savings-rate line, detail table with best/worst-month highlighting.
-  - All five previewable standalone (`npm run dev`, open `/src/dev/{transactions,overview,categories,yearly,monthly}-preview.html`), all verified with Playwright against the *built* output — not just unit tests.
-  - Not wired into `index.html` yet; remaining tabs (Ausreißer/Prognose → Deep-Dive/Vergleich → Empfehlungen) still to come.
+  - **Ausreißer**: `src/features/outliers/` — KPI cards, risk-light list, recurring-expenses table (reuses `getRecurringExpenses` from `shared/commonSelectors.ts`), and the z-score outlier table. No charts.
+  - **Prognose**: `src/features/forecast/` — linear-trend cashflow forecast with a 95% confidence band, wired to the Phase 2 store's `forecastMonths`/`setForecastMonths` so the 3/6/12-month toggle buttons are real interactive state, not just a demo. Uses `linReg` from the Phase 1 domain layer.
+  - All seven previewable standalone (`npm run dev`, open `/src/dev/{transactions,overview,categories,yearly,monthly,outliers,forecast}-preview.html`), all verified with Playwright against the *built* output — not just unit tests.
+  - Not wired into `index.html` yet; remaining tabs (Deep-Dive/Vergleich → Empfehlungen) still to come.
 * ⬜ Phase 4 — IndexedDB persistence.
 * ⬜ Phase 5 — Cut over: `index.html`'s inline script is replaced by the `src/` bundle, GitHub Pages source switches to the Actions-based deploy.
 

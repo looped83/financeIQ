@@ -165,32 +165,13 @@ export function getIncomeSources(a: Analysis): IncomeSourceRow[] {
     });
 }
 
-export interface RecurringExpenseRow {
-  name: string;
-  monthCount: number;
-  perMonth: string;
-  perYear: string;
-}
-
-export interface RecurringExpensesSummary {
-  rows: RecurringExpenseRow[];
-  totalPerMonth: string;
-  totalPerYear: string;
-}
-
-export function getRecurringExpenses(a: Analysis, limit = 8): RecurringExpensesSummary {
-  const totalPerMonth = a.subscriptions.reduce((s, x) => s + x.amt, 0);
-  return {
-    rows: a.subscriptions.slice(0, limit).map((s) => ({
-      name: s.name,
-      monthCount: s.months.size,
-      perMonth: fmt(s.amt),
-      perYear: fmt(s.amt * 12),
-    })),
-    totalPerMonth: fmt(totalPerMonth),
-    totalPerYear: fmt(totalPerMonth * 12),
-  };
-}
+// Moved to features/shared/commonSelectors.ts (also used by Ausreißer) —
+// re-exported here so existing imports from './selectors' keep working.
+export {
+  getRecurringExpenses,
+  type RecurringExpenseRow,
+  type RecurringExpensesSummary,
+} from '../shared/commonSelectors';
 
 export interface Alert {
   color: 'red' | 'yellow' | 'green' | 'blue';
