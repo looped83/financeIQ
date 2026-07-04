@@ -68,6 +68,15 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .tx-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.35rem .6rem;color:var(--text);font-size:.78rem;outline:none;}
 .tx-select{cursor:pointer;}
 
+.leg{list-style:none;}
+.leg li{display:flex;align-items:center;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.8rem;}
+.leg li:last-child{border:none;}
+.leg-label{display:flex;align-items:center;gap:.5rem;}
+.leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.pb-wrap{background:var(--surface3);border-radius:4px;height:5px;overflow:hidden;margin-top:.3rem;}
+.pb-fill{height:100%;border-radius:4px;transition:width .6s;}
+.chart-wrap.tall{height:400px;}
+
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
