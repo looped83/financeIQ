@@ -106,6 +106,18 @@ No financial data is uploaded to external servers.
 
 ⸻
 
+🧪 Testing
+
+Run the regression suite (no dependencies, no build step):
+
+```
+node test/run.js
+```
+
+It replays fixture CSVs through the same `parseCSV()`/`analyze()` logic the app uses in the browser, covering dividend tax handling, buy/sell fee treatment, category classification, and German/semicolon CSV variants.
+
+⸻
+
 🛠️ Roadmap
 
 * PDF export
