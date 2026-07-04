@@ -1167,8 +1167,6 @@ function renderOutliers(a) {
 
   const risks=[];
   if(a.netBal<0) risks.push({l:'red',t:'Negativer Gesamtsaldo',d:`Ausgaben überschreiten Einnahmen um ${fmt(Math.abs(a.netBal))}. Sofortmaßnahmen empfohlen.`});
-  const dentist=a.cash.filter(r=>(r._name||r._desc||'').toLowerCase().includes('zahnarzt')||(r._name||'').toLowerCase().includes('zahnkultur'));
-  if(dentist.length) risks.push({l:'yellow',t:'Zahnarztkosten',d:`${fmt(dentist.reduce((s,r)=>s+Math.abs(r._amt),0))} — Krankenkasse/Beihilfe prüfen.`});
   const cardTot=a.exp.filter(r=>r._isCard).reduce((s,r)=>s+Math.abs(r._amt),0);
   if(cardTot>a.avgExp*a.mc*0.4) risks.push({l:'yellow',t:'Hoher Karten-Anteil',d:`${fmt(cardTot)} per Karte (${(cardTot/Math.abs(a.totalExp)*100).toFixed(1)}% aller Ausgaben).`});
   if(a.totalFee>200) risks.push({l:'yellow',t:'Handelsgebühren',d:`${fmt(a.totalFee)} Gebühren — Sparplan statt Einzelorder erwägen.`});
