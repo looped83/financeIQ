@@ -582,7 +582,7 @@ function analyze(rows) {
     return{...r,_amt:amt,_fee:fee,_tax:tax,_date:date,_month:month,_year:year,
            _type:type,_cat:cat,_name:name,_asset:asset,_desc:desc,
            _isBuy:isBuy,_isSell:isSell,_isDiv:isDiv,_isInterest:isInterest,_isCard:isCard};
-  }).filter(r=>r._date);
+  }).filter(r=>r._date&&r._date>=new Date('2023-01-01'));
   enriched.sort((a,b)=>a._date-b._date);
 
   const cash=enriched.filter(r=>!r._isBuy&&!r._isSell);
