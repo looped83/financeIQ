@@ -268,16 +268,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
   <!-- TAB 2: DEEP-DIVE -->
   <div class="tab-content" id="tab-2">
-    <div id="mc-loading" style="text-align:center;padding:3rem;">
-      <div style="font-size:2rem;margin-bottom:1rem;">⏳</div>
-      <div style="font-size:1rem;color:var(--text-muted);">Lade monatliche Snapshots…</div>
-    </div>
-    <div id="mc-error" style="display:none;text-align:center;padding:3rem;">
-      <div style="font-size:2rem;margin-bottom:1rem;">📂</div>
-      <div style="font-size:1rem;color:var(--text-muted);" id="mc-error-msg">Keine monatlichen Snapshots gefunden.</div>
-      <div style="font-size:.8rem;color:var(--text-muted);margin-top:.5rem;">CSV-Dateien in <code>data/</code> ablegen (z.B. <code>2026-01.csv</code>) und <code>data/months.json</code> aktualisieren.</div>
-    </div>
-    <div id="mc-content" style="display:none;">
+    <div id="mc-content">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;">
         <div>
           <div style="font-size:1.2rem;font-weight:800;letter-spacing:-.5px;">Deep-Dive — Einnahmen & Ausgaben</div>
@@ -286,8 +277,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       </div>
       <!-- KPIs -->
       <div class="g6" id="mc-kpis" style="margin-bottom:1.2rem;"></div>
-      <!-- Milestones -->
-      <div id="mc-milestones" style="margin-bottom:1.2rem;"></div>
+      <!-- Detail table (moved up) -->
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-header"><span class="card-title">Monatliche Detailübersicht</span></div>
+        <div style="overflow-x:auto"><table class="dt" id="mc-detail-table"></table></div>
+      </div>
       <!-- Charts row 1 -->
       <div class="g2" style="margin-bottom:1.2rem;">
         <div class="card">
@@ -355,11 +349,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           <div class="card-header"><span class="card-title">Empfehlungen</span></div>
           <div id="mc-recommendations"></div>
         </div>
-      </div>
-      <!-- Full monthly comparison table -->
-      <div class="card">
-        <div class="card-header"><span class="card-title">Monatliche Detailübersicht</span></div>
-        <div style="overflow-x:auto"><table class="dt" id="mc-detail-table"></table></div>
       </div>
     </div>
   </div>
@@ -432,7 +421,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <div id="out-lights"></div>
       </div>
       <div class="card">
-        <div class="card-header"><span class="card-title">Erkannte Abonnements / Wiederkehrende Beträge</span></div>
+        <div class="card-header"><span class="card-title">Erkannte wiederkehrende Ausgaben</span></div>
         <div style="overflow-x:auto"><table class="dt" id="out-subs"></table></div>
       </div>
     </div>
@@ -855,7 +844,7 @@ function renderOverview(a) {
   if(a.subscriptions.length>0){
     const subTotal=a.subscriptions.reduce((s,x)=>s+x.amt,0);
     const subPct=Math.abs(a.totalExp)/a.mc>0?subTotal/(Math.abs(a.totalExp)/a.mc)*100:0;
-    if(subPct>15) alerts.push({c:'yellow',t:`<strong>Hoher Abo-Anteil:</strong> ${a.subscriptions.length} Abos kosten Ø ${fmt(subTotal)}/Monat (${fmtP(subPct)} der Ausgaben).`});
+    if(subPct>15) alerts.push({c:'yellow',t:`<strong>Hoher Fixkostenanteil:</strong> ${a.subscriptions.length} wiederkehrende Ausgaben kosten Ø ${fmt(subTotal)}/Monat (${fmtP(subPct)} der Ausgaben).`});
   }
   // Card spending dominance
   if(cardRatio>60) alerts.push({c:'blue',t:`<strong>Kartenlastig:</strong> ${fmtP(cardRatio)} aller Ausgaben über Kartenzahlungen — Budgetierung prüfen.`});
@@ -1133,7 +1122,7 @@ function renderOutliers(a) {
     {label:'Erkannte Ausreißer',value:a.outliers.length,cls:'expense',sub:'>2σ Transaktionen'},
     {label:'Stärkstes Signal',value:top?fmt(Math.abs(top._amt)):'—',cls:'neutral',sub:top?(top._name||top._type):'—'},
     {label:'Stichproben-Ø',value:fmt(a.mean),cls:'neutral',sub:`σ = ${fmt(a.std)}`},
-    {label:'Abonnements erkannt',value:a.subscriptions.length,cls:'warn',sub:'Wiederkehrende Beträge'},
+    {label:'Wiederkehrend erkannt',value:a.subscriptions.length,cls:'warn',sub:'Wiederkehrende Ausgaben'},
   ].map(k=>`<div class="kpi ${k.cls}"><div class="kpi-label">${k.label}</div>
     <div class="kpi-value ${k.cls}" style="font-size:1.35rem">${k.value}</div>
     <div class="kpi-sub">${k.sub}</div></div>`).join('');
@@ -1433,7 +1422,7 @@ function renderRecommendations(a){
   // 6. Tax
   if(a.totalTax>0){
     const freibetrag=a.totalTax>0?a.totalDiv+a.totalTax:0;
-    recs.push({l:'yellow',p:3,cat:'Steuern',t:'Freistellungsauftrag prüfen',a:`${fmt(a.totalTax)} Kapitalertragsteuer auf ${fmt(freibetrag)} Brutto-Erträge. Freibetrag: 1.000€/2.000€ (Ehepaar). ${freibetrag<1000?'Liegt unter dem Freibetrag — Freistellungsauftrag sollte volle Steuer verhindern.':'Über dem Freibetrag — Steuer unvermeidbar, Verlustverrechnungstopf nutzen.'}`});
+    recs.push({l:'yellow',p:3,cat:'Steuern',t:'Freistellungsauftrag prüfen',a:`${fmt(a.totalTax)} Kapitalertragsteuer auf ${fmt(freibetrag)} Brutto-Erträge. Freibetrag: 2.000€. ${freibetrag<2000?'Liegt unter dem Freibetrag — Freistellungsauftrag sollte volle Steuer verhindern.':'Über dem Freibetrag — Steuer unvermeidbar, Verlustverrechnungstopf nutzen.'}`});
   }
 
   // 7. Large expenses
@@ -1444,8 +1433,8 @@ function renderRecommendations(a){
   if(a.subscriptions.length>0){
     const subSum=a.subscriptions.reduce((s,x)=>s+x.amt,0);
     const subPct=avgMonthlyExp>0?subSum/avgMonthlyExp*100:0;
-    recs.push({l:'yellow',p:3,cat:'Abos',t:`${a.subscriptions.length} Abonnements — ${fmt(subSum)}/Monat`,a:`Hochrechnung: ${fmt(subSum*12)}/Jahr (${fmtP(subPct)} der Ausgaben). Top: ${a.subscriptions.slice(0,3).map(s=>`${s.name} (${fmt(s.amt)})`).join(', ')}. Tipp: Jeden Abo-Dienst auf Nutzung prüfen — ungenutzte Abos kündigen spart direkt.`});
-    if(subSum>avgMonthlyExp*0.2) recs.push({l:'yellow',p:2,cat:'Abos',t:'Abo-Anteil über 20% der Ausgaben',a:`Wiederkehrende Zahlungen binden ${fmtP(subPct)} der monatlichen Ausgaben. Jährliche Zahlweise nutzen (oft 15–20% Rabatt). Alternativ: Shared-Accounts oder günstigere Alternativen prüfen.`});
+    recs.push({l:'yellow',p:3,cat:'Fixkosten',t:`${a.subscriptions.length} wiederkehrende Ausgaben — ${fmt(subSum)}/Monat`,a:`Hochrechnung: ${fmt(subSum*12)}/Jahr (${fmtP(subPct)} der Ausgaben). Top: ${a.subscriptions.slice(0,3).map(s=>`${s.name} (${fmt(s.amt)})`).join(', ')}. Tipp: Jeden Posten auf Notwendigkeit prüfen — ungenutzte Dienste kündigen spart direkt.`});
+    if(subSum>avgMonthlyExp*0.2) recs.push({l:'yellow',p:2,cat:'Fixkosten',t:'Wiederkehrende Ausgaben über 20%',a:`Fixe Zahlungen binden ${fmtP(subPct)} der monatlichen Ausgaben. Jährliche Zahlweise nutzen (oft 15–20% Rabatt). Alternativ: günstigere Anbieter oder Tarife prüfen.`});
   }
 
   // 9. Volatility
@@ -1508,45 +1497,25 @@ function renderRecommendations(a){
         <div class="ins-desc">${r.a}</div></div></div>`).join('');
 }
 
-// ── TAB 9: MONATSVERGLEICH ────────────────────────────────────
+// ── TAB 2: DEEP-DIVE ─────────────────────────────────────────
 let MC = { snapshots:[], months:[], selectedMonth:null };
 
-async function loadMonthlySnapshots() {
-  try {
-    const resp = await fetch('data/months.json');
-    if (!resp.ok) throw new Error('months.json nicht gefunden');
-    const manifest = await resp.json();
-    const months = manifest.months.sort();
-    const snapshots = [];
-    for (const m of months) {
-      const r = await fetch(`data/${m}.csv`);
-      if (!r.ok) continue;
-      const text = await r.text();
-      const rows = parseCSV(text);
-      if (rows.length) snapshots.push({ month: m, rows, analysis: analyze(rows) });
-    }
-    return snapshots;
-  } catch(e) { return []; }
+function buildMCFromCSV(a) {
+  const snapshots = [];
+  for (const mk of a.mKeys) {
+    const monthRows = a.enriched.filter(r => r._month === mk);
+    if (monthRows.length) snapshots.push({ month: mk, analysis: analyze(monthRows.map(r => ({ ...r }))) });
+  }
+  return snapshots;
 }
 
-function renderMonthlyComparison() {
-  const loading = document.getElementById('mc-loading');
-  const error = document.getElementById('mc-error');
-  const content = document.getElementById('mc-content');
-
-  loadMonthlySnapshots().then(snapshots => {
-    loading.style.display = 'none';
-    if (snapshots.length < 2) {
-      error.style.display = 'block';
-      if (snapshots.length === 1) document.getElementById('mc-error-msg').textContent = 'Nur 1 Monat gefunden — mindestens 2 benötigt.';
-      return;
-    }
-    MC.snapshots = snapshots;
-    MC.months = snapshots.map(s => s.month);
-    MC.selectedMonth = MC.months[MC.months.length - 1];
-    content.style.display = 'block';
-    renderMCDashboard();
-  });
+function renderMonthlyComparison(a) {
+  const snapshots = buildMCFromCSV(a);
+  if (snapshots.length < 2) return;
+  MC.snapshots = snapshots;
+  MC.months = snapshots.map(s => s.month);
+  MC.selectedMonth = MC.months[MC.months.length - 1];
+  renderMCDashboard();
 }
 
 function mcA(i) { return MC.snapshots[i].analysis; }
@@ -1563,7 +1532,7 @@ function renderMCDashboard() {
   ).join('');
 
   renderMCKpis(months);
-  renderMCMilestones(months);
+  renderMCDetailTable(months);
   renderMCCharts(months);
   renderMCChanges(MC.selectedMonth);
   renderMCImprovedWorsened(months);
@@ -1611,45 +1580,7 @@ function renderMCKpis(months) {
   ).join('');
 }
 
-function renderMCMilestones(months) {
-  const milestones = [];
-  let cumInc = 0, cumDiv = 0;
-  const incThresholds = [5000, 10000, 25000, 50000];
-  const divThresholds = [500, 1000, 2000, 5000];
 
-  for (let i = 0; i < months.length; i++) {
-    const a = mcA(i);
-    const prevInc = cumInc, prevDiv = cumDiv;
-    cumInc += a.totalInc;
-    cumDiv += a.totalDiv;
-
-    for (const t of incThresholds) {
-      if (prevInc < t && cumInc >= t) milestones.push({ month: months[i], icon: '💵', text: `${fmt(t)} Einnahmen kumuliert`, type: 'income' });
-    }
-    for (const t of divThresholds) {
-      if (prevDiv < t && cumDiv >= t) milestones.push({ month: months[i], icon: '💰', text: `${fmt(t)} Dividenden kumuliert`, type: 'dividend' });
-    }
-
-    // Best savings rate month
-    const sr = a.totalInc > 0 ? (a.totalInc + a.totalExp) / a.totalInc * 100 : 0;
-    if (sr >= 50 && i > 0) {
-      const prevSR = mcA(i - 1).totalInc > 0 ? (mcA(i - 1).totalInc + mcA(i - 1).totalExp) / mcA(i - 1).totalInc * 100 : 0;
-      if (prevSR < 50) milestones.push({ month: months[i], icon: '🎯', text: `Sparquote über 50% in ${mLabel(months[i])}`, type: 'savings' });
-    }
-  }
-
-  if (!milestones.length) { document.getElementById('mc-milestones').innerHTML = ''; return; }
-
-  document.getElementById('mc-milestones').innerHTML = `<div class="card" style="margin-bottom:0;">
-    <div class="card-header"><span class="card-title">Meilensteine & Erfolge</span></div>
-    <div style="display:flex;flex-wrap:wrap;gap:.6rem;">${milestones.map(m =>
-      `<div style="display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;background:var(--surface2);border-radius:8px;border:1px solid ${m.type === 'income' ? 'rgba(16,185,129,.3)' : m.type === 'dividend' ? 'rgba(139,92,246,.3)' : 'rgba(245,158,11,.3)'};">
-        <span style="font-size:1.1rem;">${m.icon}</span>
-        <div><div style="font-size:.78rem;font-weight:600;">${m.text}</div>
-        <div style="font-size:.68rem;color:var(--text-muted);">${mLabel(m.month)}</div></div>
-      </div>`
-    ).join('')}</div></div>`;
-}
 
 function renderMCCharts(months) {
   const labels = months.map(mLabel);
@@ -1889,7 +1820,7 @@ function renderMCTrends(months) {
 
   // Recurring expenses pattern
   const subCounts = months.map((m, i) => mcA(i).subscriptions.length);
-  if (subCounts[n - 1] > subCounts[0]) trends.push({ icon: '🔄', color: 'yellow', title: 'Mehr Abonnements', desc: `Von ${subCounts[0]} auf ${subCounts[n - 1]} erkannte wiederkehrende Zahlungen. Abo-Kosten regelmäßig prüfen.` });
+  if (subCounts[n - 1] > subCounts[0]) trends.push({ icon: '🔄', color: 'yellow', title: 'Mehr wiederkehrende Ausgaben', desc: `Von ${subCounts[0]} auf ${subCounts[n - 1]} erkannte wiederkehrende Zahlungen. Fixkosten regelmäßig prüfen.` });
 
   // Card spending proportion
   const cardRatios = months.map((m, i) => {
@@ -1926,7 +1857,7 @@ function renderMCAttention(months) {
   // Subscription cost growth
   const lSubCost = latest.subscriptions.reduce((s, x) => s + x.amt, 0);
   const pSubCost = prev.subscriptions.reduce((s, x) => s + x.amt, 0);
-  if (lSubCost > pSubCost * 1.1 && lSubCost > 50) items.push({ icon: '🔄', color: 'yellow', title: `Abo-Kosten gestiegen: ${fmt(lSubCost)}/Monat`, desc: `Von ${fmt(pSubCost)} auf ${fmt(lSubCost)} — Hochrechnung: ${fmt(lSubCost * 12)}/Jahr. Unnötige Abos kündigen.` });
+  if (lSubCost > pSubCost * 1.1 && lSubCost > 50) items.push({ icon: '🔄', color: 'yellow', title: `Wiederkehrende Kosten gestiegen: ${fmt(lSubCost)}/Monat`, desc: `Von ${fmt(pSubCost)} auf ${fmt(lSubCost)} — Hochrechnung: ${fmt(lSubCost * 12)}/Jahr. Unnötige Posten kündigen.` });
 
   // Large single expenses in latest month
   const bigOnes = latest.exp.filter(r => Math.abs(r._amt) > 200).sort((a, b) => Math.abs(b._amt) - Math.abs(a._amt));
@@ -1951,7 +1882,7 @@ function renderMCRecommendations(months) {
   const sr = totals.inc > 0 ? (totals.inc - totals.exp) / totals.inc * 100 : 0;
 
   // Savings rate
-  if (sr < 10) recs.push({ color: 'red', title: 'Sparquote kritisch niedrig', desc: `Nur ${fmtP(sr)} über ${n} Monate. Ziel: 20%. Monatlich ${fmt(avgInc * 0.2)} zurücklegen. Fixkosten (Abos, Lastschriften) systematisch prüfen.` });
+  if (sr < 10) recs.push({ color: 'red', title: 'Sparquote kritisch niedrig', desc: `Nur ${fmtP(sr)} über ${n} Monate. Ziel: 20%. Monatlich ${fmt(avgInc * 0.2)} zurücklegen. Fixkosten (wiederkehrende Ausgaben, Lastschriften) systematisch prüfen.` });
   else if (sr < 20) recs.push({ color: 'yellow', title: 'Sparquote steigern', desc: `Aktuell ${fmtP(sr)}. Noch ${fmt(avgInc * 0.2 - (avgInc - avgExp))}/Monat mehr sparen, um das 20%-Ziel zu erreichen.` });
   else recs.push({ color: 'green', title: `Gute Sparquote: ${fmtP(sr)}`, desc: `Über dem 20%-Zielwert. Überschüsse gezielt investieren oder Rücklagen aufbauen.` });
 
@@ -2051,16 +1982,13 @@ function initDashboard(text,filename){
 function resetDashboard(){
   Object.values(G.charts).forEach(c=>{try{c.destroy();}catch(e){}});
   G={rows:[],a:null,charts:{},fcMonths:3,tlView:'daily',cmpData:null,cmpMetric:'income',fileName:''};
-  MC={snapshots:[],months:[],portfolio:{},selectedMonth:null};
+  MC={snapshots:[],months:[],selectedMonth:null};
   rendered.clear();
   document.getElementById('upload-screen').style.display='flex';
   document.getElementById('dashboard').style.display='none';
   document.getElementById('file-input').value='';
   document.getElementById('cmp-upload-area').style.display='block';
   document.getElementById('cmp-content').style.display='none';
-  document.getElementById('mc-loading').style.display='block';
-  document.getElementById('mc-error').style.display='none';
-  document.getElementById('mc-content').style.display='none';
   showTab(0);
 }
 
