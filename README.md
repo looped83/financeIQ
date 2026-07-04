@@ -108,13 +108,29 @@ No financial data is uploaded to external servers.
 
 🧪 Testing
 
-Run the regression suite (no dependencies, no build step):
-
 ```
-npm test
+npm install
+npm test          # legacy regression suite + Vitest unit tests
+npm run typecheck # TypeScript, no build
 ```
 
-It replays fixture CSVs through the same `parseCSV()`/`analyze()` logic the app uses in the browser, covering dividend tax handling, buy/sell fee treatment, category classification, and German/semicolon CSV variants.
+`npm test` runs two suites:
+
+* **`test:legacy`** — replays fixture CSVs through the inline `parseCSV()`/`analyze()` still shipped in `index.html` today (the production logic, until the V2 migration reaches its cutover point).
+* **`test:unit`** — Vitest tests against the typed domain layer in `src/domain/` (the V2 rewrite target). Same fixtures, same assertions, real unit tests instead of a VM-sandboxed script.
+
+Both currently need to pass independently, since `index.html`'s inline script and `src/domain/` are — for now, deliberately — two copies of the same logic. See `handover.md` for the migration plan.
+
+🏗️ V2 Migration (in progress)
+
+The app is being incrementally rewritten into a typed, componentized architecture while staying deployable as a static site at every step (no functionality changes until each phase is verified equivalent):
+
+* ✅ **Phase 0** — Vite + TypeScript build pipeline, proven to produce a byte-identical `dist/index.html` from the untouched source.
+* ✅ **Phase 1** — Domain layer (`parseCSV`, `analyze`, formatting/stats helpers) ported to typed, unit-tested modules in `src/domain/`. Not yet wired into `index.html`.
+* ⬜ Phase 2 — Typed state store replacing the `G`/`MC`/`TX` globals.
+* ⬜ Phase 3 — Tabs migrated to components one at a time.
+* ⬜ Phase 4 — IndexedDB persistence.
+* ⬜ Phase 5 — Cut over: `index.html`'s inline script is replaced by the `src/` bundle, GitHub Pages source switches to the Actions-based deploy.
 
 ⸻
 
