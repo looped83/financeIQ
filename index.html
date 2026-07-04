@@ -118,13 +118,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 /* COMPARE */
 .compare-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;}
 .compare-title{font-size:1.2rem;font-weight:800;letter-spacing:-0.5px;}
-.cmp-kpi-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:.8rem;align-items:center;margin-bottom:1.2rem;}
-.cmp-side{background:var(--surface2);border-radius:10px;padding:1rem;}
-.cmp-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.7rem;}
-.cmp-label.base{color:var(--accent);}
-.cmp-label.comp{color:var(--accent2);}
-.cmp-delta-col{display:flex;flex-direction:column;gap:.5rem;padding:.5rem 0;}
-.cmp-delta-item{text-align:center;font-size:.78rem;font-weight:700;}
 .cmp-kpi-row{display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.8rem;}
 .cmp-kpi-row:last-child{border:none;}
 /* UPLOAD2 */
@@ -167,7 +160,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <button class="tab-btn active" onclick="showTab(0)">📊 Übersicht</button>
     <button class="tab-btn" onclick="showTab(1)">📈 Zeitverlauf</button>
     <button class="tab-btn" onclick="showTab(2)">🔍 Deep-Dive</button>
-    <button class="tab-btn" onclick="showTab(3)" id="tab-btn-3">📆 Jahre</button>
+    <button class="tab-btn" onclick="showTab(3)">📆 Jahre</button>
     <button class="tab-btn" onclick="showTab(4)">📅 Monate</button>
     <button class="tab-btn" onclick="showTab(5)">🏷️ Kategorien</button>
     <button class="tab-btn" onclick="showTab(6)">⚠️ Ausreißer</button>
@@ -474,7 +467,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div style="margin-bottom:1.2rem;" id="cmp-kpi-section"></div>
       <div class="card" style="margin-bottom:1.2rem;">
         <div class="card-header">
-          <span class="card-title">Monatlicher Vergleich — Einnahmen</span>
+          <span class="card-title" id="cmp-monthly-title">Monatlicher Vergleich — Einnahmen</span>
           <div class="controls" id="cmp-metric-controls">
             <button class="cb active" onclick="setCmpMetric('income',this)">Einnahmen</button>
             <button class="cb" onclick="setCmpMetric('expense',this)">Ausgaben</button>
@@ -589,6 +582,8 @@ function findCol(rows, candidates) {
 }
 
 // ── ANALYSIS ────────────────────────────────────────────────
+const MIN_DATE=new Date('2024-01-01'); // Nur Transaktionen ab diesem Datum werden ausgewertet
+
 function analyze(rows) {
   const amtCol = findCol(rows,['amount','betrag','value','wert']);
   const dateCol= findCol(rows,['date','datum','buchungsdatum','valuta']);
@@ -623,7 +618,7 @@ function analyze(rows) {
     return{...r,_amt:amt,_fee:fee,_tax:tax,_date:date,_month:month,_year:year,
            _type:type,_cat:cat,_name:name,_asset:asset,_desc:desc,
            _isBuy:isBuy,_isSell:isSell,_isDiv:isDiv,_isInterest:isInterest,_isCard:isCard};
-  }).filter(r=>r._date&&r._date>=new Date('2024-01-01'));
+  }).filter(r=>r._date&&r._date>=MIN_DATE);
   enriched.sort((a,b)=>a._date-b._date);
 
   const cash=enriched.filter(r=>!r._isBuy&&!r._isSell);
@@ -710,8 +705,8 @@ function analyze(rows) {
   const cashAmts=cash.map(r=>Math.abs(r._amt));
   const mean=cashAmts.reduce((s,v)=>s+v,0)/cashAmts.length;
   const std=Math.sqrt(cashAmts.reduce((s,v)=>s+Math.pow(v-mean,2),0)/cashAmts.length);
-  const outliers=cash.filter(r=>Math.abs(Math.abs(r._amt)-mean)/std>2)
-    .map(r=>({...r,_z:(Math.abs(r._amt)-mean)/std})).sort((a,b)=>b._z-a._z);
+  const outliers=std>0?cash.filter(r=>Math.abs(Math.abs(r._amt)-mean)/std>2)
+    .map(r=>({...r,_z:(Math.abs(r._amt)-mean)/std})).sort((a,b)=>b._z-a._z):[];
 
   // Recurring / subscriptions: same name+amount appears 2+ months
   const recurMap={};
@@ -741,9 +736,12 @@ function typeLabel(t){
     'TRANSFER_INBOUND':'Eingehend','TRANSFER_INSTANT_INBOUND':'Sofort-Eingang'};
   return m[t]||t;
 }
-function fmt(v,d=2){if(isNaN(v))return'—';return new Intl.NumberFormat('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d}).format(v)+' €';}
-function fmtN(v){return new Intl.NumberFormat('de-DE').format(Math.round(v));}
-function fmtP(v,force=false){return(v>0?(force?'+':'')+v.toFixed(1)+'%':v.toFixed(1)+'%');}
+const NUM_FMT={};
+function numFmt(d){return NUM_FMT[d]||(NUM_FMT[d]=new Intl.NumberFormat('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d}));}
+const INT_FMT=new Intl.NumberFormat('de-DE');
+function fmt(v,d=2){if(isNaN(v))return'—';return numFmt(d).format(v)+' €';}
+function fmtN(v){return INT_FMT.format(Math.round(v));}
+function fmtP(v){return v.toFixed(1)+'%';}
 function fmtPP(v){return(v>=0?'+':'')+v.toFixed(1)+'%';}
 function fmtD(d){return d?d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}):'—';}
 function mLabel(mk){const[y,m]=mk.split('-');return new Date(y,m-1).toLocaleDateString('de-DE',{month:'short',year:'2-digit'});}
@@ -793,7 +791,7 @@ function renderOverview(a) {
     options:{...BASE,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:10},boxWidth:10}}}}});
 
   // Savings rate trend chart
-  const srData=a.mKeys.map(mk=>{const m=a.months[mk];return m.income>0?m.net/m.income*100:0;});
+  const srData=a.mKeys.map(mk=>a.months[mk].savingsRate);
   mkChart('c-ov-sr',{type:'line',data:{labels:a.mKeys.map(mLabel),datasets:[
     {label:'Sparquote',data:srData,borderColor:'#f59e0b',borderWidth:2,pointRadius:3,pointBackgroundColor:'#f59e0b',tension:.3,fill:{target:'origin',above:'rgba(245,158,11,.1)'}},
     {label:'Ziel 20%',data:a.mKeys.map(()=>20),borderColor:'rgba(16,185,129,.4)',borderDash:[5,5],borderWidth:1,pointRadius:0,fill:false}
@@ -938,7 +936,6 @@ function renderTimeline(a) {
 }
 
 function buildTLChart(a, view) {
-  dChart('c-tl-main');
   let labels, cumData, maData;
 
   if(view==='daily'){
@@ -962,13 +959,13 @@ function buildTLChart(a, view) {
   }
 
   const isDate=view==='daily';
-  G.charts['c-tl-main']=new Chart(document.getElementById('c-tl-main'),{
+  mkChart('c-tl-main',{
     type:'line',
     data:{
-      labels:isDate?undefined:labels,
+      labels,
       datasets:[
-        {label:'Kumuliert',data:isDate?cumData:cumData,borderColor:'#3b82f6',borderWidth:2.5,pointRadius:0,fill:{target:'origin',above:'rgba(59,130,246,.08)',below:'rgba(239,68,68,.1)'},tension:.3},
-        {label:'Gleit. Ø',data:isDate?maData:maData,borderColor:'#f59e0b',borderWidth:1.5,borderDash:[5,4],pointRadius:0,tension:.3}
+        {label:'Kumuliert',data:cumData,borderColor:'#3b82f6',borderWidth:2.5,pointRadius:0,fill:{target:'origin',above:'rgba(59,130,246,.08)',below:'rgba(239,68,68,.1)'},tension:.3},
+        {label:'Gleit. Ø',data:maData,borderColor:'#f59e0b',borderWidth:1.5,borderDash:[5,4],pointRadius:0,tension:.3}
       ]
     },
     options:{...BASE,interaction:{mode:'index',intersect:false},
@@ -1216,7 +1213,6 @@ function linReg(ys){
 function renderForecast(a){buildForecastChart(a,G.fcMonths);}
 
 function buildForecastChart(a,months){
-  dChart('c-fc-main');
   const nets=a.mKeys.map(m=>a.months[m]?.net||0);
   let cum=0; const cumAct=nets.map(v=>{cum+=v;return cum;});
   const{slope,intercept,resStd}=linReg(nets);
@@ -1237,7 +1233,7 @@ function buildForecastChart(a,months){
   const uP=[...pad(lastI),cumAct[cumAct.length-1],...fcU];
   const lP=[...pad(lastI),cumAct[cumAct.length-1],...fcL];
 
-  G.charts['c-fc-main']=new Chart(document.getElementById('c-fc-main'),{type:'line',data:{labels:allLbls,datasets:[
+  mkChart('c-fc-main',{type:'line',data:{labels:allLbls,datasets:[
     {label:'Ist-Verlauf',data:histP,borderColor:'#3b82f6',borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#3b82f6',tension:.3,spanGaps:false},
     {label:'Prognose',data:fcP,borderColor:'#f59e0b',borderWidth:2,borderDash:[6,4],pointRadius:3,pointBackgroundColor:'#f59e0b',tension:.3,spanGaps:false},
     {label:'95% CI oben',data:uP,borderColor:'rgba(245,158,11,.2)',borderWidth:1,pointRadius:0,fill:'+1',backgroundColor:'rgba(245,158,11,.08)',tension:.3,spanGaps:false},
@@ -1318,9 +1314,6 @@ function renderCompare(a1,a2,name1,name2){
   const{MN,m1,m2}=buildMonthAlign(a1,a2);
   G._cmpAlign={MN,m1,m2};
 
-  // Mismatch check
-  const mismatched=Object.keys(a1.months).length===0||Object.keys(a2.months).length===0;
-
   // 3-col KPI
   const kpis=[
     {label:'Einnahmen',v1:a1.totalInc,v2:a2.totalInc},
@@ -1350,9 +1343,8 @@ function renderCompare(a1,a2,name1,name2){
   setCmpMetric(G.cmpMetric, document.querySelector('#cmp-metric-controls .cb.active')||document.querySelector('#cmp-metric-controls .cb'));
 
   // Delta bar chart
-  dChart('c-cmp-delta');
   const deltas=MN.map(mn=>({mn,d:(m2[mn]?.net||0)-(m1[mn]?.net||0)}));
-  G.charts['c-cmp-delta']=new Chart(document.getElementById('c-cmp-delta'),{type:'bar',data:{
+  mkChart('c-cmp-delta',{type:'bar',data:{
     labels:MN.map(monthName),
     datasets:[{label:'Delta Netto (Vergleich - Basis)',data:deltas.map(x=>x.d),
       backgroundColor:deltas.map(x=>x.d>=0?'rgba(16,185,129,.75)':'rgba(239,68,68,.75)'),borderRadius:4}]
@@ -1361,8 +1353,7 @@ function renderCompare(a1,a2,name1,name2){
   // Category delta
   const cats=[...new Set([...Object.keys(a1.expCat),...Object.keys(a2.expCat)])].sort();
   const catD=cats.map(c=>({c,d:(a2.expCat[c]||0)-(a1.expCat[c]||0)})).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,12);
-  dChart('c-cmp-cat');
-  G.charts['c-cmp-cat']=new Chart(document.getElementById('c-cmp-cat'),{type:'bar',data:{
+  mkChart('c-cmp-cat',{type:'bar',data:{
     labels:catD.map(x=>x.c),
     datasets:[{label:'Ausgaben-Delta (Vergleich - Basis)',data:catD.map(x=>x.d),
       backgroundColor:catD.map(x=>x.d>0?'rgba(239,68,68,.75)':'rgba(16,185,129,.75)'),borderRadius:4}]
@@ -1412,14 +1403,13 @@ function renderCompare(a1,a2,name1,name2){
 function setCmpMetric(metric, btn){
   G.cmpMetric=metric;
   if(btn){document.querySelectorAll('#cmp-metric-controls .cb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
-  const title={'income':'Einnahmen','expense':'Ausgaben','net':'Netto-Cashflow','invested':'Investitionen'};
-  document.querySelector('#cmp-content .card-title')||null;
+  const titles={'income':'Einnahmen','expense':'Ausgaben','net':'Netto-Cashflow','invested':'Investitionen'};
+  document.getElementById('cmp-monthly-title').textContent=`Monatlicher Vergleich — ${titles[metric]||metric}`;
   if(!G.cmpData||!G._cmpAlign) return;
   const{MN,m1,m2}=G._cmpAlign;
   const col1='rgba(59,130,246,.75)', col2='rgba(139,92,246,.75)';
   const y1=G._cmpLabels?.y1||'Basis', y2=G._cmpLabels?.y2||'Vergleich';
-  dChart('c-cmp-monthly');
-  G.charts['c-cmp-monthly']=new Chart(document.getElementById('c-cmp-monthly'),{type:'bar',data:{
+  mkChart('c-cmp-monthly',{type:'bar',data:{
     labels:MN.map(monthName),
     datasets:[
       {label:y1,data:MN.map(mn=>metric==='expense'?Math.abs(m1[mn]?.[metric]||0):(m1[mn]?.[metric]||0)),backgroundColor:col1,borderRadius:4},
@@ -1469,7 +1459,7 @@ function renderRecommendations(a){
 
   // 6. Tax
   if(a.totalTax>0){
-    const freibetrag=a.totalTax>0?a.totalDiv+a.totalTax:0;
+    const freibetrag=a.totalDiv+a.totalTax;
     recs.push({l:'yellow',p:3,cat:'Steuern',t:'Freistellungsauftrag prüfen',a:`${fmt(a.totalTax)} Kapitalertragsteuer auf ${fmt(freibetrag)} Brutto-Erträge. Freibetrag: 2.000€. ${freibetrag<2000?'Liegt unter dem Freibetrag — Freistellungsauftrag sollte volle Steuer verhindern.':'Über dem Freibetrag — Steuer unvermeidbar, Verlustverrechnungstopf nutzen.'}`});
   }
 
@@ -1552,14 +1542,17 @@ function buildMCFromCSV(a) {
   const snapshots = [];
   for (const mk of a.mKeys) {
     const monthRows = a.enriched.filter(r => r._month === mk);
-    if (monthRows.length) snapshots.push({ month: mk, analysis: analyze(monthRows.map(r => ({ ...r }))) });
+    if (monthRows.length) snapshots.push({ month: mk, analysis: analyze(monthRows) });
   }
   return snapshots;
 }
 
 function renderMonthlyComparison(a) {
   const snapshots = buildMCFromCSV(a);
-  if (snapshots.length < 2) return;
+  if (snapshots.length < 2) {
+    document.getElementById('mc-subtitle').textContent = 'Mindestens 2 Monate an Daten erforderlich — CSV mit längerem Zeitraum hochladen.';
+    return;
+  }
   MC.snapshots = snapshots;
   MC.months = snapshots.map(s => s.month);
   MC.selectedMonth = MC.months[MC.months.length - 1];
@@ -1571,7 +1564,6 @@ function mcA(i) { return MC.snapshots[i].analysis; }
 function renderMCDashboard() {
   const months = MC.months;
   const n = months.length;
-  const latest = mcA(n - 1), prev = mcA(n - 2), first = mcA(0);
 
   document.getElementById('mc-subtitle').textContent = `${n} Monate: ${mLabel(months[0])} bis ${mLabel(months[n - 1])}`;
 
@@ -1580,7 +1572,6 @@ function renderMCDashboard() {
   ).join('');
 
   renderMCKpis(months);
-  renderMCDetailTable(months);
   renderMCCharts(months);
   renderMCChanges(MC.selectedMonth);
   renderMCImprovedWorsened(months);
@@ -1608,9 +1599,6 @@ function renderMCKpis(months) {
 
   const l = mcA(n - 1), p = mcA(n - 2);
   const incChg = p.totalInc > 0 ? ((l.totalInc - p.totalInc) / p.totalInc * 100) : 0;
-  const expChg = Math.abs(p.totalExp) > 0 ? ((Math.abs(l.totalExp) - Math.abs(p.totalExp)) / Math.abs(p.totalExp) * 100) : 0;
-  const lSR = l.totalInc > 0 ? (l.totalInc + l.totalExp) / l.totalInc * 100 : 0;
-  const pSR = p.totalInc > 0 ? (p.totalInc + p.totalExp) / p.totalInc * 100 : 0;
 
   const kpis = [
     { label: 'Gesamteinnahmen', value: fmt(totalInc), cls: 'income', sub: `Ø ${fmt(totalInc / n)}/Monat` },
@@ -1636,7 +1624,6 @@ function renderMCCharts(months) {
   const incData = months.map((m, i) => mcA(i).totalInc);
   const expData = months.map((m, i) => Math.abs(mcA(i).totalExp));
   const divData = months.map((m, i) => mcA(i).totalDiv);
-  dChart('c-mc-incexp');
   mkChart('c-mc-incexp', { type: 'bar', data: { labels, datasets: [
     { label: 'Einnahmen', data: incData, backgroundColor: 'rgba(16,185,129,.75)', borderRadius: 4 },
     { label: 'Ausgaben', data: expData, backgroundColor: 'rgba(239,68,68,.75)', borderRadius: 4 },
@@ -1647,7 +1634,6 @@ function renderMCCharts(months) {
   // Net cashflow + savings rate
   const netData = months.map((m, i) => mcA(i).totalInc + mcA(i).totalExp);
   const srData = months.map((m, i) => { const a = mcA(i); return a.totalInc > 0 ? (a.totalInc + a.totalExp) / a.totalInc * 100 : 0; });
-  dChart('c-mc-net');
   mkChart('c-mc-net', { type: 'bar', data: { labels, datasets: [
     { label: 'Netto-Cashflow', data: netData, backgroundColor: netData.map(v => v >= 0 ? 'rgba(16,185,129,.7)' : 'rgba(239,68,68,.7)'), borderRadius: 4, yAxisID: 'y' },
     { label: 'Sparquote %', data: srData, type: 'line', borderColor: '#f59e0b', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#f59e0b', tension: .3, yAxisID: 'y1' }
@@ -1658,7 +1644,6 @@ function renderMCCharts(months) {
   // Cumulative net cashflow
   let cumNet = 0;
   const cumData = months.map((m, i) => { cumNet += mcA(i).totalInc + mcA(i).totalExp; return cumNet; });
-  dChart('c-mc-cumnet');
   mkChart('c-mc-cumnet', { type: 'line', data: { labels, datasets: [
     { label: 'Kum. Netto', data: cumData, borderColor: '#3b82f6', borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#3b82f6',
       fill: { target: 'origin', above: 'rgba(16,185,129,.08)', below: 'rgba(239,68,68,.08)' }, tension: .3 }
@@ -1672,7 +1657,6 @@ function renderMCCharts(months) {
     const totB = months.reduce((s, m, i) => s + (mcA(i).expCat[b] || 0), 0);
     return totB - totA;
   }).slice(0, 8);
-  dChart('c-mc-catstack');
   mkChart('c-mc-catstack', { type: 'bar', data: { labels, datasets: catKeys.map((cat, ci) => ({
     label: cat, data: months.map((m, i) => mcA(i).expCat[cat] || 0),
     backgroundColor: PAL[ci % PAL.length] + 'CC', borderRadius: 2
@@ -2002,7 +1986,7 @@ function renderMCDetailTable(months) {
 }
 
 // ── TAB 10: TRANSAKTIONEN ────────────────────────────────────
-let TX = { filtered: [], page: 0, perPage: 50 };
+let TX = { all: [], filtered: [], page: 0, perPage: 50 };
 
 function renderTransactions(a) {
   TX.all = a.enriched;
@@ -2034,11 +2018,13 @@ function applyTxFilters() {
   const search = document.getElementById('tx-search').value.toLowerCase().trim();
   const sort = document.getElementById('tx-sort').value;
 
+  const fromDate = from ? new Date(from) : null;
+  const toDate = to ? new Date(to + 'T23:59:59') : null;
   let rows = TX.all.filter(r => {
     if (year && r._year !== year) return false;
     if (month && r._month && r._month.split('-')[1] !== month) return false;
-    if (from && r._date && r._date < new Date(from)) return false;
-    if (to && r._date && r._date > new Date(to + 'T23:59:59')) return false;
+    if (fromDate && r._date && r._date < fromDate) return false;
+    if (toDate && r._date && r._date > toDate) return false;
     if (cat && typeLabel(r._type) !== cat) return false;
     if (search) {
       const hay = [r._name, r._desc, r._type, typeLabel(r._type), r._cat, r._asset].join(' ').toLowerCase();
@@ -2059,10 +2045,12 @@ function applyTxFilters() {
 }
 
 function renderTxKpis(rows) {
-  const inc = rows.filter(r => !r._isBuy && !r._isSell && r._amt > 0).reduce((s, r) => s + r._amt, 0);
-  const exp = rows.filter(r => !r._isBuy && !r._isSell && r._amt < 0).reduce((s, r) => s + r._amt, 0);
-  const inv = rows.filter(r => r._isBuy).reduce((s, r) => s + Math.abs(r._amt), 0);
-  const div = rows.filter(r => r._isDiv).reduce((s, r) => s + r._amt, 0);
+  let inc = 0, exp = 0, inv = 0, div = 0;
+  for (const r of rows) {
+    if (r._isBuy) inv += Math.abs(r._amt);
+    else if (!r._isSell) { if (r._amt > 0) inc += r._amt; else exp += r._amt; }
+    if (r._isDiv) div += r._amt;
+  }
   document.getElementById('tx-kpis').innerHTML = [
     { label: 'Einnahmen', value: fmt(inc), cls: 'income' },
     { label: 'Ausgaben', value: fmt(Math.abs(exp)), cls: 'expense' },
@@ -2152,7 +2140,7 @@ function resetDashboard(){
   Object.values(G.charts).forEach(c=>{try{c.destroy();}catch(e){}});
   G={rows:[],a:null,charts:{},fcMonths:3,tlView:'daily',cmpData:null,cmpMetric:'income',fileName:''};
   MC={snapshots:[],months:[],selectedMonth:null};
-  TX={filtered:[],page:0,perPage:50};
+  TX={all:[],filtered:[],page:0,perPage:50};
   rendered.clear();
   document.getElementById('upload-screen').style.display='flex';
   document.getElementById('dashboard').style.display='none';
