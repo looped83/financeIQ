@@ -188,7 +188,15 @@ Ziel: schrittweiser Umbau auf TypeScript + Komponenten + State-Store, ohne die l
 
 - **Phase 0 (fertig):** Vite + TypeScript-Build-Pipeline. `vite.config.ts`, `tsconfig.json`, neuer Workflow `.github/workflows/pages-vite.yml` (nur `workflow_dispatch`, ersetzt die aktuelle Pages-Deployment **nicht** — die läuft unverändert über "Deploy from a branch" weiter, bis bewusst auf "GitHub Actions" umgestellt wird). `npm run build` erzeugt aktuell eine zu `index.html` byte-identische `dist/index.html`.
 - **Phase 1 (fertig):** Domain-Layer (`parseCSV`, `findCol`, `analyze`, `linReg`, Formatierungs-Helper) nach `src/domain/*.ts` portiert, typisiert, mit Vitest-Unit-Tests. **Wichtig:** `index.html` wurde dabei bewusst NICHT angefasst — sie behält vorerst ihre eigene (identische) Kopie der Logik inline. Diese Dopplung ist befristete, bekannte Technical Debt der Migration, keine Vergesslichkeit. Die Zusammenführung (index.html bindet den gebauten Bundle ein) passiert erst, wenn `dist/` auch tatsächlich das Deployment-Artefakt wird (Phase 5).
-- **Phase 2 (offen):** Typisierter State-Store statt `G`/`MC`/`TX`-Globals.
+- **Phase 2 (fertig):** Typisierter State-Store in `src/state/` als Ersatz für `G`/`MC`/`TX`:
+  - `store.ts` — generisches, framework-loses `createStore<T>()` (get/set/subscribe), kein Redux/Zustand als Dependency
+  - `appState.ts` — `AppState`-Typ + `initialAppState()`, spiegelt die heutigen Globals, aber bereinigt:
+    - `G.rows` (Rohdaten vor `analyze()`) fällt weg — wird im Code nirgends gelesen, nur einmal geschrieben (totes Feld)
+    - `G.charts` (Chart.js-Instanzen) ist bewusst NICHT Teil des State — das sind imperative DOM-Handles, kein App-State; gehört Phase 3 zur jeweiligen Komponente
+    - `MC.snapshots` (Deep-Dive-Monatsanalysen) und `TX.filtered` (gefilterte Transaktionen) sind nicht gespeichert — beides lässt sich aus `analysis` + Filtern ableiten, statt dupliziert vorgehalten zu werden
+    - Transaktions-Filter (`tx-year`, `tx-search` etc.) existieren heute NUR als DOM-Werte, nirgends in JS — der Store bildet sie erstmals als echten State ab
+  - `appStore.ts` — `createAppStore()` liefert `{ store, actions }`; Actions bilden 1:1 die heutigen Verhaltensdetails nach, z.B. dass `cmpMetric` beim Laden/Zurücksetzen einer Vergleichsdatei **nicht** zurückgesetzt wird (nur `resetAll()` tut das), oder dass jede Filter-/Sortierungsänderung bei Transaktionen die Pagination auf Seite 0 zurücksetzt
+  - **Wie Phase 1:** noch nicht in `index.html` verdrahtet — reine, unit-getestete Infrastruktur, die Phase 3 anzapft
 - **Phase 3 (offen):** Tabs einzeln auf Komponenten umstellen (Reihenfolge: Transaktionen → Übersicht → Kategorien/Jahre/Monate → Ausreißer/Prognose → Deep-Dive/Vergleich → Empfehlungen).
 - **Phase 4 (offen):** IndexedDB-Persistenz.
 - **Phase 5 (offen):** Cutover — `index.html`s Inline-Script wird durch den `src/`-Bundle ersetzt, Pages-Source wird auf den neuen Workflow umgestellt.
