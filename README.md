@@ -138,8 +138,9 @@ The app is being incrementally rewritten into a typed, componentized architectur
   - **Monate**: `src/features/monthly/` — grouped bar, cumulative balance line, savings-rate line, detail table with best/worst-month highlighting.
   - **Ausreißer**: `src/features/outliers/` — KPI cards, risk-light list, recurring-expenses table (reuses `getRecurringExpenses` from `shared/commonSelectors.ts`), and the z-score outlier table. No charts.
   - **Prognose**: `src/features/forecast/` — linear-trend cashflow forecast with a 95% confidence band, wired to the Phase 2 store's `forecastMonths`/`setForecastMonths` so the 3/6/12-month toggle buttons are real interactive state, not just a demo. Uses `linReg` from the Phase 1 domain layer.
-  - All seven previewable standalone (`npm run dev`, open `/src/dev/{transactions,overview,categories,yearly,monthly,outliers,forecast}-preview.html`), all verified with Playwright against the *built* output — not just unit tests.
-  - Not wired into `index.html` yet; remaining tabs (Deep-Dive/Vergleich → Empfehlungen) still to come.
+  - **Deep-Dive**: `src/features/deepdive/` — the largest tab (KPIs, 4 charts, month-over-month changes, improved/worsened, best/worst months, trends, attention items, recommendations, detail table). Re-analyzes each month of the uploaded CSV in isolation (`buildMonthlySnapshots`) the same way the original did. The month-picker for "Veränderungen zum Vormonat" is wired to the store's `deepDiveSelectedMonth`/`setDeepDiveMonth`, defaulting to the most recent month on first render.
+  - All eight previewable standalone (`npm run dev`, open `/src/dev/{transactions,overview,categories,yearly,monthly,outliers,forecast,deepdive}-preview.html`), all verified with Playwright against the *built* output — not just unit tests.
+  - Not wired into `index.html` yet; remaining tabs (Vergleich → Empfehlungen) still to come.
 * ⬜ Phase 4 — IndexedDB persistence.
 * ⬜ Phase 5 — Cut over: `index.html`'s inline script is replaced by the `src/` bundle, GitHub Pages source switches to the Actions-based deploy.
 

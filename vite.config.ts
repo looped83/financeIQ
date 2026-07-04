@@ -23,6 +23,7 @@ export default defineConfig({
         monthlyPreview: resolve(__dirname, 'src/dev/monthly-preview.html'),
         outliersPreview: resolve(__dirname, 'src/dev/outliers-preview.html'),
         forecastPreview: resolve(__dirname, 'src/dev/forecast-preview.html'),
+        deepdivePreview: resolve(__dirname, 'src/dev/deepdive-preview.html'),
       },
     },
   },
