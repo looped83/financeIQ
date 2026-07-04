@@ -696,9 +696,10 @@ function analyze(rows) {
     byAssetClass[ac]+=Math.abs(r._amt);
   }
 
-  // Expense by category
+  // Expense by category (Dividenden/Zinsen ausgeschlossen: vereinzelte Korrekturbuchungen
+  // können netto negativ ausfallen, sind aber keine Ausgabenkategorie, sondern Ertragskorrekturen)
   const expCat={};
-  for(const r of exp){ const t=typeLabel(r._type); if(!expCat[t])expCat[t]=0; expCat[t]+=Math.abs(r._amt); }
+  for(const r of exp){ if(r._isDiv||r._isInterest) continue; const t=typeLabel(r._type); if(!expCat[t])expCat[t]=0; expCat[t]+=Math.abs(r._amt); }
 
   // Top merchants (card)
   const merchants={};
