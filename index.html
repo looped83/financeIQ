@@ -1263,8 +1263,15 @@ function buildMonthAlign(a1,a2){
   return{MN:activeMN,m1,m2};
 }
 
+function deriveYearLabel(mKeys,fallback){
+  const yrs=[...new Set(mKeys.map(k=>k.split('-')[0]))];
+  return yrs.length===1?yrs[0]:yrs.length>1?yrs[0]+'–'+yrs[yrs.length-1]:fallback;
+}
+
 function renderCompare(a1,a2,name1,name2){
-  const y1=a1.mKeys[0]?.split('-')[0]||name1, y2=a2.mKeys[0]?.split('-')[0]||name2;
+  let y1=deriveYearLabel(a1.mKeys,name1), y2=deriveYearLabel(a2.mKeys,name2);
+  if(y1===y2){y1=name1.replace(/\.csv$/i,'');y2=name2.replace(/\.csv$/i,'');}
+  G._cmpLabels={y1,y2};
   document.getElementById('cmp-headline').textContent=`${y1} vs. ${y2}`;
 
   const{MN,m1,m2}=buildMonthAlign(a1,a2);
@@ -1369,7 +1376,7 @@ function setCmpMetric(metric, btn){
   if(!G.cmpData||!G._cmpAlign) return;
   const{MN,m1,m2}=G._cmpAlign;
   const col1='rgba(59,130,246,.75)', col2='rgba(139,92,246,.75)';
-  const y1=G.a.mKeys[0]?.split('-')[0]||'Basis', y2=G.cmpData.mKeys[0]?.split('-')[0]||'Vergleich';
+  const y1=G._cmpLabels?.y1||'Basis', y2=G._cmpLabels?.y2||'Vergleich';
   dChart('c-cmp-monthly');
   G.charts['c-cmp-monthly']=new Chart(document.getElementById('c-cmp-monthly'),{type:'bar',data:{
     labels:MN.map(monthName),
