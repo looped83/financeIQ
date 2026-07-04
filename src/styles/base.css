@@ -1,0 +1,57 @@
+/*
+ * Extracted from index.html's inline <style> block — only the rules the
+ * migrated components need so far (Transaktionen tab). index.html itself
+ * is untouched and keeps its own copy inline; this file is the seed of
+ * what Phase 5's cutover will eventually have index.html import instead.
+ */
+:root{--bg:#080d18;--surface:#0f1829;--surface2:#162035;--surface3:#1c2a44;--border:#1e3050;--text:#e2e8f0;--text-muted:#64748b;--text-dim:#94a3b8;--accent:#3b82f6;--accent2:#8b5cf6;--income:#10b981;--expense:#ef4444;--invest:#3b82f6;--dividend:#8b5cf6;--warning:#f59e0b;--radius:12px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;}
+
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr);}.g2{grid-template-columns:1fr;}}
+@media(max-width:600px){.g2,.g4{grid-template-columns:1fr;}}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem;min-width:0;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;}
+.card-title{font-size:.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
+
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.3rem;position:relative;overflow:hidden;min-width:0;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kpi.income::before{background:var(--income);}
+.kpi.expense::before{background:var(--expense);}
+.kpi.invest::before{background:var(--invest);}
+.kpi.dividend::before{background:var(--dividend);}
+.kpi-label{font-size:.72rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem;}
+.kpi-value{font-size:1.5rem;font-weight:800;letter-spacing:-1px;line-height:1;}
+.kpi-value.income{color:var(--income);}
+.kpi-value.expense{color:var(--expense);}
+.kpi-value.invest{color:var(--invest);}
+.kpi-value.dividend{color:var(--dividend);}
+
+.dt{width:100%;border-collapse:collapse;font-size:.81rem;}
+.dt th{text-align:left;padding:.55rem .8rem;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);font-weight:600;}
+.dt td{padding:.55rem .8rem;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text-dim);}
+.dt tr:last-child td{border-bottom:none;}
+.dt tr:hover td{background:var(--surface2);}
+.pos{color:var(--income);font-weight:600;}
+.neg{color:var(--expense);font-weight:600;}
+.neu{color:var(--invest);}
+
+.badge{display:inline-flex;align-items:center;padding:.18rem .55rem;border-radius:20px;font-size:.7rem;font-weight:600;}
+.bg{background:rgba(16,185,129,.15);color:var(--income);}
+.br{background:rgba(239,68,68,.15);color:var(--expense);}
+.bb{background:rgba(59,130,246,.15);color:var(--accent);}
+
+.controls{display:flex;gap:.4rem;flex-wrap:wrap;}
+.cb{padding:.3rem .8rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-size:.76rem;cursor:pointer;transition:all .2s;}
+.cb:hover{border-color:var(--accent);color:var(--text);}
+.cb.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+.tx-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.35rem .6rem;color:var(--text);font-size:.78rem;outline:none;}
+.tx-select{cursor:pointer;}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
