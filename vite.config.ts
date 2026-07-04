@@ -19,6 +19,8 @@ export default defineConfig({
         transactionsPreview: resolve(__dirname, 'src/dev/transactions-preview.html'),
         overviewPreview: resolve(__dirname, 'src/dev/overview-preview.html'),
         categoriesPreview: resolve(__dirname, 'src/dev/categories-preview.html'),
+        yearlyPreview: resolve(__dirname, 'src/dev/yearly-preview.html'),
+        monthlyPreview: resolve(__dirname, 'src/dev/monthly-preview.html'),
       },
     },
   },

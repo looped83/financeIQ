@@ -9,11 +9,12 @@
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;}
 
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;}
 .g6{display:grid;grid-template-columns:repeat(6,1fr);gap:1rem;}
 @media(max-width:1100px){.g6{grid-template-columns:repeat(3,1fr);}}
-@media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr);}.g2{grid-template-columns:1fr;}}
-@media(max-width:600px){.g2,.g4,.g6{grid-template-columns:1fr;}}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr);}.g3{grid-template-columns:1fr 1fr;}.g2{grid-template-columns:1fr;}}
+@media(max-width:600px){.g2,.g3,.g4,.g6{grid-template-columns:1fr;}}
 
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem;min-width:0;}
 .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;}
@@ -34,6 +35,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .kpi-value.balance{color:var(--income);}
 .kpi-value.warn{color:var(--warning);}
 .kpi-sub{font-size:.72rem;color:var(--text-muted);margin-top:.3rem;}
+.kpi-trend{font-size:.72rem;margin-top:.2rem;font-weight:600;}
+.kpi-trend.up{color:var(--income);}
+.kpi-trend.down{color:var(--expense);}
 
 .chart-wrap{position:relative;width:100%;height:300px;}
 .chart-wrap.short{height:210px;}
@@ -54,6 +58,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pos{color:var(--income);font-weight:600;}
 .neg{color:var(--expense);font-weight:600;}
 .neu{color:var(--invest);}
+.warn{color:var(--warning);font-weight:600;}
+.row-best td{background:rgba(16,185,129,.07)!important;}
+.row-worst td{background:rgba(239,68,68,.07)!important;}
+.section-note{font-size:.78rem;color:var(--text-muted);margin-bottom:.8rem;padding:.5rem .8rem;background:var(--surface2);border-radius:6px;border-left:3px solid var(--accent);}
 
 .badge{display:inline-flex;align-items:center;padding:.18rem .55rem;border-radius:20px;font-size:.7rem;font-weight:600;}
 .bg{background:rgba(16,185,129,.15);color:var(--income);}
