@@ -155,7 +155,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="upload-hint">Datei hier ablegen oder <span>klicken zum Auswählen</span><br>Trade Republic, Sparkasse, DKB & mehr</div>
   </div>
   <div class="upload-features">
-    <div class="upload-feat"><div class="dot green"></div>9 Analyse-Tabs</div>
+    <div class="upload-feat"><div class="dot green"></div>10 Analyse-Tabs</div>
     <div class="upload-feat"><div class="dot green"></div>Jahres- &amp; Monatsvergleich</div>
     <div class="upload-feat"><div class="dot green"></div>Prognose &amp; KI-Insights</div>
     <div class="upload-feat"><div class="dot green"></div>CSV-Vergleich mit Deltas</div>
@@ -179,6 +179,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <button class="tab-btn" onclick="showTab(6)">🔮 Prognose</button>
     <button class="tab-btn" onclick="showTab(7)">⚖️ Vergleich</button>
     <button class="tab-btn" onclick="showTab(8)">💡 Empfehlungen</button>
+    <button class="tab-btn" onclick="showTab(9)">🔄 Monatsvergleich</button>
   </div>
 
   <!-- TAB 0: ÜBERSICHT -->
@@ -406,6 +407,105 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <!-- TAB 8: EMPFEHLUNGEN -->
   <div class="tab-content" id="tab-8">
     <div id="rec-list"></div>
+  </div>
+
+  <!-- TAB 9: MONATSVERGLEICH -->
+  <div class="tab-content" id="tab-9">
+    <div id="mc-loading" style="text-align:center;padding:3rem;">
+      <div style="font-size:2rem;margin-bottom:1rem;">⏳</div>
+      <div style="font-size:1rem;color:var(--text-muted);">Lade monatliche Portfolio-Snapshots…</div>
+    </div>
+    <div id="mc-error" style="display:none;text-align:center;padding:3rem;">
+      <div style="font-size:2rem;margin-bottom:1rem;">📂</div>
+      <div style="font-size:1rem;color:var(--text-muted);" id="mc-error-msg">Keine monatlichen Snapshots gefunden.</div>
+      <div style="font-size:.8rem;color:var(--text-muted);margin-top:.5rem;">CSV-Dateien in <code>data/</code> ablegen (z.B. <code>2026-01.csv</code>) und <code>data/months.json</code> aktualisieren.</div>
+    </div>
+    <div id="mc-content" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;">
+        <div>
+          <div style="font-size:1.2rem;font-weight:800;letter-spacing:-.5px;">Portfolio-Monatsvergleich</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:.2rem;" id="mc-subtitle"></div>
+        </div>
+        <div class="controls" id="mc-month-controls"></div>
+      </div>
+      <!-- KPIs -->
+      <div class="g6" id="mc-kpis" style="margin-bottom:1.2rem;"></div>
+      <!-- Milestones -->
+      <div id="mc-milestones" style="margin-bottom:1.2rem;"></div>
+      <!-- Charts row 1 -->
+      <div class="g2" style="margin-bottom:1.2rem;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Portfolio-Kostenbasis (kumuliert)</span></div>
+          <div class="chart-wrap tall"><canvas id="c-mc-value"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Monatliche Dividenden-Einnahmen</span></div>
+          <div class="chart-wrap tall"><canvas id="c-mc-dividends"></canvas></div>
+        </div>
+      </div>
+      <!-- Charts row 2 -->
+      <div class="g2" style="margin-bottom:1.2rem;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Investitionsvolumen je Monat</span></div>
+          <div class="chart-wrap"><canvas id="c-mc-invested"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Anzahl Positionen über Zeit</span></div>
+          <div class="chart-wrap"><canvas id="c-mc-positions"></canvas></div>
+        </div>
+      </div>
+      <!-- Asset allocation chart -->
+      <div class="g2" style="margin-bottom:1.2rem;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Asset-Allokation (aktuell vs. Vormonat)</span></div>
+          <div class="chart-wrap tall"><canvas id="c-mc-alloc"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Top-10 Positionen (Gewicht)</span></div>
+          <div class="chart-wrap tall"><canvas id="c-mc-top10"></canvas></div>
+        </div>
+      </div>
+      <!-- Month-over-month changes -->
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-header">
+          <span class="card-title">Veränderungen zum Vormonat</span>
+          <div class="controls" id="mc-detail-month-controls"></div>
+        </div>
+        <div id="mc-changes"></div>
+      </div>
+      <!-- Winners/Losers -->
+      <div class="g2" style="margin-bottom:1.2rem;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Gewinner — Stärkste Verbesserungen</span></div>
+          <div id="mc-winners"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Verlierer — Größte Rückgänge</span></div>
+          <div id="mc-losers"></div>
+        </div>
+      </div>
+      <!-- Trends & Patterns -->
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-header"><span class="card-title">Trends & Muster</span></div>
+        <div id="mc-trends"></div>
+      </div>
+      <!-- Attention & Recommendations -->
+      <div class="g2" style="margin-bottom:1.2rem;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Handlungsbedarf</span></div>
+          <div id="mc-attention"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Empfehlungen</span></div>
+          <div id="mc-recommendations"></div>
+        </div>
+      </div>
+      <!-- Full position table -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">Vollständige Portfolio-Übersicht</span></div>
+        <div style="overflow-x:auto"><table class="dt" id="mc-portfolio-table"></table></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1258,8 +1358,545 @@ function renderRecommendations(a){
         <div class="ins-desc">${r.a}</div></div></div>`).join('');
 }
 
+// ── TAB 9: MONATSVERGLEICH ────────────────────────────────────
+let MC = { snapshots:[], months:[], portfolio:{}, selectedMonth:null };
+
+async function loadMonthlySnapshots() {
+  try {
+    const resp = await fetch('data/months.json');
+    if (!resp.ok) throw new Error('months.json nicht gefunden');
+    const manifest = await resp.json();
+    const months = manifest.months.sort();
+    const snapshots = [];
+    for (const m of months) {
+      const r = await fetch(`data/${m}.csv`);
+      if (!r.ok) continue;
+      const text = await r.text();
+      const rows = parseCSV(text);
+      if (rows.length) snapshots.push({ month: m, rows, analysis: analyze(rows) });
+    }
+    return snapshots;
+  } catch(e) { return []; }
+}
+
+function buildPortfolioTimeline(snapshots) {
+  const timeline = [];
+  const positions = {};
+  const symCol = 'symbol';
+  const sharesCol = 'shares';
+  const priceCol = 'price';
+  const assetClassCol = 'asset_class';
+
+  for (const snap of snapshots) {
+    for (const row of snap.rows) {
+      const sym = row[symCol] || row['symbol'] || '';
+      const name = row['name'] || '';
+      const type = row['type'] || '';
+      const shares = parseFloat(String(row[sharesCol] || '0').replace(',','.')) || 0;
+      const price = parseFloat(String(row[priceCol] || '0').replace(',','.')) || 0;
+      const amt = parseFloat(String(row['amount'] || '0').replace(',','.')) || 0;
+      const tax = parseFloat(String(row['tax'] || '0').replace(',','.')) || 0;
+      const assetClass = row[assetClassCol] || row['asset_class'] || '';
+
+      if (!sym) continue;
+
+      if (!positions[sym]) positions[sym] = { name, sym, assetClass, shares: 0, costBasis: 0, dividends: 0, divCount: 0, tax: 0, buyCount: 0, monthlyDivs: {} };
+
+      if (type === 'BUY' && shares > 0) {
+        positions[sym].shares += shares;
+        positions[sym].costBasis += Math.abs(amt);
+        positions[sym].buyCount++;
+        if (name) positions[sym].name = name;
+        if (assetClass) positions[sym].assetClass = assetClass;
+      } else if (type === 'SELL' && shares > 0) {
+        const avgCost = positions[sym].shares > 0 ? positions[sym].costBasis / positions[sym].shares : 0;
+        positions[sym].shares = Math.max(0, positions[sym].shares - shares);
+        positions[sym].costBasis = positions[sym].shares * avgCost;
+      } else if (type === 'DIVIDEND') {
+        positions[sym].dividends += amt;
+        positions[sym].divCount++;
+        positions[sym].tax += Math.abs(tax);
+        if (!positions[sym].monthlyDivs[snap.month]) positions[sym].monthlyDivs[snap.month] = 0;
+        positions[sym].monthlyDivs[snap.month] += amt;
+      }
+    }
+
+    const snapshot = {};
+    for (const [sym, pos] of Object.entries(positions)) {
+      snapshot[sym] = { ...pos, monthlyDivs: { ...pos.monthlyDivs } };
+    }
+    timeline.push({ month: snap.month, positions: snapshot, analysis: snap.analysis });
+  }
+  return timeline;
+}
+
+function renderMonthlyComparison() {
+  const loading = document.getElementById('mc-loading');
+  const error = document.getElementById('mc-error');
+  const content = document.getElementById('mc-content');
+
+  loadMonthlySnapshots().then(snapshots => {
+    loading.style.display = 'none';
+    if (snapshots.length < 2) {
+      error.style.display = 'block';
+      if (snapshots.length === 1) document.getElementById('mc-error-msg').textContent = 'Nur 1 Monat gefunden — mindestens 2 Monate benötigt für Vergleich.';
+      return;
+    }
+    MC.snapshots = snapshots;
+    MC.months = snapshots.map(s => s.month);
+    MC.portfolio = buildPortfolioTimeline(snapshots);
+    MC.selectedMonth = MC.months[MC.months.length - 1];
+    content.style.display = 'block';
+    renderMCDashboard();
+  });
+}
+
+function renderMCDashboard() {
+  const tl = MC.portfolio;
+  const months = MC.months;
+  const latest = tl[tl.length - 1];
+  const prev = tl.length >= 2 ? tl[tl.length - 2] : null;
+  const first = tl[0];
+
+  document.getElementById('mc-subtitle').textContent = `${months.length} Monate verfügbar: ${mLabel(months[0])} bis ${mLabel(months[months.length-1])}`;
+
+  // Month selector buttons for detail view
+  document.getElementById('mc-detail-month-controls').innerHTML = months.slice(1).map((m, i) =>
+    `<button class="cb${m === MC.selectedMonth ? ' active' : ''}" onclick="setMCMonth('${m}',this)">${mLabel(m)}</button>`
+  ).join('');
+
+  renderMCKpis(latest, prev, first, tl);
+  renderMCMilestones(tl, months);
+  renderMCCharts(tl, months);
+  renderMCChanges(MC.selectedMonth);
+  renderMCWinnersLosers(tl, months);
+  renderMCTrends(tl, months);
+  renderMCAttention(latest, prev, tl);
+  renderMCRecommendations(latest, prev, tl, months);
+  renderMCPortfolioTable(latest, prev);
+}
+
+function setMCMonth(month, btn) {
+  MC.selectedMonth = month;
+  document.querySelectorAll('#mc-detail-month-controls .cb').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderMCChanges(month);
+}
+
+function renderMCKpis(latest, prev, first, tl) {
+  const lp = Object.values(latest.positions).filter(p => p.shares > 0);
+  const totalCost = lp.reduce((s, p) => s + p.costBasis, 0);
+  const totalDiv = Object.values(latest.positions).reduce((s, p) => s + p.dividends, 0);
+  const posCount = lp.length;
+  const totalInvested = tl.reduce((s, t) => s + t.analysis.totalInv, 0);
+  const yieldOnCost = totalCost > 0 ? (totalDiv / totalCost * 100) : 0;
+  const monthlyAvgDiv = totalDiv / tl.length;
+
+  let prevCost = 0, prevDiv = 0, prevCount = 0;
+  if (prev) {
+    const pp = Object.values(prev.positions).filter(p => p.shares > 0);
+    prevCost = pp.reduce((s, p) => s + p.costBasis, 0);
+    prevDiv = Object.values(prev.positions).reduce((s, p) => s + p.dividends, 0);
+    prevCount = pp.length;
+  }
+
+  const costChg = prev ? ((totalCost - prevCost) / prevCost * 100) : 0;
+  const latestMonthDiv = latest.analysis.totalDiv;
+  const prevMonthDiv = prev ? prev.analysis.totalDiv : 0;
+  const divChg = prevMonthDiv > 0 ? ((latestMonthDiv - prevMonthDiv) / prevMonthDiv * 100) : 0;
+
+  const kpis = [
+    { label: 'Portfolio-Kostenbasis', value: fmt(totalCost), cls: 'invest', sub: prev ? `${costChg >= 0 ? '+' : ''}${fmtP(costChg)} zum Vormonat` : `${posCount} Positionen` },
+    { label: 'Gesamt-Dividenden', value: fmt(totalDiv), cls: 'dividend', sub: `Ø ${fmt(monthlyAvgDiv)}/Monat` },
+    { label: 'Dividendenrendite (YoC)', value: fmtP(yieldOnCost), cls: yieldOnCost >= 4 ? 'income' : 'warn', sub: `auf ${fmt(totalCost)} Kostenbasis` },
+    { label: 'Dividende akt. Monat', value: fmt(latestMonthDiv), cls: 'dividend', sub: prev ? `${divChg >= 0 ? '▲' : '▼'} ${fmtPP(divChg)} zum Vormonat` : mLabel(latest.month) },
+    { label: 'Aktive Positionen', value: posCount, cls: posCount >= 15 ? 'income' : 'warn', sub: prev ? `${posCount - prevCount >= 0 ? '+' : ''}${posCount - prevCount} zum Vormonat` : 'Diversifikation' },
+    { label: 'Gesamt investiert', value: fmt(totalInvested), cls: 'invest', sub: `über ${tl.length} Monate` },
+  ];
+  document.getElementById('mc-kpis').innerHTML = kpis.map(k =>
+    `<div class="kpi ${k.cls}"><div class="kpi-label">${k.label}</div>
+     <div class="kpi-value ${k.cls}">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`
+  ).join('');
+}
+
+function renderMCMilestones(tl, months) {
+  const milestones = [];
+  let cumDiv = 0, cumInv = 0;
+  const divThresholds = [100, 250, 500, 1000, 2000, 5000, 10000];
+  const invThresholds = [1000, 5000, 10000, 25000, 50000, 100000];
+
+  for (let i = 0; i < tl.length; i++) {
+    const prevDiv = cumDiv, prevInv = cumInv;
+    cumDiv = Object.values(tl[i].positions).reduce((s, p) => s + p.dividends, 0);
+    cumInv += tl[i].analysis.totalInv;
+
+    for (const t of divThresholds) {
+      if (prevDiv < t && cumDiv >= t) milestones.push({ month: months[i], icon: '💰', text: `${fmt(t)} Dividenden erreicht`, type: 'dividend' });
+    }
+    for (const t of invThresholds) {
+      if (prevInv < t && cumInv >= t) milestones.push({ month: months[i], icon: '📈', text: `${fmt(t)} investiert`, type: 'invest' });
+    }
+
+    const posCount = Object.values(tl[i].positions).filter(p => p.shares > 0).length;
+    const prevPosCount = i > 0 ? Object.values(tl[i-1].positions).filter(p => p.shares > 0).length : 0;
+    if (posCount >= 20 && prevPosCount < 20) milestones.push({ month: months[i], icon: '🎯', text: '20+ Positionen — gute Diversifikation', type: 'position' });
+    if (posCount >= 30 && prevPosCount < 30) milestones.push({ month: months[i], icon: '🏆', text: '30+ Positionen — breites Portfolio', type: 'position' });
+  }
+
+  if (!milestones.length) { document.getElementById('mc-milestones').innerHTML = ''; return; }
+
+  document.getElementById('mc-milestones').innerHTML = `<div class="card" style="margin-bottom:0;">
+    <div class="card-header"><span class="card-title">Meilensteine & Erfolge</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:.6rem;">${milestones.map(m =>
+      `<div style="display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;background:var(--surface2);border-radius:8px;border:1px solid ${m.type==='dividend'?'rgba(139,92,246,.3)':m.type==='invest'?'rgba(59,130,246,.3)':'rgba(16,185,129,.3)'};">
+        <span style="font-size:1.1rem;">${m.icon}</span>
+        <div><div style="font-size:.78rem;font-weight:600;">${m.text}</div>
+        <div style="font-size:.68rem;color:var(--text-muted);">${mLabel(m.month)}</div></div>
+      </div>`
+    ).join('')}</div></div>`;
+}
+
+function renderMCCharts(tl, months) {
+  const labels = months.map(mLabel);
+
+  // Portfolio cost basis over time
+  const costData = tl.map(t => Object.values(t.positions).filter(p => p.shares > 0).reduce((s, p) => s + p.costBasis, 0));
+  dChart('c-mc-value');
+  mkChart('c-mc-value', { type: 'line', data: { labels, datasets: [
+    { label: 'Kostenbasis', data: costData, borderColor: '#3b82f6', borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#3b82f6',
+      fill: { target: 'origin', above: 'rgba(59,130,246,.1)' }, tension: .3 }
+  ]}, options: { ...BASE, scales: darkAxes(), plugins: { ...BASE.plugins, tooltip: { callbacks: { label: c => `Kostenbasis: ${fmt(c.parsed.y)}` }}}}});
+
+  // Monthly dividends
+  const divData = months.map((m, i) => tl[i].analysis.totalDiv);
+  const divMA = divData.map((v, i) => { const w = divData.slice(Math.max(0, i - 2), i + 1); return w.reduce((s, x) => s + x, 0) / w.length; });
+  dChart('c-mc-dividends');
+  mkChart('c-mc-dividends', { type: 'bar', data: { labels, datasets: [
+    { label: 'Dividenden', data: divData, backgroundColor: 'rgba(139,92,246,.7)', borderRadius: 4, order: 1 },
+    { label: '3M-Durchschnitt', data: divMA, type: 'line', borderColor: '#f59e0b', borderWidth: 2, borderDash: [5, 3], pointRadius: 0, tension: .3, order: 0 }
+  ]}, options: { ...BASE, scales: darkAxes(), plugins: { ...BASE.plugins, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.parsed.y)}` }}}}});
+
+  // Monthly invested
+  const invData = months.map((m, i) => tl[i].analysis.totalInv);
+  dChart('c-mc-invested');
+  mkChart('c-mc-invested', { type: 'bar', data: { labels, datasets: [
+    { label: 'Investiert', data: invData, backgroundColor: 'rgba(59,130,246,.7)', borderRadius: 4 }
+  ]}, options: { ...BASE, scales: darkAxes(), plugins: { ...BASE.plugins, tooltip: { callbacks: { label: c => `Investiert: ${fmt(c.parsed.y)}` }}}}});
+
+  // Position count over time
+  const posData = tl.map(t => Object.values(t.positions).filter(p => p.shares > 0).length);
+  dChart('c-mc-positions');
+  mkChart('c-mc-positions', { type: 'line', data: { labels, datasets: [
+    { label: 'Positionen', data: posData, borderColor: '#10b981', borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#10b981',
+      fill: { target: 'origin', above: 'rgba(16,185,129,.08)' }, tension: .3 }
+  ]}, options: { ...BASE, scales: { x: xScale(), y: { ...yScale(false), ticks: { color: '#64748b', font: { size: 10 }, stepSize: 1 }}},
+    plugins: { ...BASE.plugins, tooltip: { callbacks: { label: c => `${c.parsed.y} Positionen` }}}}});
+
+  // Asset allocation comparison (latest vs first)
+  const allocNow = {}, allocPrev = {};
+  for (const p of Object.values(tl[tl.length - 1].positions)) {
+    if (p.shares <= 0) continue;
+    const cls = p.assetClass || 'Sonstige';
+    allocNow[cls] = (allocNow[cls] || 0) + p.costBasis;
+  }
+  const prevIdx = Math.max(0, tl.length - 2);
+  for (const p of Object.values(tl[prevIdx].positions)) {
+    if (p.shares <= 0) continue;
+    const cls = p.assetClass || 'Sonstige';
+    allocPrev[cls] = (allocPrev[cls] || 0) + p.costBasis;
+  }
+  const allocKeys = [...new Set([...Object.keys(allocNow), ...Object.keys(allocPrev)])].sort();
+  dChart('c-mc-alloc');
+  mkChart('c-mc-alloc', { type: 'bar', data: {
+    labels: allocKeys,
+    datasets: [
+      { label: mLabel(months[prevIdx]), data: allocKeys.map(k => allocPrev[k] || 0), backgroundColor: 'rgba(59,130,246,.5)', borderRadius: 4 },
+      { label: mLabel(months[months.length - 1]), data: allocKeys.map(k => allocNow[k] || 0), backgroundColor: 'rgba(139,92,246,.7)', borderRadius: 4 }
+    ]
+  }, options: { ...BASE, scales: darkAxes(), plugins: { ...BASE.plugins, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.parsed.y)}` }}}}});
+
+  // Top 10 positions
+  const top10 = Object.values(tl[tl.length - 1].positions).filter(p => p.shares > 0).sort((a, b) => b.costBasis - a.costBasis).slice(0, 10);
+  const totalCB = Object.values(tl[tl.length - 1].positions).filter(p => p.shares > 0).reduce((s, p) => s + p.costBasis, 0);
+  dChart('c-mc-top10');
+  mkChart('c-mc-top10', { type: 'bar', data: {
+    labels: top10.map(p => p.name.length > 20 ? p.name.substring(0, 18) + '…' : p.name),
+    datasets: [{ label: 'Anteil', data: top10.map(p => p.costBasis / totalCB * 100), backgroundColor: PAL.slice(0, 10), borderRadius: 4 }]
+  }, options: { ...BASE, indexAxis: 'y', scales: { x: { ...yScale(false), ticks: { color: '#64748b', font: { size: 10 }, callback: v => v.toFixed(0) + '%' }}, y: xScale() },
+    plugins: { ...BASE.plugins, legend: { display: false }, tooltip: { callbacks: { label: c => `${c.parsed.x.toFixed(1)}% (${fmt(top10[c.dataIndex].costBasis)})` }}}}});
+}
+
+function renderMCChanges(month) {
+  const idx = MC.months.indexOf(month);
+  if (idx < 1) { document.getElementById('mc-changes').innerHTML = '<div class="ins-desc">Kein Vormonat verfügbar.</div>'; return; }
+
+  const curr = MC.portfolio[idx];
+  const prev = MC.portfolio[idx - 1];
+  const changes = [];
+
+  // New positions
+  const newPos = Object.keys(curr.positions).filter(sym => curr.positions[sym].shares > 0 && (!prev.positions[sym] || prev.positions[sym].shares <= 0));
+  for (const sym of newPos) {
+    const p = curr.positions[sym];
+    changes.push({ type: 'new', icon: '🆕', color: 'green', title: `Neue Position: ${p.name}`, desc: `${p.shares.toFixed(4)} Anteile zu ${fmt(p.costBasis)} Kostenbasis aufgebaut.`, impact: p.costBasis });
+  }
+
+  // Increased positions
+  for (const [sym, pos] of Object.entries(curr.positions)) {
+    if (pos.shares <= 0 || newPos.includes(sym)) continue;
+    const prevPos = prev.positions[sym];
+    if (!prevPos) continue;
+    const shareDiff = pos.shares - prevPos.shares;
+    const costDiff = pos.costBasis - prevPos.costBasis;
+    if (shareDiff > 0.0001) {
+      changes.push({ type: 'increase', icon: '📈', color: 'blue', title: `Aufgestockt: ${pos.name}`, desc: `+${shareDiff.toFixed(4)} Anteile (${fmt(costDiff)} investiert). Gesamt: ${pos.shares.toFixed(4)} Stück.`, impact: costDiff });
+    }
+  }
+
+  // Sold/reduced positions
+  for (const [sym, prevPos] of Object.entries(prev.positions)) {
+    if (prevPos.shares <= 0) continue;
+    const currPos = curr.positions[sym];
+    if (!currPos || currPos.shares <= 0) {
+      changes.push({ type: 'sold', icon: '🔴', color: 'red', title: `Verkauft: ${prevPos.name}`, desc: `Position vollständig aufgelöst.`, impact: -prevPos.costBasis });
+    } else if (currPos.shares < prevPos.shares - 0.0001) {
+      const diff = prevPos.shares - currPos.shares;
+      changes.push({ type: 'decrease', icon: '📉', color: 'yellow', title: `Reduziert: ${prevPos.name}`, desc: `-${diff.toFixed(4)} Anteile verkauft.`, impact: -(prevPos.costBasis - currPos.costBasis) });
+    }
+  }
+
+  // Dividend events
+  const divEvents = {};
+  for (const [sym, pos] of Object.entries(curr.positions)) {
+    const monthDiv = pos.monthlyDivs[month] || 0;
+    if (monthDiv > 0) divEvents[sym] = { name: pos.name, amount: monthDiv };
+  }
+  const divTotal = Object.values(divEvents).reduce((s, d) => s + d.amount, 0);
+  if (divTotal > 0) {
+    const topDivs = Object.values(divEvents).sort((a, b) => b.amount - a.amount).slice(0, 5);
+    changes.push({ type: 'dividend', icon: '💰', color: 'green', title: `${fmt(divTotal)} Dividenden in ${mLabel(month)}`,
+      desc: `${Object.keys(divEvents).length} Positionen zahlten aus. Top: ${topDivs.map(d => `${d.name} (${fmt(d.amount)})`).join(', ')}.`, impact: divTotal });
+  }
+
+  changes.sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
+
+  document.getElementById('mc-changes').innerHTML = changes.length ? changes.map(c =>
+    `<div class="insight"><div class="dot ${c.color}"></div><div style="flex:1">
+      <div class="ins-title">${c.icon} ${c.title}</div>
+      <div class="ins-desc">${c.desc}</div></div></div>`
+  ).join('') : '<div class="ins-desc" style="padding:.5rem;">Keine wesentlichen Veränderungen in diesem Monat.</div>';
+}
+
+function renderMCWinnersLosers(tl, months) {
+  if (tl.length < 2) return;
+  const latest = tl[tl.length - 1];
+  const first = tl[0];
+
+  // Winners: positions with highest dividend growth or biggest cost basis increase
+  const scored = [];
+  for (const [sym, pos] of Object.entries(latest.positions)) {
+    if (pos.shares <= 0) continue;
+    const firstPos = first.positions[sym];
+    const costGrowth = firstPos ? pos.costBasis - firstPos.costBasis : pos.costBasis;
+    const divGrowth = pos.dividends;
+    const monthsActive = Object.keys(pos.monthlyDivs).length;
+    scored.push({ name: pos.name, sym, costBasis: pos.costBasis, costGrowth, dividends: pos.dividends, divGrowth, monthsActive, shares: pos.shares, yieldOnCost: pos.costBasis > 0 ? pos.dividends / pos.costBasis * 100 : 0 });
+  }
+
+  // Winners by total return (dividends + cost growth)
+  const winners = [...scored].sort((a, b) => (b.dividends + b.costGrowth) - (a.dividends + a.costGrowth)).slice(0, 5);
+  document.getElementById('mc-winners').innerHTML = winners.map((w, i) =>
+    `<div class="insight"><div class="dot green"></div><div style="flex:1">
+      <div class="ins-title" style="display:flex;align-items:center;gap:.5rem">#${i+1} ${w.name}
+        <span class="badge bg">${fmt(w.dividends)} Div.</span></div>
+      <div class="ins-desc">Kostenbasis: ${fmt(w.costBasis)} | Wachstum: +${fmt(w.costGrowth)} | YoC: ${fmtP(w.yieldOnCost)} | ${w.monthsActive} Div.-Monate</div>
+    </div></div>`
+  ).join('');
+
+  // Losers: positions with declining dividends or no recent activity
+  const stale = scored.filter(p => {
+    const recentDiv = Object.keys(latest.positions[p.sym].monthlyDivs).filter(m => m >= months[months.length - 3]).length;
+    return recentDiv === 0 && p.monthsActive > 0;
+  }).sort((a, b) => b.costBasis - a.costBasis);
+
+  const lowYield = scored.filter(p => p.yieldOnCost > 0 && p.yieldOnCost < 2 && p.costBasis > 100).sort((a, b) => a.yieldOnCost - b.yieldOnCost);
+
+  const losers = [];
+  for (const p of stale.slice(0, 3)) losers.push({ ...p, reason: 'Keine Dividende in letzten 3 Monaten' });
+  for (const p of lowYield.slice(0, 3)) { if (!losers.find(l => l.sym === p.sym)) losers.push({ ...p, reason: `Niedrige YoC: ${fmtP(p.yieldOnCost)}` }); }
+
+  document.getElementById('mc-losers').innerHTML = losers.length ? losers.slice(0, 5).map((l, i) =>
+    `<div class="insight"><div class="dot ${l.reason.includes('Keine') ? 'yellow' : 'red'}"></div><div style="flex:1">
+      <div class="ins-title">#${i+1} ${l.name}
+        <span class="badge ${l.reason.includes('Keine') ? 'by' : 'br'}">${l.reason}</span></div>
+      <div class="ins-desc">Kostenbasis: ${fmt(l.costBasis)} | Dividenden gesamt: ${fmt(l.dividends)} | ${l.shares.toFixed(2)} Anteile</div>
+    </div></div>`
+  ).join('') : '<div class="ins-desc" style="padding:.5rem;">Keine auffälligen Verlierer identifiziert.</div>';
+}
+
+function renderMCTrends(tl, months) {
+  const trends = [];
+
+  // Dividend trend
+  const monthlyDivs = months.map((m, i) => tl[i].analysis.totalDiv);
+  if (monthlyDivs.length >= 3) {
+    const firstHalf = monthlyDivs.slice(0, Math.ceil(monthlyDivs.length / 2));
+    const secondHalf = monthlyDivs.slice(Math.ceil(monthlyDivs.length / 2));
+    const avgFirst = firstHalf.reduce((s, v) => s + v, 0) / firstHalf.length;
+    const avgSecond = secondHalf.reduce((s, v) => s + v, 0) / secondHalf.length;
+    const divTrend = avgFirst > 0 ? (avgSecond - avgFirst) / avgFirst * 100 : 0;
+    if (divTrend > 5) trends.push({ icon: '📈', color: 'green', title: 'Dividenden steigen', desc: `Der durchschnittliche Monatsdividendenwert ist um ${fmtPP(divTrend)} gestiegen (${fmt(avgFirst)} → ${fmt(avgSecond)}). Das passive Einkommen wächst stetig.` });
+    else if (divTrend < -5) trends.push({ icon: '📉', color: 'red', title: 'Dividenden rückläufig', desc: `Der Ø-Monatsdividendenwert ist um ${fmtPP(divTrend)} gefallen (${fmt(avgFirst)} → ${fmt(avgSecond)}). Ursache prüfen.` });
+    else trends.push({ icon: '➡️', color: 'blue', title: 'Dividenden stabil', desc: `Die monatlichen Dividenden schwanken gering um Ø ${fmt((avgFirst + avgSecond) / 2)}.` });
+  }
+
+  // Investment consistency
+  const monthlyInv = months.map((m, i) => tl[i].analysis.totalInv);
+  const investingMonths = monthlyInv.filter(v => v > 0).length;
+  if (investingMonths === months.length) trends.push({ icon: '✅', color: 'green', title: 'Durchgehend investiert', desc: `In allen ${months.length} Monaten wurde investiert. Konsistente Sparplan-Disziplin zahlt sich langfristig aus.` });
+  else if (investingMonths >= months.length * 0.7) trends.push({ icon: '📊', color: 'blue', title: 'Regelmäßig investiert', desc: `In ${investingMonths} von ${months.length} Monaten wurden Investitionen getätigt. Gute Kontinuität.` });
+
+  // Portfolio concentration trend
+  const concTrend = months.map((m, i) => {
+    const pos = Object.values(tl[i].positions).filter(p => p.shares > 0);
+    const total = pos.reduce((s, p) => s + p.costBasis, 0);
+    if (total === 0 || pos.length === 0) return 0;
+    const hhi = pos.reduce((s, p) => s + Math.pow(p.costBasis / total, 2), 0);
+    return hhi;
+  });
+  if (concTrend.length >= 2) {
+    const hhiChange = concTrend[concTrend.length - 1] - concTrend[0];
+    if (hhiChange < -0.01) trends.push({ icon: '🎯', color: 'green', title: 'Diversifikation verbessert', desc: `Der Herfindahl-Index ist von ${(concTrend[0] * 100).toFixed(1)}% auf ${(concTrend[concTrend.length - 1] * 100).toFixed(1)}% gefallen. Das Portfolio wird breiter aufgestellt.` });
+    else if (hhiChange > 0.01) trends.push({ icon: '⚠️', color: 'yellow', title: 'Konzentration steigt', desc: `Der Herfindahl-Index ist gestiegen. Einzelne Positionen dominieren stärker.` });
+  }
+
+  // Dividend frequency pattern
+  const divSources = {};
+  for (const t of tl) {
+    for (const [sym, pos] of Object.entries(t.positions)) {
+      if (!divSources[sym]) divSources[sym] = { name: pos.name, months: new Set() };
+      for (const m of Object.keys(pos.monthlyDivs)) divSources[sym].months.add(m);
+    }
+  }
+  const monthlyPayers = Object.values(divSources).filter(d => d.months.size >= months.length * 0.8);
+  if (monthlyPayers.length > 0) trends.push({ icon: '🔄', color: 'green', title: `${monthlyPayers.length} verlässliche Dividendenzahler`, desc: `${monthlyPayers.map(p => p.name).slice(0, 5).join(', ')} zahlen in fast jedem Monat Dividenden. Zuverlässige Einkommensquelle.` });
+
+  // Cost basis growth
+  const cbFirst = Object.values(tl[0].positions).filter(p => p.shares > 0).reduce((s, p) => s + p.costBasis, 0);
+  const cbLast = Object.values(tl[tl.length - 1].positions).filter(p => p.shares > 0).reduce((s, p) => s + p.costBasis, 0);
+  if (cbFirst > 0) {
+    const cbGrowth = (cbLast - cbFirst) / cbFirst * 100;
+    trends.push({ icon: cbGrowth > 0 ? '🚀' : '📉', color: cbGrowth > 0 ? 'green' : 'red', title: `Portfolio um ${fmtPP(cbGrowth)} gewachsen`, desc: `Von ${fmt(cbFirst)} (${mLabel(months[0])}) auf ${fmt(cbLast)} (${mLabel(months[months.length - 1])}). Absolut: +${fmt(cbLast - cbFirst)}.` });
+  }
+
+  document.getElementById('mc-trends').innerHTML = trends.map(t =>
+    `<div class="insight"><div class="dot ${t.color}"></div><div style="flex:1">
+      <div class="ins-title">${t.icon} ${t.title}</div>
+      <div class="ins-desc">${t.desc}</div></div></div>`
+  ).join('');
+}
+
+function renderMCAttention(latest, prev, tl) {
+  const items = [];
+  const positions = Object.values(latest.positions).filter(p => p.shares > 0);
+  const totalCost = positions.reduce((s, p) => s + p.costBasis, 0);
+
+  // Concentration risk
+  const concentrated = positions.filter(p => p.costBasis / totalCost > 0.1).sort((a, b) => b.costBasis - a.costBasis);
+  if (concentrated.length) {
+    items.push({ icon: '⚠️', color: 'yellow', title: 'Konzentrationsrisiko', desc: `${concentrated.length} Position(en) über 10% Gewicht: ${concentrated.map(p => `${p.name} (${(p.costBasis / totalCost * 100).toFixed(1)}%)`).join(', ')}. Klumpenrisiko reduzieren.` });
+  }
+
+  // No dividend positions
+  const noDivPos = positions.filter(p => p.dividends === 0 && p.costBasis > 200);
+  if (noDivPos.length) {
+    items.push({ icon: '🔍', color: 'blue', title: `${noDivPos.length} Positionen ohne Dividende`, desc: `${noDivPos.map(p => p.name).slice(0, 5).join(', ')} haben noch keine Dividende gezahlt. Prüfen ob Ausschüttungstermine noch kommen.` });
+  }
+
+  // Asset class imbalance
+  const acAlloc = {};
+  for (const p of positions) { const ac = p.assetClass || 'Sonstige'; acAlloc[ac] = (acAlloc[ac] || 0) + p.costBasis; }
+  for (const [ac, val] of Object.entries(acAlloc)) {
+    if (val / totalCost > 0.8) items.push({ icon: '📊', color: 'yellow', title: `Hohe ${ac}-Konzentration: ${(val / totalCost * 100).toFixed(0)}%`, desc: `Das Portfolio besteht fast ausschließlich aus ${ac}. Mehr Diversifikation über Assetklassen erwägen (ETFs, REITs, Anleihen).` });
+  }
+
+  // Declining monthly dividends
+  if (tl.length >= 3) {
+    const lastThree = tl.slice(-3).map(t => t.analysis.totalDiv);
+    if (lastThree[2] < lastThree[1] && lastThree[1] < lastThree[0]) {
+      items.push({ icon: '📉', color: 'red', title: 'Dividenden 3 Monate rückläufig', desc: `${lastThree.map((d, i) => `${mLabel(MC.months[MC.months.length - 3 + i])}: ${fmt(d)}`).join(' → ')}. Gegenmaßnahmen prüfen.` });
+    }
+  }
+
+  document.getElementById('mc-attention').innerHTML = items.length ? items.map(item =>
+    `<div class="insight"><div class="dot ${item.color}"></div><div style="flex:1">
+      <div class="ins-title">${item.icon} ${item.title}</div>
+      <div class="ins-desc">${item.desc}</div></div></div>`
+  ).join('') : '<div class="ins-desc" style="padding:.5rem;color:var(--text-muted);">Keine dringenden Handlungsempfehlungen.</div>';
+}
+
+function renderMCRecommendations(latest, prev, tl, months) {
+  const recs = [];
+  const positions = Object.values(latest.positions).filter(p => p.shares > 0);
+  const totalCost = positions.reduce((s, p) => s + p.costBasis, 0);
+  const totalDiv = Object.values(latest.positions).reduce((s, p) => s + p.dividends, 0);
+  const yoc = totalCost > 0 ? totalDiv / totalCost * 100 : 0;
+
+  // Yield on cost analysis
+  if (yoc < 3) recs.push({ color: 'yellow', title: 'Dividendenrendite steigern', desc: `Die aktuelle YoC von ${fmtP(yoc)} liegt unter 3%. Höher rentierende Dividendentitel oder ETFs (z.B. High-Yield-ETFs) können das passive Einkommen beschleunigen.` });
+  else if (yoc >= 5) recs.push({ color: 'green', title: `Starke Dividendenrendite: ${fmtP(yoc)}`, desc: 'Überdurchschnittliche YoC. Auf Nachhaltigkeit der Dividenden achten — sehr hohe Renditen können auf Kursverluste oder Dividendenkürzungen hindeuten.' });
+
+  // Diversification
+  if (positions.length < 15) recs.push({ color: 'yellow', title: 'Portfolio erweitern', desc: `Mit ${positions.length} Positionen besteht noch Diversifikationspotenzial. Ziel: 20+ Titel über verschiedene Sektoren und Regionen.` });
+  else recs.push({ color: 'green', title: `Gute Diversifikation: ${positions.length} Positionen`, desc: 'Breites Portfolio aufgebaut. Regelmäßig Rebalancing prüfen.' });
+
+  // Reinvestment
+  if (totalDiv > 100) {
+    const monthlyDiv = totalDiv / months.length;
+    recs.push({ color: 'blue', title: 'Dividenden reinvestieren', desc: `Ø ${fmt(monthlyDiv)}/Monat an Dividenden. Automatische Reinvestition via Sparplan maximiert den Zinseszinseffekt. Bei ${fmtP(yoc)} YoC und Reinvestition: ~${fmt(totalCost * Math.pow(1 + yoc / 100, 5) - totalCost)} zusätzlich in 5 Jahren.` });
+  }
+
+  // Consistency
+  const monthlyInv = months.map((m, i) => tl[i].analysis.totalInv);
+  const avgInv = monthlyInv.reduce((s, v) => s + v, 0) / monthlyInv.length;
+  const invStd = Math.sqrt(monthlyInv.reduce((s, v) => s + Math.pow(v - avgInv, 2), 0) / monthlyInv.length);
+  if (invStd > avgInv * 0.5 && avgInv > 0) recs.push({ color: 'yellow', title: 'Investitionsrhythmus stabilisieren', desc: `Die monatlichen Investitionen schwanken stark (Ø ${fmt(avgInv)}, σ ${fmt(invStd)}). Ein fester Sparplan-Betrag reduziert Timing-Risiken (Dollar-Cost-Averaging).` });
+
+  document.getElementById('mc-recommendations').innerHTML = recs.map(r =>
+    `<div class="insight"><div class="dot ${r.color}"></div><div style="flex:1">
+      <div class="ins-title">${r.title}</div>
+      <div class="ins-desc">${r.desc}</div></div></div>`
+  ).join('');
+}
+
+function renderMCPortfolioTable(latest, prev) {
+  const positions = Object.values(latest.positions).filter(p => p.shares > 0).sort((a, b) => b.costBasis - a.costBasis);
+  const totalCost = positions.reduce((s, p) => s + p.costBasis, 0);
+
+  document.getElementById('mc-portfolio-table').innerHTML =
+    '<thead><tr><th>Position</th><th>Klasse</th><th>Anteile</th><th>Kostenbasis</th><th>Anteil</th><th>Dividenden</th><th>YoC</th><th>Div.-Monate</th><th>Trend</th></tr></thead><tbody>' +
+    positions.map(p => {
+      const weight = totalCost > 0 ? p.costBasis / totalCost * 100 : 0;
+      const yoc = p.costBasis > 0 ? p.dividends / p.costBasis * 100 : 0;
+      const divMonths = Object.keys(p.monthlyDivs).length;
+      const prevPos = prev ? prev.positions[p.sym] : null;
+      const shareDiff = prevPos ? p.shares - prevPos.shares : p.shares;
+      const trendIcon = shareDiff > 0.001 ? '<span class="pos">▲</span>' : shareDiff < -0.001 ? '<span class="neg">▼</span>' : '<span style="color:var(--text-muted)">—</span>';
+      const weightClass = weight > 10 ? 'neg' : weight > 5 ? 'warn' : '';
+      return `<tr><td><strong>${p.name}</strong></td>
+        <td><span class="badge ${p.assetClass === 'STOCK' ? 'bb' : 'bp'}">${p.assetClass || '—'}</span></td>
+        <td>${p.shares.toFixed(4)}</td>
+        <td class="neu">${fmt(p.costBasis)}</td>
+        <td class="${weightClass}">${fmtP(weight)}</td>
+        <td class="pos">${fmt(p.dividends)}</td>
+        <td style="color:${yoc >= 5 ? 'var(--income)' : yoc >= 3 ? 'var(--warning)' : 'var(--text-muted)'}">${fmtP(yoc)}</td>
+        <td style="color:var(--text-muted)">${divMonths}×</td>
+        <td>${trendIcon}</td></tr>`;
+    }).join('') + '</tbody>';
+}
+
 // ── TAB NAVIGATION ───────────────────────────────────────────
-const TAB_FNS=[null,renderTimeline,renderYearly,renderMonthly,renderCategories,renderOutliers,renderForecast,null,renderRecommendations];
+const TAB_FNS=[null,renderTimeline,renderYearly,renderMonthly,renderCategories,renderOutliers,renderForecast,null,renderRecommendations,renderMonthlyComparison];
 const rendered=new Set([0]);
 
 function showTab(i){
@@ -1286,12 +1923,16 @@ function initDashboard(text,filename){
 function resetDashboard(){
   Object.values(G.charts).forEach(c=>{try{c.destroy();}catch(e){}});
   G={rows:[],a:null,charts:{},fcMonths:3,tlView:'daily',cmpData:null,cmpMetric:'income',fileName:''};
+  MC={snapshots:[],months:[],portfolio:{},selectedMonth:null};
   rendered.clear();
   document.getElementById('upload-screen').style.display='flex';
   document.getElementById('dashboard').style.display='none';
   document.getElementById('file-input').value='';
   document.getElementById('cmp-upload-area').style.display='block';
   document.getElementById('cmp-content').style.display='none';
+  document.getElementById('mc-loading').style.display='block';
+  document.getElementById('mc-error').style.display='none';
+  document.getElementById('mc-content').style.display='none';
   showTab(0);
 }
 
