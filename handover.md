@@ -74,10 +74,20 @@ CSV-Upload → parseCSV(text) → rows[] → analyze(rows) → G.a (Analysis-Obj
 
 ### Datumsfilter
 
-In `analyze()` werden nur Transaktionen ab **01.01.2024** berücksichtigt:
+In `analyze()` werden nur Transaktionen ab **01.01.2024** berücksichtigt (Konstante `MIN_DATE`):
 ```js
-.filter(r => r._date && r._date >= new Date('2024-01-01'))
+.filter(r => r._date && r._date >= MIN_DATE)
 ```
+
+### Brutto/Netto bei Dividenden, Zinsen, Steuerkorrekturen
+
+Wichtig für jeden, der an `analyze()` arbeitet: Das `amount`-Feld vieler CSV-Exporte (z.B. Trade Republic) ist bei `DIVIDEND`/`INTEREST_PAYMENT`/`TAX_OPTIMIZATION`-Zeilen der **Bruttobetrag vor Steuerabzug** — die tatsächlich geflossene Summe ist `amount + tax` (tax trägt bereits das richtige Vorzeichen). Bei `BUY`/`SELL` bleibt `amount` unverändert (Kostenbasis/Erlös ohne Steuer/Gebühr, Gebühr wird separat in `totalFee` erfasst). Deshalb:
+
+```js
+const amt = (isBuy||isSell) ? rawAmt : rawAmt + tax;
+```
+
+Als Konsequenz: `expCat` (Ausgaben-nach-Kategorie) schließt Dividenden/Zinsen explizit aus, da vereinzelte Korrekturbuchungen (Storno einer Dividende) netto negativ sein können, ohne eine echte Ausgabenkategorie zu sein.
 
 ### Analysis-Objekt (`G.a`)
 
@@ -166,6 +176,23 @@ Erlaubt Upload einer zweiten CSV für direkten Vergleich (z.B. Vorjahr). Zeigt m
 - **CSV-Kompatibilität:** Trade Republic, Sparkasse, DKB und weitere (automatische Spalten-Erkennung)
 - **`data/`-Verzeichnis:** Enthält monatliche CSV-Snapshots, wird aber vom Deep-Dive nicht mehr genutzt (Legacy). Deep-Dive arbeitet direkt mit den Monaten der hochgeladenen CSV.
 
+## Testing
+
+- `npm test` — läuft `test:legacy` (VM-Sandbox-Test gegen die inline `<script>` in `index.html`, die produktive Logik) **und** `test:unit` (Vitest gegen `src/domain/`, den V2-Zielstand). Beide nutzen dieselben Fixtures unter `test/fixtures/`.
+- `npm run typecheck` — TypeScript-Check ohne Build (`tsc --noEmit`).
+- Fixtures decken u.a. ab: Datumsfilter, Brutto/Netto-Dividendenlogik, Korrekturbuchungen, BUY/SELL-Gebührenbehandlung, deutsche CSV-Spaltennamen mit Semikolon-Trennung.
+
+## V2-Migration (läuft, siehe README-Abschnitt „V2 Migration")
+
+Ziel: schrittweiser Umbau auf TypeScript + Komponenten + State-Store, ohne die laufende GitHub-Pages-Auslieferung zu gefährden (Strangler-Fig-Ansatz — bei jedem Zwischenschritt bleibt die Seite unverändert deploybar).
+
+- **Phase 0 (fertig):** Vite + TypeScript-Build-Pipeline. `vite.config.ts`, `tsconfig.json`, neuer Workflow `.github/workflows/pages-vite.yml` (nur `workflow_dispatch`, ersetzt die aktuelle Pages-Deployment **nicht** — die läuft unverändert über "Deploy from a branch" weiter, bis bewusst auf "GitHub Actions" umgestellt wird). `npm run build` erzeugt aktuell eine zu `index.html` byte-identische `dist/index.html`.
+- **Phase 1 (fertig):** Domain-Layer (`parseCSV`, `findCol`, `analyze`, `linReg`, Formatierungs-Helper) nach `src/domain/*.ts` portiert, typisiert, mit Vitest-Unit-Tests. **Wichtig:** `index.html` wurde dabei bewusst NICHT angefasst — sie behält vorerst ihre eigene (identische) Kopie der Logik inline. Diese Dopplung ist befristete, bekannte Technical Debt der Migration, keine Vergesslichkeit. Die Zusammenführung (index.html bindet den gebauten Bundle ein) passiert erst, wenn `dist/` auch tatsächlich das Deployment-Artefakt wird (Phase 5).
+- **Phase 2 (offen):** Typisierter State-Store statt `G`/`MC`/`TX`-Globals.
+- **Phase 3 (offen):** Tabs einzeln auf Komponenten umstellen (Reihenfolge: Transaktionen → Übersicht → Kategorien/Jahre/Monate → Ausreißer/Prognose → Deep-Dive/Vergleich → Empfehlungen).
+- **Phase 4 (offen):** IndexedDB-Persistenz.
+- **Phase 5 (offen):** Cutover — `index.html`s Inline-Script wird durch den `src/`-Bundle ersetzt, Pages-Source wird auf den neuen Workflow umgestellt.
+
 ## Offene PRs
 
-- PR #14: Deep-Dive Fixes, Transaktionen-Tab, Vergleich-Fix, Handover-Docs
+- PR #14: Deep-Dive Fixes, Transaktionen-Tab, Vergleich-Fix, Handover-Docs, V2-Migration Phase 0+1
