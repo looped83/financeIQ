@@ -86,7 +86,7 @@ function multiYearView(a: Analysis): TemplateResult {
               <td class="pos">${r.income}</td><td class="neg">${r.expense}</td>
               <td class=${r.netPositive ? 'pos' : 'neg'}>${r.net}</td>
               <td class="neu">${r.invested}</td><td style="color:var(--dividend)">${r.dividend}</td>
-              <td>${r.fees}</td><td>${r.tax}</td>
+              <td style="color:var(--text-muted)">${r.fees}</td><td style="color:var(--text-muted)">${r.tax}</td>
               <td class=${r.savingsRateCls}>${r.savingsRate}</td>
             </tr>
           `)}</tbody>

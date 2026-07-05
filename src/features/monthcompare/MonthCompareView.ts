@@ -143,7 +143,9 @@ function view(state: AppState, actions: AppActions): TemplateResult {
           <thead><tr><th>Kennzahl</th><th>${labelA}</th><th>${labelB}</th><th>Delta abs.</th><th>Delta %</th></tr></thead>
           <tbody>${deltaRows.map((r) => html`
             <tr>
-              <td>${r.label}</td><td>${r.vA}</td><td>${r.vB}</td>
+              <td><strong>${r.label}</strong></td>
+              <td style="color:var(--text-dim)">${r.vA}</td>
+              <td style="color:var(--text-dim)">${r.vB}</td>
               <td class=${r.deltaPositive ? 'pos' : 'neg'}>${r.delta}</td>
               <td class=${r.deltaPctPositive ? 'pos' : 'neg'}>${r.deltaPct}</td>
             </tr>

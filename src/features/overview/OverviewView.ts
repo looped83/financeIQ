@@ -25,7 +25,6 @@ import {
   buildMonthlySnapshots,
   computeBestWorstMonths,
   computeDeepDiveChartsData,
-  computeDetailTableRows,
   computeTrends,
 } from '../deepdive/selectors';
 
@@ -51,7 +50,6 @@ function view(a: Analysis | null): TemplateResult {
   const hasSnapshots = snapshots.length >= 2;
   const trends = hasSnapshots ? computeTrends(snapshots) : [];
   const { best, worst } = hasSnapshots ? computeBestWorstMonths(snapshots) : { best: [], worst: [] };
-  const detailRows = hasSnapshots ? computeDetailTableRows(snapshots) : [];
 
   return html`
     <div class="g6" style="margin-bottom:1.2rem;">${kpis.map(kpiCard)}</div>
@@ -161,29 +159,6 @@ function view(a: Analysis | null): TemplateResult {
     </div>
 
     ${hasSnapshots ? html`
-      <div class="card" style="margin-bottom:1.2rem;">
-        <div class="card-header"><span class="card-title">Monatliche Detailübersicht</span></div>
-        <div style="overflow-x:auto">
-          <table class="dt">
-            <thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Netto</th><th>Sparquote</th><th>Dividenden</th><th>Investiert</th><th>Steuern</th><th>Karten-Tx</th><th>Gesamt-Tx</th></tr></thead>
-            <tbody>${detailRows.map((d) => html`
-              <tr class=${d.isBest ? 'row-best' : d.isWorst ? 'row-worst' : ''}>
-                <td><strong>${d.month}</strong></td>
-                <td class="pos">${d.income} ${deltaArrow(d.incomeDelta)}</td>
-                <td class="neg">${d.expense} ${deltaArrow(d.expenseDelta)}</td>
-                <td class=${d.netPositive ? 'pos' : 'neg'}>${d.net}</td>
-                <td class=${d.savingsRateCls}>${d.savingsRate}</td>
-                <td style="color:var(--dividend)">${d.dividend}</td>
-                <td class="neu">${d.invested}</td>
-                <td style="color:var(--text-muted)">${d.tax}</td>
-                <td style="color:var(--text-muted)">${d.cardCount}×</td>
-                <td style="color:var(--text-muted)">${d.txCount}</td>
-              </tr>
-            `)}</tbody>
-          </table>
-        </div>
-      </div>
-
       <div class="g2" style="margin-bottom:1.2rem;">
         <div class="card">
           <div class="card-header"><span class="card-title">Beste Monate</span></div>
@@ -254,13 +229,6 @@ function chartCard(title: string, chartKey: string): TemplateResult {
       <div class="chart-wrap short"><canvas data-chart=${chartKey}></canvas></div>
     </div>
   `;
-}
-
-function deltaArrow(direction: 'up' | 'down' | null): TemplateResult | '' {
-  if (!direction) return '';
-  const color = direction === 'up' ? 'var(--income)' : 'var(--expense)';
-  const arrow = direction === 'up' ? '▲' : '▼';
-  return html`<span style="font-size:.68rem;color:${color}">${arrow}</span>`;
 }
 
 function getCanvas(container: HTMLElement, key: string): HTMLCanvasElement | null {
