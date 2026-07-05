@@ -26,7 +26,6 @@ const tabContents = Array.from(document.querySelectorAll<HTMLElement>('.tab-cont
 const TAB_LOADERS: (() => Promise<(container: HTMLElement) => void>)[] = [
   () => import('./features/overview/OverviewView').then((m) => (el) => m.mountOverviewView(el, store)),
   () => import('./features/timeline/TimelineView').then((m) => (el) => m.mountTimelineView(el, store, actions)),
-  () => import('./features/deepdive/DeepDiveView').then((m) => (el) => m.mountDeepDiveView(el, store, actions)),
   () => import('./features/yearly/YearlyView').then((m) => (el) => m.mountYearlyView(el, store)),
   () => import('./features/monthly/MonthlyView').then((m) => (el) => m.mountMonthlyView(el, store)),
   () => import('./features/monthcompare/MonthCompareView').then((m) => (el) => m.mountMonthCompareView(el, store, actions)),
