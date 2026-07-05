@@ -59,10 +59,10 @@ function view(state: AppState, actions: AppActions): TemplateResult {
       ${kpiCard('Dividenden', kpis.dividend, 'dividend')}
     </div>
 
-    <div class="card" style="margin-bottom:1.2rem;">
-      <div class="card-header" style="flex-wrap:wrap;gap:.6rem;">
-        <span class="card-title">Filter</span>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+    <div class="card">
+      <div class="card-header" style="flex-wrap:wrap;gap:.5rem;">
+        <span class="card-title">${sorted.length} Transaktionen</span>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-left:auto;">
           <select class="tx-input tx-select" @change=${(e: Event) => actions.setTransactionFilters({ year: selectValue(e) })}>
             <option value="">Alle Jahre</option>
             ${years.map((y) => html`<option value=${y} ?selected=${f.year === y}>${y}</option>`)}
@@ -81,16 +81,7 @@ function view(state: AppState, actions: AppActions): TemplateResult {
             <option value="">Alle Kategorien</option>
             ${categories.map((c) => html`<option value=${c} ?selected=${f.category === c}>${c}</option>`)}
           </select>
-          <button class="cb" @click=${() => actions.resetTransactionFilters()}>× Reset</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">${sorted.length} Transaktionen</span>
-        <div style="display:flex;align-items:center;gap:.6rem;">
-          <input type="text" class="tx-input" style="width:180px;" placeholder="Suche…" .value=${f.search}
+          <input type="text" class="tx-input" style="width:160px;" placeholder="Suche…" .value=${f.search}
             @input=${(e: Event) => actions.setTransactionFilters({ search: inputValue(e) })}>
           <select class="tx-input tx-select"
             @change=${(e: Event) => actions.setTransactionSort(selectValue(e) as TransactionSort)}>
@@ -99,6 +90,7 @@ function view(state: AppState, actions: AppActions): TemplateResult {
             <option value="amount-desc" ?selected=${state.transactions.sort === 'amount-desc'}>Betrag ↓</option>
             <option value="amount-asc" ?selected=${state.transactions.sort === 'amount-asc'}>Betrag ↑</option>
           </select>
+          <button class="cb" @click=${() => actions.resetTransactionFilters()}>× Reset</button>
         </div>
       </div>
       <div style="overflow-x:auto">
