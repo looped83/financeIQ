@@ -3,7 +3,7 @@ import { unsafeHTML } from 'lit-html/directives/unsafe-html.js';
 import type { ChartConfiguration } from 'chart.js';
 import { BASE, darkAxes, xScale, yScale } from '../../charts/chartTheme';
 import { mountChart } from '../../charts/chartManager';
-import { fmt, fmtD, mLabel, PAL, typeLabel } from '../../domain/format';
+import { fmt, mLabel, PAL } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import { subscribeSelected, type Store } from '../../state/store';
@@ -11,14 +11,13 @@ import {
   computeAlerts,
   computeFinancialRatios,
   computeOverviewRates,
+  getAllMonthsTrendData,
   getIncomeSources,
   getLast6MonthsChartData,
   getOverviewKpis,
   getRecurringExpenses,
-  getSavingsRateTrendData,
   getTopExpenseCategoriesData,
   getTopMerchants,
-  getTopTransactions,
   getVolumeByTypeChartData,
   type KpiCard,
 } from './selectors';
@@ -47,7 +46,6 @@ function view(a: Analysis | null): TemplateResult {
   const incomeSources = getIncomeSources(a);
   const recurring = getRecurringExpenses(a, 8);
   const alerts = computeAlerts(a, rates);
-  const topTx = getTopTransactions(a, 12);
 
   const snapshots = buildMonthlySnapshots(a);
   const hasSnapshots = snapshots.length >= 2;
@@ -63,21 +61,29 @@ function view(a: Analysis | null): TemplateResult {
       ${chartCard('Volumen nach Transaktionstyp', 'ov-donut')}
     </div>
     <div class="g2" style="margin-bottom:1.2rem;">
-      ${chartCard('Monatlicher Trend — Sparquote', 'ov-sr')}
-      ${chartCard('Top-5 Ausgabenkategorien', 'ov-catbar')}
-    </div>
-
-    ${hasSnapshots ? html`
-      <div class="g2" style="margin-bottom:1.2rem;">
+      ${hasSnapshots ? html`
         <div class="card">
           <div class="card-header"><span class="card-title">Netto-Cashflow & Sparquote</span></div>
           <div class="chart-wrap tall"><canvas data-chart="ov-dd-net"></canvas></div>
         </div>
+      ` : chartCard('Netto-Cashflow & Sparquote', 'ov-dd-net')}
+      ${chartCard('Top-5 Ausgabenkategorien', 'ov-catbar')}
+    </div>
+
+    <div class="g2" style="margin-bottom:1.2rem;">
+      ${hasSnapshots ? html`
         <div class="card">
           <div class="card-header"><span class="card-title">Kumulierter Netto-Cashflow</span></div>
           <div class="chart-wrap"><canvas data-chart="ov-dd-cumnet"></canvas></div>
         </div>
+      ` : ''}
+      <div class="card">
+        <div class="card-header"><span class="card-title">Einnahmen vs. Ausgaben — Gesamttrend</span></div>
+        <div class="chart-wrap"><canvas data-chart="ov-trend"></canvas></div>
       </div>
+    </div>
+
+    ${hasSnapshots ? html`
       <div class="card" style="margin-bottom:1.2rem;">
         <div class="card-header"><span class="card-title">Ausgaben nach Kategorie im Zeitverlauf</span></div>
         <div class="chart-wrap"><canvas data-chart="ov-dd-catstack"></canvas></div>
@@ -151,18 +157,6 @@ function view(a: Analysis | null): TemplateResult {
       </div>
     </div>
 
-    ${hasSnapshots && trends.length > 0 ? html`
-      <div class="card" style="margin-bottom:1.2rem;">
-        <div class="card-header"><span class="card-title">Trends & Muster</span></div>
-        <div>
-          ${trends.map((t) => html`
-            <div class="insight"><div class="dot ${t.color}"></div><div style="flex:1">
-              <div class="ins-title">${t.title}</div><div class="ins-desc">${t.desc}</div></div></div>
-          `)}
-        </div>
-      </div>
-    ` : ''}
-
     ${hasSnapshots ? html`
       <div class="g2" style="margin-bottom:1.2rem;">
         <div class="card">
@@ -193,9 +187,13 @@ function view(a: Analysis | null): TemplateResult {
     ` : ''}
 
     <div class="card" style="margin-bottom:1.2rem;">
-      <div class="card-header"><span class="card-title">Auffälligkeiten auf einen Blick</span></div>
+      <div class="card-header"><span class="card-title">Trends & Auffälligkeiten</span></div>
       <div>
-        ${alerts.length === 0
+        ${hasSnapshots && trends.length > 0 ? trends.map((t) => html`
+          <div class="insight"><div class="dot ${t.color}"></div><div style="flex:1">
+            <div class="ins-title">${t.title}</div><div class="ins-desc">${t.desc}</div></div></div>
+        `) : ''}
+        ${alerts.length === 0 && (!hasSnapshots || trends.length === 0)
           ? html`<div class="ins-desc" style="padding:.5rem">Keine besonderen Auffälligkeiten.</div>`
           : alerts.map((al) => html`
               <div class="insight"><div class="dot ${al.color}"></div><div class="ins-desc">${unsafeHTML(al.text)}</div></div>
@@ -228,22 +226,6 @@ function view(a: Analysis | null): TemplateResult {
       </div>
     ` : ''}
 
-    <div class="card">
-      <div class="card-header"><span class="card-title">Größte Einzeltransaktionen</span></div>
-      <div style="overflow-x:auto">
-        <table class="dt">
-          <thead><tr><th>Datum</th><th>Name / Beschreibung</th><th>Typ</th><th>Betrag</th></tr></thead>
-          <tbody>${topTx.map((r) => html`
-            <tr>
-              <td>${fmtD(r._date)}</td>
-              <td>${r._name || r._desc || '—'}</td>
-              <td><span class="badge bb">${typeLabel(r._type)}</span></td>
-              <td class=${r._amt >= 0 ? 'pos' : 'neg'}>${fmt(r._amt)}</td>
-            </tr>
-          `)}</tbody>
-        </table>
-      </div>
-    </div>
   `;
 }
 
@@ -310,28 +292,26 @@ function mountCharts(container: HTMLElement, a: Analysis): void {
     } as ChartConfiguration<'doughnut'>['options'],
   });
 
-  const srData = getSavingsRateTrendData(a);
-  mountChart(getCanvas(container, 'ov-sr')!, {
-    type: 'line',
-    data: {
-      labels: srData.labels,
-      datasets: [
-        {
-          label: 'Sparquote', data: srData.savingsRate, borderColor: '#f59e0b', borderWidth: 2, pointRadius: 3,
-          pointBackgroundColor: '#f59e0b', tension: 0.3, fill: { target: 'origin', above: 'rgba(245,158,11,.1)' },
-        },
-        {
-          label: 'Ziel 20%', data: srData.target, borderColor: 'rgba(16,185,129,.4)', borderDash: [5, 5],
-          borderWidth: 1, pointRadius: 0, fill: false,
-        },
-      ],
-    },
-    options: {
-      ...BASE,
-      scales: { x: xScale(), y: { ...yScale(false), ticks: { color: '#64748b', font: { size: 10 }, callback: (v) => v + '%' } } },
-      plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => c.dataset.label + ': ' + Number(c.parsed.y).toFixed(1) + '%' } } },
-    } as ChartConfiguration<'line'>['options'],
-  });
+  const trendData = getAllMonthsTrendData(a);
+  const trendCanvas = getCanvas(container, 'ov-trend');
+  if (trendCanvas) {
+    mountChart(trendCanvas, {
+      type: 'line',
+      data: {
+        labels: trendData.labels,
+        datasets: [
+          { label: 'Einnahmen', data: trendData.income, borderColor: '#10b981', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#10b981', tension: 0.3, fill: { target: 'origin', above: 'rgba(16,185,129,.08)' } },
+          { label: 'Ausgaben', data: trendData.expense, borderColor: '#ef4444', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#ef4444', tension: 0.3, fill: { target: 'origin', above: 'rgba(239,68,68,.08)' } },
+        ],
+      },
+      options: {
+        ...BASE,
+        interaction: { mode: 'index', intersect: false },
+        scales: darkAxes(),
+        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } } },
+      } as ChartConfiguration<'line'>['options'],
+    });
+  }
 
   const topCats = getTopExpenseCategoriesData(a, 5);
   mountChart(getCanvas(container, 'ov-catbar')!, {

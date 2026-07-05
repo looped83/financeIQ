@@ -54,6 +54,22 @@ export function getLast6MonthsChartData(a: Analysis): Last6MonthsChartData {
   };
 }
 
+export interface AllMonthsTrendData {
+  labels: string[];
+  income: number[];
+  expense: number[];
+  net: number[];
+}
+
+export function getAllMonthsTrendData(a: Analysis): AllMonthsTrendData {
+  return {
+    labels: a.mKeys.map(mLabel),
+    income: a.mKeys.map((m) => a.months[m]?.income ?? 0),
+    expense: a.mKeys.map((m) => Math.abs(a.months[m]?.expense ?? 0)),
+    net: a.mKeys.map((m) => a.months[m]?.net ?? 0),
+  };
+}
+
 export interface VolumeByTypeChartData {
   labels: string[];
   values: number[];
