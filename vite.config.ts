@@ -24,6 +24,7 @@ export default defineConfig({
         outliersPreview: resolve(__dirname, 'src/dev/outliers-preview.html'),
         forecastPreview: resolve(__dirname, 'src/dev/forecast-preview.html'),
         deepdivePreview: resolve(__dirname, 'src/dev/deepdive-preview.html'),
+        comparePreview: resolve(__dirname, 'src/dev/compare-preview.html'),
       },
     },
   },
