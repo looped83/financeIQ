@@ -36,6 +36,14 @@ export interface CompareState {
   metric: CompareMetric;
 }
 
+export type MonthCompareMetric = 'income' | 'expense' | 'net' | 'invested' | 'dividend';
+
+export interface MonthCompareState {
+  monthA: string | null;
+  monthB: string | null;
+  metric: MonthCompareMetric;
+}
+
 export interface AppState {
   /** null until a CSV has been loaded. */
   analysis: Analysis | null;
@@ -45,6 +53,7 @@ export interface AppState {
   /** null until the Deep-Dive tab has been opened at least once. */
   deepDiveSelectedMonth: string | null;
   compare: CompareState;
+  monthCompare: MonthCompareState;
   transactions: TransactionsState;
 }
 
@@ -60,6 +69,7 @@ export function initialAppState(): AppState {
     forecastMonths: 3,
     deepDiveSelectedMonth: null,
     compare: { analysis: null, fileName: '', metric: 'income' },
+    monthCompare: { monthA: null, monthB: null, metric: 'income' },
     transactions: { filters: initialTransactionFilters(), sort: 'date-desc', page: 0 },
   };
 }

@@ -5,6 +5,7 @@ import {
   initialTransactionFilters,
   type AppState,
   type CompareMetric,
+  type MonthCompareMetric,
   type TimelineView,
   type TransactionFilters,
   type TransactionSort,
@@ -29,6 +30,10 @@ export interface AppActions {
   loadCompareFile(analysis: Analysis, fileName: string): void;
   resetCompare(): void;
   setCompareMetric(metric: CompareMetric): void;
+
+  setMonthCompareA(month: string): void;
+  setMonthCompareB(month: string): void;
+  setMonthCompareMetric(metric: MonthCompareMetric): void;
 
   setTransactionFilters(patch: Partial<TransactionFilters>): void;
   setTransactionSort(sort: TransactionSort): void;
@@ -73,6 +78,18 @@ export function createAppStore(): { store: Store<AppState>; actions: AppActions 
 
     setCompareMetric(metric) {
       store.setState((s) => ({ ...s, compare: { ...s.compare, metric } }));
+    },
+
+    setMonthCompareA(month) {
+      store.setState((s) => ({ ...s, monthCompare: { ...s.monthCompare, monthA: month } }));
+    },
+
+    setMonthCompareB(month) {
+      store.setState((s) => ({ ...s, monthCompare: { ...s.monthCompare, monthB: month } }));
+    },
+
+    setMonthCompareMetric(metric) {
+      store.setState((s) => ({ ...s, monthCompare: { ...s.monthCompare, metric } }));
     },
 
     setTransactionFilters(patch) {
