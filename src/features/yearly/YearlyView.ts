@@ -15,6 +15,13 @@ import {
   isMultiYear,
 } from './selectors';
 
+function deltaArrow(direction: 'up' | 'down' | null): TemplateResult | '' {
+  if (!direction) return '';
+  const color = direction === 'up' ? 'var(--income)' : 'var(--expense)';
+  const arrow = direction === 'up' ? '▲' : '▼';
+  return html`<span style="font-size:.68rem;color:${color}">${arrow}</span>`;
+}
+
 export function mountYearlyView(container: HTMLElement, store: Store<AppState>): () => void {
   return subscribeSelected(store, (s) => [s.analysis], (state) => {
     render(view(state.analysis), container);
@@ -83,7 +90,7 @@ function multiYearView(a: Analysis): TemplateResult {
           <tbody>${rows.map((r) => html`
             <tr class=${r.isBest ? 'row-best' : r.isWorst ? 'row-worst' : ''}>
               <td><strong>${r.year}</strong></td>
-              <td class="pos">${r.income}</td><td class="neg">${r.expense}</td>
+              <td class="pos">${r.income} ${deltaArrow(r.incomeDelta)}</td><td class="neg">${r.expense} ${deltaArrow(r.expenseDelta)}</td>
               <td class=${r.netPositive ? 'pos' : 'neg'}>${r.net}</td>
               <td class="neu">${r.invested}</td><td style="color:var(--dividend)">${r.dividend}</td>
               <td style="color:var(--text-muted)">${r.fees}</td><td style="color:var(--text-muted)">${r.tax}</td>

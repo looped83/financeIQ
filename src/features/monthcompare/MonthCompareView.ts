@@ -21,6 +21,12 @@ const METRIC_LABELS: Record<MonthCompareMetric, string> = {
 };
 const METRIC_OPTIONS: MonthCompareMetric[] = ['income', 'expense', 'net', 'invested', 'dividend'];
 
+function deltaArrow(positive: boolean): TemplateResult {
+  const color = positive ? 'var(--income)' : 'var(--expense)';
+  const arrow = positive ? '▲' : '▼';
+  return html`<span style="font-size:.68rem;color:${color}">${arrow}</span>`;
+}
+
 export function mountMonthCompareView(container: HTMLElement, store: Store<AppState>, actions: AppActions): () => void {
   const rerender = () => {
     const state = store.getState();
@@ -146,7 +152,7 @@ function view(state: AppState, actions: AppActions): TemplateResult {
               <td><strong>${r.label}</strong></td>
               <td style="color:var(--text-dim)">${r.vA}</td>
               <td style="color:var(--text-dim)">${r.vB}</td>
-              <td class=${r.deltaPositive ? 'pos' : 'neg'}>${r.delta}</td>
+              <td class=${r.deltaPositive ? 'pos' : 'neg'}>${r.delta} ${deltaArrow(r.deltaPositive)}</td>
               <td class=${r.deltaPctPositive ? 'pos' : 'neg'}>${r.deltaPct}</td>
             </tr>
           `)}</tbody>

@@ -111,7 +111,9 @@ export function getYearlyChartData(a: Analysis): YearlyChartData {
 export interface YearlyTableRow {
   year: string;
   income: string;
+  incomeDelta: 'up' | 'down' | null;
   expense: string;
+  expenseDelta: 'up' | 'down' | null;
   net: string;
   netPositive: boolean;
   invested: string;
@@ -124,6 +126,13 @@ export interface YearlyTableRow {
   isWorst: boolean;
 }
 
+function deltaDir(curr: number, prev: number | null): 'up' | 'down' | null {
+  if (prev === null) return null;
+  const d = curr - prev;
+  if (Math.abs(d) < 1) return null;
+  return d > 0 ? 'up' : 'down';
+}
+
 export function getYearlyTableRows(a: Analysis): YearlyTableRow[] {
   const nets = a.yKeys.map((y) => a.years[y]!.net);
   const bestIdx = nets.indexOf(Math.max(...nets));
@@ -131,11 +140,14 @@ export function getYearlyTableRows(a: Analysis): YearlyTableRow[] {
 
   return a.yKeys.map((y, i) => {
     const yr = a.years[y]!;
+    const prev = i > 0 ? a.years[a.yKeys[i - 1]!]! : null;
     const sr = yr.income > 0 ? (yr.net / yr.income) * 100 : 0;
     return {
       year: y,
       income: fmt(yr.income),
+      incomeDelta: deltaDir(yr.income, prev?.income ?? null),
       expense: fmt(Math.abs(yr.expense)),
+      expenseDelta: deltaDir(-Math.abs(yr.expense), prev ? -Math.abs(prev.expense) : null),
       net: fmt(yr.net),
       netPositive: yr.net >= 0,
       invested: fmt(yr.invested),
