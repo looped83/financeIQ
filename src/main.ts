@@ -35,6 +35,7 @@ const TAB_LOADERS: (() => Promise<(container: HTMLElement) => void>)[] = [
   () => import('./features/compare/CompareView').then((m) => (el) => m.mountCompareView(el, store, actions)),
   () => import('./features/recommendations/RecommendationsView').then((m) => (el) => m.mountRecommendationsView(el, store)),
   () => import('./features/transactions/TransactionsView').then((m) => (el) => m.mountTransactionsView(el, store, actions)),
+  () => import('./features/monthcompare/MonthCompareView').then((m) => (el) => m.mountMonthCompareView(el, store, actions)),
 ];
 const mountedTabs = new Set<number>();
 const loadingTabs = new Set<number>();
