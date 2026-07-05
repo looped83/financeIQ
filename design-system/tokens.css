@@ -1,0 +1,122 @@
+/* ============================================================================
+   FinanceIQ — Design Tokens
+   ----------------------------------------------------------------------------
+   Extracted from index.html and src/styles/base.css. Every existing token is
+   preserved verbatim so this file is a drop-in for both — nothing below renames
+   or changes a value the app already ships. The *added* tokens (type scale,
+   spacing scale, radii scale, shadow scale, chart palette) formalize values
+   that were previously inlined as raw literals; adopt them incrementally.
+
+   Tone: cool, deep-navy fintech. Dark-first (there is no light theme today).
+   ============================================================================ */
+
+:root {
+  /* --- Surfaces (elevation ladder, darkest → lightest) ---------------------
+     Background is a near-black navy; each step up is a subtle cool lift.     */
+  --bg:        #080d18;   /* app background — behind everything              */
+  --surface:   #0f1829;   /* cards, KPIs, topbar — the default panel         */
+  --surface2:  #162035;   /* nested panels, insight rows, hover fills        */
+  --surface3:  #1c2a44;   /* deepest inset — progress track, upload2 hover   */
+  --border:    #1e3050;   /* 1px hairline on every panel; also chart grid    */
+
+  /* --- Text (on dark surfaces) ---------------------------------------------
+     Three deliberate steps. `text` for values/headings, `dim` for table
+     body, `muted` for labels and secondary copy.                            */
+  --text:       #f1f5f9;  /* primary — 15.9:1 on --bg                        */
+  --text-dim:   #b0bfd0;  /* body / table cells — 9.6:1 on --bg              */
+  --text-muted: #8b9bb5;  /* labels, captions, uppercase eyebrows — 6.2:1    */
+
+  /* --- Brand ---------------------------------------------------------------
+     A blue→purple pairing. Blue is the interactive accent; purple is the
+     secondary accent, reused as the "dividend" data color.                  */
+  --accent:  #3b82f6;     /* primary — links, active tab, focus, CTAs        */
+  --accent2: #8b5cf6;     /* secondary — gradient partner, purple badges     */
+
+  /* --- Semantic / data ------------------------------------------------------
+     These double as data-encoding colors in charts and tables. Keep the
+     mapping stable: green = money in, red = money out.                       */
+  --income:   #10b981;    /* positive cashflow, gains, "up"                  */
+  --expense:  #ef4444;    /* negative cashflow, costs, "down"               */
+  --invest:   #3b82f6;    /* investment volume (== --accent by design)      */
+  --dividend: #8b5cf6;    /* dividend income (== --accent2 by design)       */
+  --warning:  #f59e0b;    /* alerts, outliers, attention items              */
+
+  /* --- Radii ---------------------------------------------------------------
+     --radius is the panel default. The rest formalize the literals already
+     in use so buttons/inputs/pills stop hard-coding 6px/8px/20px.           */
+  --radius:    12px;      /* cards, KPIs, upload2 — the panel radius         */
+  --radius-sm:  6px;      /* buttons, inputs, small controls                 */
+  --radius-md:  8px;      /* insight rows, medium blocks                     */
+  --radius-lg: 20px;      /* upload zone                                     */
+  --radius-pill: 999px;   /* badges (was literal 20px on a short pill)       */
+  --radius-xs:  4px;      /* progress bars                                   */
+
+  /* --- Type scale ----------------------------------------------------------
+     De-facto scale distilled from every font-size in the app. The dashboard
+     is intentionally dense: body sits at 13px (.81rem), labels at 11.5px.
+     Sizes are in rem (1rem = 16px).                                          */
+  --text-2xs:  0.70rem;   /* 11.2px — table headers, badges, micro-labels    */
+  --text-xs:   0.72rem;   /* 11.5px — KPI labels, sub-text, trends           */
+  --text-sm:   0.78rem;   /* 12.5px — card titles, inputs, section notes     */
+  --text-base: 0.81rem;   /* 13.0px — table body, insight body               */
+  --text-md:   0.85rem;   /* 13.6px — tab buttons                            */
+  --text-lg:   1.00rem;   /* 16.0px — upload subtitle                        */
+  --text-xl:   1.20rem;   /* 19.2px — section / compare titles               */
+  --text-2xl:  1.50rem;   /* 24.0px — KPI values (the hero number)           */
+  --text-3xl:  2.50rem;   /* 40.0px — upload wordmark                        */
+
+  /* --- Weights -------------------------------------------------------------- */
+  --weight-normal:   400;
+  --weight-medium:   500;  /* tab buttons, inline emphasis                    */
+  --weight-semibold: 600;  /* labels, badges, most emphasis                   */
+  --weight-heavy:    800;  /* KPI values, wordmarks, compare titles           */
+
+  /* --- Type meta ------------------------------------------------------------ */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --tracking-tight: -1px;     /* big heavy numerals & wordmark                */
+  --tracking-snug: -0.5px;    /* compare title                               */
+  --tracking-label: 0.05em;   /* uppercase eyebrow labels                     */
+  --leading-body: 1.55;       /* insight / hint copy                          */
+
+  /* --- Spacing scale -------------------------------------------------------
+     The app was authored with ad-hoc rem values. This 4px-based scale covers
+     the ones actually in use; migrate literals toward the nearest step.      */
+  --space-3xs: 0.2rem;   /* 3px  — tight trend gaps                          */
+  --space-2xs: 0.3rem;   /* 5px  — control gaps, chip runs                   */
+  --space-xs:  0.4rem;   /* 6px  — inline icon gaps                          */
+  --space-sm:  0.55rem;  /* 9px  — table cell padding (vertical)             */
+  --space-md:  0.8rem;   /* 13px — table cell padding (horizontal), gaps     */
+  --space-lg:  1.2rem;   /* 19px — card padding, grid gaps (the workhorse)   */
+  --space-xl:  1.5rem;   /* 24px — tab-content padding                       */
+  --space-2xl: 2rem;     /* 32px — upload padding                            */
+  --space-3xl: 3rem;     /* 48px — upload wordmark → subtitle rhythm         */
+
+  /* --- Shadows & glow ------------------------------------------------------- */
+  --shadow-lift:  0 8px 40px rgba(59,130,246,0.15);  /* upload zone hover     */
+  --glow-income:  0 0 8px var(--income);
+  --glow-warning: 0 0 8px var(--warning);
+  --glow-expense: 0 0 8px var(--expense);
+  --glow-accent:  0 0 6px var(--accent);
+
+  /* --- Motion --------------------------------------------------------------- */
+  --ease: 0.2s;          /* default state transition                          */
+  --ease-slow: 0.3s;     /* upload zone, larger surfaces                      */
+  --ease-fill: 0.6s;     /* progress-bar width fill                           */
+
+  /* --- Chart theming --------------------------------------------------------
+     Values consumed by src/charts/chartTheme.ts (kept in sync). Grid and tick
+     colors are lifted here so future chart work reads them as tokens.        */
+  --chart-grid:  rgba(255,255,255,0.05);
+  --chart-tick:  #8b9bb5;   /* axis tick labels (== --text-muted)            */
+  --chart-legend:#b0bfd0;   /* legend labels (== --text-dim)                 */
+}
+
+/* --- Categorical chart palette -----------------------------------------------
+   The 12-color series ramp from src/domain/format.ts (`PAL`), used for donut
+   segments, category legends and asset-class breakdowns. Ordered for maximum
+   adjacent-hue separation. Consumed positionally: PAL[i % 12].               */
+:root {
+  --cat-1:  #3b82f6;  --cat-2:  #8b5cf6;  --cat-3:  #10b981;  --cat-4:  #f59e0b;
+  --cat-5:  #ef4444;  --cat-6:  #06b6d4;  --cat-7:  #ec4899;  --cat-8:  #84cc16;
+  --cat-9:  #f97316;  --cat-10: #6366f1;  --cat-11: #14b8a6;  --cat-12: #a855f7;
+}
