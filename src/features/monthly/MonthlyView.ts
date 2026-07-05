@@ -122,7 +122,7 @@ function mountCharts(container: HTMLElement, a: Analysis): void {
     },
     options: {
       ...BASE,
-      scales: { x: xScale(), y: { ...yScale(false), ticks: { color: '#64748b', font: { size: 10 }, callback: (v) => v + '%' } } },
+      scales: { x: xScale(), y: { ...yScale(false), ticks: { color: '#8b9bb5', font: { size: 10 }, callback: (v) => v + '%' } } },
       plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `Sparquote: ${Number(c.parsed.y ?? 0).toFixed(1)}%` } } },
     } as ChartConfiguration<'line'>['options'],
   });

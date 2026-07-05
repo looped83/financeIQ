@@ -90,7 +90,7 @@ function mountTimelineCharts(container: HTMLElement, a: Analysis, timelineView: 
       options: {
         ...BASE, interaction: { mode: 'index', intersect: false },
         scales: {
-          x: main.isDate ? { type: 'time', time: { unit: 'month' }, grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#64748b', font: { size: 10 } } } : xScale(),
+          x: main.isDate ? { type: 'time', time: { unit: 'month' }, grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#8b9bb5', font: { size: 10 } } } : xScale(),
           y: yScale(),
         },
         plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } } },

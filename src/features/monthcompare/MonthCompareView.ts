@@ -233,8 +233,8 @@ function mountMonthCompareCharts(
       options: {
         ...BASE, indexAxis: 'y', interaction: { mode: 'index', intersect: false },
         scales: {
-          x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#64748b', font: { size: 10 }, callback: (v) => fmt(Number(v), 0) } },
-          y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+          x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#8b9bb5', font: { size: 10 }, callback: (v) => fmt(Number(v), 0) } },
+          y: { grid: { display: false }, ticks: { color: '#b0bfd0', font: { size: 11 } } },
         },
         plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.x ?? 0)}` } } },
       } as ChartConfiguration<'bar'>['options'],

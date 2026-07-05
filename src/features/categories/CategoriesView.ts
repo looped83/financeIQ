@@ -138,7 +138,7 @@ function mountCharts(container: HTMLElement, a: Analysis): void {
     options: {
       ...BASE,
       cutout: '55%',
-      plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 10 } } },
+      plugins: { legend: { position: 'right', labels: { color: '#b0bfd0', font: { size: 10 }, boxWidth: 10 } } },
     } as ChartConfiguration<'doughnut'>['options'],
   });
 }
