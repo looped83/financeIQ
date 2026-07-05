@@ -296,7 +296,7 @@ function mountCharts(container: HTMLElement, a: Analysis): void {
     options: {
       ...BASE,
       cutout: '65%',
-      plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 10 } } },
+      plugins: { legend: { position: 'right', labels: { color: '#b0bfd0', font: { size: 10 }, boxWidth: 10 } } },
     } as ChartConfiguration<'doughnut'>['options'],
   });
 
@@ -331,7 +331,7 @@ function mountCharts(container: HTMLElement, a: Analysis): void {
     options: {
       ...BASE,
       indexAxis: 'y',
-      scales: { x: yScale(), y: { ...xScale(), ticks: { color: '#94a3b8', font: { size: 9 } } } },
+      scales: { x: yScale(), y: { ...xScale(), ticks: { color: '#b0bfd0', font: { size: 9 } } } },
       plugins: { ...BASE.plugins, legend: { display: false }, tooltip: { callbacks: { label: (c) => fmt(c.parsed.x ?? 0) } } },
     } as ChartConfiguration<'bar'>['options'],
   });
@@ -393,7 +393,7 @@ function mountCharts(container: HTMLElement, a: Analysis): void {
       options: {
         ...BASE, scales: { x: xScale(), y: yScale() },
         plugins: {
-          ...BASE.plugins, legend: { labels: { color: '#94a3b8', font: { size: 9 }, boxWidth: 8 } },
+          ...BASE.plugins, legend: { labels: { color: '#b0bfd0', font: { size: 9 }, boxWidth: 8 } },
           tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } },
         },
       } as ChartConfiguration<'bar'>['options'],
