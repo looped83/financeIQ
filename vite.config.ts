@@ -26,6 +26,7 @@ export default defineConfig({
         deepdivePreview: resolve(__dirname, 'src/dev/deepdive-preview.html'),
         comparePreview: resolve(__dirname, 'src/dev/compare-preview.html'),
         recommendationsPreview: resolve(__dirname, 'src/dev/recommendations-preview.html'),
+        persistencePreview: resolve(__dirname, 'src/dev/persistence-preview.html'),
       },
     },
   },

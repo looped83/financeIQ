@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>FinanceIQ — Persistenz (Phase 4 Preview)</title>
+<link rel="stylesheet" href="../styles/base.css">
+</head>
+<body>
+<div style="max-width:1400px;margin:0 auto;padding:1.5rem;">
+  <div class="card" style="margin-bottom:1.2rem;max-width:520px;">
+    <div class="card-header"><span class="card-title">CSV laden</span></div>
+    <div id="status" style="font-size:.82rem;color:var(--text-muted);margin-bottom:.8rem;">Prüfe gespeicherte Sitzung…</div>
+    <div style="display:flex;flex-direction:column;gap:.6rem;">
+      <label style="font-size:.78rem;color:var(--text-muted);">Primär-CSV<br><input type="file" id="file-input" accept=".csv"></label>
+      <label style="font-size:.78rem;color:var(--text-muted);">Vergleichs-CSV (optional)<br><input type="file" id="compare-file-input" accept=".csv"></label>
+      <button class="cb" id="clear-btn">× Gespeicherte Daten löschen</button>
+    </div>
+  </div>
+  <div id="app"></div>
+</div>
+<script type="module" src="./persistence-preview.ts"></script>
+</body>
+</html>

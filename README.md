@@ -143,7 +143,13 @@ The app is being incrementally rewritten into a typed, componentized architectur
   - **Empfehlungen**: `src/features/recommendations/` — `computeRecommendations(a)` (15 rule-based recommendations: cashflow, savings rate, investment rate, dividends & concentration risk, fees, taxes, large expenses, subscriptions, cashflow volatility, portfolio diversification, card-spending ratio, emergency fund, spending/income trends, merchant concentration, weekend spending), sorted by priority, plus a `RecommendationsView.ts` rendering them as a prioritized insight list with color-coded dots and category badges. No charts, no store-backed interactivity — same as the original tab.
   - All ten previewable standalone (`npm run dev`, open `/src/dev/{transactions,overview,categories,yearly,monthly,outliers,forecast,deepdive,compare,recommendations}-preview.html`), all verified with Playwright against the *built* output — not just unit tests.
   - All 11 original tabs are now migrated to components; not yet wired into `index.html` (Phase 5's job).
-* ⬜ Phase 4 — IndexedDB persistence.
+* ✅ **Phase 4** — IndexedDB persistence. New capability, not present in the original at all: `src/persistence/` stores the uploaded CSV(s) so a page reload doesn't lose your data.
+  - `kvStore.ts` — a minimal async key-value abstraction (`get`/`set`/`delete`), plus an in-memory implementation used by unit tests.
+  - `indexedDbStore.ts` — the real, browser-only IndexedDB-backed implementation of that abstraction. Not unit-tested (no IndexedDB in Node); verified with Playwright against the built preview instead.
+  - `sessionPersistence.ts` — serializes/deserializes a `{ primary, compare }` session (filename + raw CSV text for each) as JSON, tolerating corrupt or missing data.
+  - `sessionBootstrap.ts` — `restoreSession()` re-parses persisted CSV text and replays it through the same `loadFile`/`loadCompareFile` actions a real upload uses; `persistPrimaryFile()`/`persistCompareFile()` save without clobbering the other slot; `clearPersistedSession()` wipes it.
+  - `src/dev/persistence-preview.{html,ts}` — demo page (Übersicht-Tab + upload inputs + status line + "Gespeicherte Daten löschen" button). Verified with Playwright: upload → reload the page → data is restored automatically, then clear → reload → back to empty.
+  - 18 new unit tests against the in-memory store; `dist/index.html` stays byte-identical.
 * ⬜ Phase 5 — Cut over: `index.html`'s inline script is replaced by the `src/` bundle, GitHub Pages source switches to the Actions-based deploy.
 
 ⸻

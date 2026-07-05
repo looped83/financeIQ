@@ -217,7 +217,15 @@ Ziel: schrittweiser Umbau auf TypeScript + Komponenten + State-Store, ohne die l
   - **Wichtiger Erkenntnisgewinn beim Testen:** ES-Module lassen sich nicht über `file://` laden (CORS-Block, `origin 'null'`) — anders als die bisherige `index.html` mit ihrem reinen, nicht-modularen `<script>`. Für Playwright-Tests gegen die neuen Komponenten muss `vite preview` (oder `vite dev`) einen echten HTTP-Server bereitstellen. Relevant für Phase 5: der Cutover-Workflow braucht ohnehin schon HTTP-Deployment (GitHub Pages), betrifft also nur lokales Testen.
   - Alerts nutzen `unsafeHTML` (lit-html-Direktive) für die `<strong>`-Tags in den Warnhinweis-Texten — per Playwright verifiziert, dass echte Elemente gerendert werden, kein escapeter Text
   - Alle 11 Tabs sind migriert; Phase 3 damit abgeschlossen. Noch nicht in `index.html` verdrahtet — das ist Phase 5s Aufgabe
-- **Phase 4 (offen):** IndexedDB-Persistenz.
+- **Phase 4 (fertig):** IndexedDB-Persistenz. Echte neue Funktionalität, existiert im Original gar nicht: `src/persistence/` sorgt dafür, dass ein Seiten-Reload die hochgeladene(n) CSV(s) nicht verliert.
+  - `kvStore.ts` — minimale async Key-Value-Abstraktion (`get`/`set`/`delete`) plus eine In-Memory-Implementierung für Unit-Tests (Node hat kein natives IndexedDB)
+  - `indexedDbStore.ts` — die echte, browserseitige IndexedDB-Implementierung dieser Abstraktion. Bewusst nicht unit-getestet (browserabhängig), stattdessen per Playwright gegen die gebaute Preview-Seite verifiziert — gleiches Prinzip wie schon beim ES-Modul/`file://`-Problem in Phase 3
+  - `sessionPersistence.ts` — serialisiert/deserialisiert eine `{ primary, compare }`-Sitzung (Dateiname + roher CSV-Text je Slot) als JSON; liefert `null` statt zu werfen bei fehlenden oder kaputten Daten
+  - `sessionBootstrap.ts` — `restoreSession()` parst den gespeicherten CSV-Text erneut und spielt ihn über dieselben `loadFile`/`loadCompareFile`-Actions ein, die auch ein echter Upload nutzt; `persistPrimaryFile()`/`persistCompareFile()` speichern, ohne den jeweils anderen Slot zu überschreiben; `clearPersistedSession()` löscht alles
+  - `src/dev/persistence-preview.{html,ts}` — Demo-Seite (Übersicht-Tab + Upload-Inputs + Status-Zeile + "Gespeicherte Daten löschen"-Button). Per Playwright verifiziert: Upload → Seiten-Reload → Daten automatisch wiederhergestellt → Löschen → Reload → wieder leer
+  - 18 neue Unit-Tests gegen den In-Memory-Store (190 insgesamt); `dist/index.html` bleibt byte-identisch
+  - Bewusste Design-Entscheidung: Rohtext der CSV wird gespeichert (nicht die fertige `Analysis`), damit ein Restore immer durch dieselbe `parseCSV`+`analyze`-Pipeline läuft wie ein echter Upload — kein zweiter, potenziell abweichender Deserialisierungspfad
+  - Wie Phase 1/2/3: noch nicht in `index.html` verdrahtet — reine Infrastruktur, die Phase 5 anzapft
 - **Phase 5 (offen):** Cutover — `index.html`s Inline-Script wird durch den `src/`-Bundle ersetzt, Pages-Source wird auf den neuen Workflow umgestellt.
 
 ## Offene PRs
