@@ -4,27 +4,23 @@ import type { ChartConfiguration } from 'chart.js';
 import { mountChart } from '../../charts/chartManager';
 import { BASE, xScale, yScale } from '../../charts/chartTheme';
 import { fmt } from '../../domain/format';
-import type { Analysis } from '../../domain/types';
 import type { AppActions } from '../../state/appStore';
 import type { AppState } from '../../state/appState';
-import type { Store } from '../../state/store';
-import { computeForecast } from './selectors';
+import { subscribeSelected, type Store } from '../../state/store';
+import { computeForecast, type ForecastResult } from './selectors';
 
 const FORECAST_OPTIONS = [3, 6, 12] as const;
 
 export function mountForecastView(container: HTMLElement, store: Store<AppState>, actions: AppActions): () => void {
-  const rerender = () => {
-    const state = store.getState();
-    render(view(state.analysis, state.forecastMonths, actions), container);
-    if (state.analysis) mountForecastChart(container, computeForecast(state.analysis, state.forecastMonths));
-  };
-  rerender();
-  return store.subscribe(rerender);
+  return subscribeSelected(store, (s) => [s.analysis, s.forecastMonths], (state) => {
+    const result = state.analysis ? computeForecast(state.analysis, state.forecastMonths) : null;
+    render(view(result, state.forecastMonths, actions), container);
+    if (result) mountForecastChart(container, result);
+  });
 }
 
-function view(a: Analysis | null, forecastMonths: number, actions: AppActions): TemplateResult {
-  if (!a) return html`<p style="color:var(--text-muted)">Keine Daten geladen.</p>`;
-  const result = computeForecast(a, forecastMonths);
+function view(result: ForecastResult | null, forecastMonths: number, actions: AppActions): TemplateResult {
+  if (!result) return html`<p style="color:var(--text-muted)">Keine Daten geladen.</p>`;
 
   return html`
     <div class="card" style="margin-bottom:1.2rem;">
@@ -58,7 +54,7 @@ function view(a: Analysis | null, forecastMonths: number, actions: AppActions): 
   `;
 }
 
-function mountForecastChart(container: HTMLElement, result: ReturnType<typeof computeForecast>): void {
+function mountForecastChart(container: HTMLElement, result: ForecastResult): void {
   const canvas = container.querySelector<HTMLCanvasElement>('[data-chart="fc-main"]');
   if (!canvas) return;
   const { chart } = result;

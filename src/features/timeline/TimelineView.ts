@@ -6,7 +6,7 @@ import { fmt } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppActions } from '../../state/appStore';
 import type { AppState, TimelineView as TimelineViewMode } from '../../state/appState';
-import type { Store } from '../../state/store';
+import { subscribeSelected, type Store } from '../../state/store';
 import {
   computeMainChartData,
   getCumulativeIncExpChartData,
@@ -22,13 +22,10 @@ const VIEW_OPTIONS: { mode: TimelineViewMode; label: string }[] = [
 ];
 
 export function mountTimelineView(container: HTMLElement, store: Store<AppState>, actions: AppActions): () => void {
-  const rerender = () => {
-    const state = store.getState();
+  return subscribeSelected(store, (s) => [s.analysis, s.timelineView], (state) => {
     render(view(state.analysis, state.timelineView, actions), container);
     if (state.analysis) mountTimelineCharts(container, state.analysis, state.timelineView);
-  };
-  rerender();
-  return store.subscribe(rerender);
+  });
 }
 
 function view(a: Analysis | null, timelineView: TimelineViewMode, actions: AppActions): TemplateResult {

@@ -6,7 +6,7 @@ import { fmt, mLabel, PAL } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppActions } from '../../state/appStore';
 import type { AppState } from '../../state/appState';
-import type { Store } from '../../state/store';
+import { subscribeSelected, type Store } from '../../state/store';
 import {
   buildMonthlySnapshots,
   computeAttentionItems,
@@ -22,9 +22,10 @@ import {
 } from './selectors';
 
 export function mountDeepDiveView(container: HTMLElement, store: Store<AppState>, actions: AppActions): () => void {
-  const rerender = () => {
-    const state = store.getState();
-
+  // subscribeSelected registers the subscription before the first render: the
+  // render below can itself call actions.setDeepDiveMonth() (default-month
+  // selection), which must synchronously re-notify this same subscriber.
+  return subscribeSelected(store, (s) => [s.analysis, s.deepDiveSelectedMonth], (state) => {
     if (!state.analysis) {
       render(html`<p style="color:var(--text-muted)">Keine Daten geladen.</p>`, container);
       return;
@@ -51,15 +52,7 @@ export function mountDeepDiveView(container: HTMLElement, store: Store<AppState>
 
     render(view(snapshots, selectedMonth, actions), container);
     mountCharts(container, snapshots);
-  };
-  // Subscribe before the first render: rerender() can itself call
-  // actions.setDeepDiveMonth() (see below), which must synchronously notify this
-  // same subscriber to pick up the resulting state change. Mounting a tab after its
-  // data is already loaded (e.g. a lazily-mounted tab in the real app) skips straight
-  // to that branch on the very first call, so subscribing after would miss it.
-  const unsubscribe = store.subscribe(rerender);
-  rerender();
-  return unsubscribe;
+  });
 }
 
 function view(snapshots: MonthSnapshot[], selectedMonth: string, actions: AppActions): TemplateResult {
