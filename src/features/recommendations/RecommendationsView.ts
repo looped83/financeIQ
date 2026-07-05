@@ -1,13 +1,11 @@
 import { html, render, type TemplateResult } from 'lit-html';
 import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
-import type { Store } from '../../state/store';
+import { subscribeSelected, type Store } from '../../state/store';
 import { computeRecommendations, type RecommendationLevel } from './selectors';
 
 export function mountRecommendationsView(container: HTMLElement, store: Store<AppState>): () => void {
-  const rerender = () => render(view(store.getState().analysis), container);
-  rerender();
-  return store.subscribe(rerender);
+  return subscribeSelected(store, (s) => [s.analysis], (state) => render(view(state.analysis), container));
 }
 
 const BADGE_CLASS: Record<RecommendationLevel, string> = {

@@ -111,3 +111,40 @@ describe('analyze() — German bank export, semicolon delimiter, comma decimals'
     expect(r?._month).toBe('2024-03');
   });
 });
+
+describe('analyze() — amount parsing with thousands separators', () => {
+  function analyzeAmounts(...amounts: string[]) {
+    const csv = ['date,amount,type', ...amounts.map((amt, i) => `2024-0${i + 1}-15,"${amt}",TRANSFER_INBOUND`)].join('\n');
+    return analyze(parseCSV(csv));
+  }
+
+  it('parses German format "1.234,56" (dot = thousands, comma = decimal)', () => {
+    const a = analyzeAmounts('1.234,56');
+    expect(a.totalInc).toBeCloseTo(1234.56, 3);
+  });
+
+  it('parses English format "1,234.56" (comma = thousands, dot = decimal)', () => {
+    const a = analyzeAmounts('1,234.56');
+    expect(a.totalInc).toBeCloseTo(1234.56, 3);
+  });
+
+  it('still parses plain decimal-comma ("25,50") and decimal-dot ("25.50") amounts', () => {
+    const a = analyzeAmounts('25,50', '25.50');
+    expect(a.totalInc).toBeCloseTo(51.0, 3);
+  });
+
+  it('parses German millions format "1.234.567,89"', () => {
+    const a = analyzeAmounts('1.234.567,89');
+    expect(a.totalInc).toBeCloseTo(1234567.89, 3);
+  });
+});
+
+describe('analyze() — dataset without cash transactions', () => {
+  it('keeps mean/std finite when the CSV contains only BUY/SELL rows', () => {
+    const csv = ['date,amount,type', '2024-01-15,-1000.00,BUY', '2024-02-15,500.00,SELL'].join('\n');
+    const a = analyze(parseCSV(csv));
+    expect(a.mean).toBe(0);
+    expect(a.std).toBe(0);
+    expect(a.outliers).toEqual([]);
+  });
+});

@@ -16,7 +16,17 @@ import type {
 export const MIN_DATE = new Date('2024-01-01');
 
 function parseAmount(v: string | undefined): number {
-  return parseFloat(String(v || '').replace(/[€$£\s]/g, '').replace(',', '.')) || 0;
+  let s = String(v || '').replace(/[€$£\s]/g, '');
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  if (lastComma > -1 && lastDot > -1) {
+    // Both separators present: the later one is the decimal separator,
+    // the other is a thousands separator ("1.234,56" vs "1,234.56").
+    s = lastComma > lastDot ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  } else if (lastComma > -1) {
+    s = s.replace(',', '.');
+  }
+  return parseFloat(s) || 0;
 }
 
 function parseDate(v: string | undefined): Date | null {
@@ -185,8 +195,9 @@ export function analyze(rows: RawRow[]): Analysis {
 
   // Outliers (cash, z-score)
   const cashAmts = cash.map((r) => Math.abs(r._amt));
-  const mean = cashAmts.reduce((s, v) => s + v, 0) / cashAmts.length;
-  const std = Math.sqrt(cashAmts.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / cashAmts.length);
+  const cashN = cashAmts.length || 1; // guard: a CSV with only BUY/SELL rows has no cash transactions
+  const mean = cashAmts.reduce((s, v) => s + v, 0) / cashN;
+  const std = Math.sqrt(cashAmts.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / cashN);
   const outliers: OutlierRow[] =
     std > 0
       ? cash

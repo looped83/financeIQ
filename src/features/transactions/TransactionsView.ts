@@ -4,7 +4,7 @@ import type { EnrichedRow } from '../../domain/types';
 import type { AppActions } from '../../state/appStore';
 import type { AppState, TransactionSort } from '../../state/appState';
 import { TRANSACTIONS_PER_PAGE } from '../../state/appState';
-import type { Store } from '../../state/store';
+import { subscribeSelected, type Store } from '../../state/store';
 import {
   computePaginationItems,
   computeTransactionKpis,
@@ -17,17 +17,20 @@ import {
 } from './selectors';
 
 /**
- * Mounts the Transaktionen tab into `container`, re-rendering on every
- * state change. Returns an unsubscribe function to unmount.
+ * Mounts the Transaktionen tab into `container`, re-rendering whenever the
+ * analysis or the transactions slice (filters/sort/page) changes. Returns an
+ * unsubscribe function to unmount.
  */
 export function mountTransactionsView(
   container: HTMLElement,
   store: Store<AppState>,
   actions: AppActions,
 ): () => void {
-  const rerender = () => render(view(store.getState(), actions), container);
-  rerender();
-  return store.subscribe(rerender);
+  return subscribeSelected(
+    store,
+    (s) => [s.analysis, s.transactions],
+    (state) => render(view(state, actions), container),
+  );
 }
 
 function view(state: AppState, actions: AppActions): TemplateResult {

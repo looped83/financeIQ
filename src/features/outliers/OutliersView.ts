@@ -2,13 +2,11 @@ import { html, render, type TemplateResult } from 'lit-html';
 import type { Analysis } from '../../domain/types';
 import { getRecurringExpenses } from '../shared/commonSelectors';
 import type { AppState } from '../../state/appState';
-import type { Store } from '../../state/store';
+import { subscribeSelected, type Store } from '../../state/store';
 import { computeRiskLights, getOutlierKpis, getOutlierTableRows } from './selectors';
 
 export function mountOutliersView(container: HTMLElement, store: Store<AppState>): () => void {
-  const rerender = () => render(view(store.getState().analysis), container);
-  rerender();
-  return store.subscribe(rerender);
+  return subscribeSelected(store, (s) => [s.analysis], (state) => render(view(state.analysis), container));
 }
 
 function view(a: Analysis | null): TemplateResult {

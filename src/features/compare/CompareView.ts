@@ -9,7 +9,7 @@ import { fmt } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppActions } from '../../state/appStore';
 import type { AppState, CompareMetric } from '../../state/appState';
-import type { Store } from '../../state/store';
+import { subscribeSelected, type Store } from '../../state/store';
 import {
   buildMonthAlign,
   computeCompareInsights,
@@ -27,37 +27,43 @@ const METRIC_LABELS: Record<CompareMetric, string> = {
 const METRIC_OPTIONS: CompareMetric[] = ['income', 'expense', 'net', 'invested'];
 
 export function mountCompareView(container: HTMLElement, store: Store<AppState>, actions: AppActions): () => void {
-  const rerender = () => {
-    const state = store.getState();
+  return subscribeSelected(store, (s) => [s.analysis, s.compare], (state) => {
     render(view(state, actions), container);
     if (state.analysis && state.compare.analysis) {
       mountCompareCharts(container, state.analysis, state.compare.analysis, state.compare.metric);
     }
-  };
-  rerender();
-  return store.subscribe(rerender);
+  });
 }
 
 function view(state: AppState, actions: AppActions): TemplateResult {
   if (!state.analysis) return html`<p style="color:var(--text-muted)">Keine Daten geladen.</p>`;
-  if (!state.compare.analysis) return uploadView(actions, state.analysis, state.fileName);
+  if (!state.compare.analysis) return uploadView(actions);
   return dashboardView(state.analysis, state.compare.analysis, state.fileName, state.compare.fileName, state.compare.metric, actions);
 }
 
-function uploadView(actions: AppActions, primaryAnalysis: Analysis, primaryFileName: string): TemplateResult {
+function uploadView(actions: AppActions): TemplateResult {
   const onFileChange = (e: Event) => {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const rows2 = parseCSV(String(reader.result));
-      actions.loadCompareFile(analyze(rows2), file.name);
+      // Same error surfacing as the primary upload in main.ts: a CSV that fails to
+      // parse/analyze must not fail silently.
+      try {
+        const rows2 = parseCSV(String(reader.result));
+        if (!rows2.length) {
+          alert('Keine Daten gefunden.');
+          return;
+        }
+        actions.loadCompareFile(analyze(rows2), file.name);
+      } catch (err) {
+        console.error('Fehler beim Verarbeiten der Vergleichs-CSV:', err);
+        alert(`Fehler beim Verarbeiten der CSV-Datei: ${err instanceof Error ? err.message : String(err)}`);
+      }
     };
     reader.readAsText(file);
   };
-  void primaryAnalysis;
-  void primaryFileName;
 
   return html`
     <div class="card" style="max-width:520px;">

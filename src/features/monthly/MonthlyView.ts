@@ -5,7 +5,7 @@ import { BASE, darkAxes, xScale, yScale } from '../../charts/chartTheme';
 import { fmt } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
-import type { Store } from '../../state/store';
+import { subscribeSelected, type Store } from '../../state/store';
 import {
   getMonthlyCumulativeChartData,
   getMonthlyGroupedChartData,
@@ -14,13 +14,10 @@ import {
 } from './selectors';
 
 export function mountMonthlyView(container: HTMLElement, store: Store<AppState>): () => void {
-  const rerender = () => {
-    const state = store.getState();
+  return subscribeSelected(store, (s) => [s.analysis], (state) => {
     render(view(state.analysis), container);
     if (state.analysis) mountCharts(container, state.analysis);
-  };
-  rerender();
-  return store.subscribe(rerender);
+  });
 }
 
 function view(a: Analysis | null): TemplateResult {
