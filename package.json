@@ -8,9 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "npm run test:legacy && npm run test:unit",
-    "test:legacy": "node test/run.cjs",
-    "test:unit": "vitest run",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

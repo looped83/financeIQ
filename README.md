@@ -110,22 +110,17 @@ No financial data is uploaded to external servers.
 
 ```
 npm install
-npm test          # legacy regression suite + Vitest unit tests
+npm test          # Vitest unit tests
 npm run typecheck # TypeScript, no build
 ```
 
-`npm test` runs two suites:
-
-* **`test:legacy`** — replays fixture CSVs through the inline `parseCSV()`/`analyze()` still shipped in `index.html` today (the production logic, until the V2 migration reaches its cutover point).
-* **`test:unit`** — Vitest tests against the typed domain layer in `src/domain/` (the V2 rewrite target). Same fixtures, same assertions, real unit tests instead of a VM-sandboxed script.
-
-Both currently need to pass independently, since `index.html`'s inline script and `src/domain/` are — for now, deliberately — two copies of the same logic. See `handover.md` for the migration plan.
+`npm test` runs the Vitest suite against `src/` — the real, typed domain/state/feature/persistence layers that `index.html` now actually runs (since Phase 5's cutover; see below). The former `test:legacy` suite, which replayed fixtures through the inline `parseCSV()`/`analyze()` that used to live directly in `index.html`, has been retired: that inline script no longer exists, so there's nothing left for it to test.
 
 To preview a migrated component standalone: `npm run dev`, then open `/src/dev/transactions-preview.html` or `/src/dev/overview-preview.html`.
 
-🏗️ V2 Migration (in progress)
+🏗️ V2 Migration (complete)
 
-The app is being incrementally rewritten into a typed, componentized architecture while staying deployable as a static site at every step (no functionality changes until each phase is verified equivalent):
+The app was incrementally rewritten into a typed, componentized architecture while staying deployable as a static site at every step (no functionality changes until each phase was verified equivalent — apart from Phase 4's persistence, a deliberate, additive new capability, and Phase 5's cutover itself):
 
 * ✅ **Phase 0** — Vite + TypeScript build pipeline, proven to produce a byte-identical `dist/index.html` from the untouched source.
 * ✅ **Phase 1** — Domain layer (`parseCSV`, `analyze`, formatting/stats helpers) ported to typed, unit-tested modules in `src/domain/`. Not yet wired into `index.html`.
@@ -150,6 +145,12 @@ The app is being incrementally rewritten into a typed, componentized architectur
   - `sessionPersistence.ts` — serializes/deserializes a `{ primary, compare }` session (filename + raw CSV text for each) as JSON, tolerating corrupt or missing data.
   - `sessionBootstrap.ts` — `restoreSession()` re-parses persisted CSV text and replays it through the same `loadFile`/`loadCompareFile` actions a real upload uses; `persistPrimaryFile()`/`persistCompareFile()` save without clobbering the other slot; `clearPersistedSession()` wipes it.
   - `src/dev/persistence-preview.{html,ts}` — demo page (Übersicht-Tab + upload inputs + status line + "Gespeicherte Daten löschen" button). Verified with Playwright: upload → reload the page → data is restored automatically, then clear → reload → back to empty.
+* ✅ **Phase 5 — Cutover.** `index.html` no longer carries any inline logic: its ~1,650-line `<script>` block and all 11 tabs' hand-written per-tab markup are gone, replaced by 11 empty `<div id="tab-N">` containers and a single `<script type="module" src="/src/main.ts">`. The two Chart.js CDN `<script>` tags are gone too — `chart.js` and `chartjs-adapter-date-fns` are real npm dependencies now. **This is the one phase where the long-held "`dist/index.html` stays byte-identical" invariant deliberately ends** — that invariant existed specifically to keep the live site unaffected while `src/` was still just parallel, unwired infrastructure; Phase 5 is the point where it gets wired in for real.
+  - `src/main.ts` — the new entry point. Creates the Phase 2 store, mounts all 11 tab components, wires the upload screen (file input + drag & drop) and the "⟳ Neue Datei" reset button, and calls `restoreSession()` on startup so a previously-persisted CSV reloads automatically (Phase 4, now live). Each tab is mounted lazily, the first time it's actually clicked — mounting a Chart.js canvas while its container is `display:none` produces a broken, zero-size chart, and this also matches the original's own lazy `TAB_FNS`/`rendered` behavior.
+  - **Bug found and fixed during cutover verification:** `mountDeepDiveView` auto-selects the most recent month if none is selected yet, by calling `actions.setDeepDiveMonth()` from inside its own render function and relying on that action's state change to synchronously re-trigger the same render (a pattern documented in Phase 3). That only works if the view has already subscribed to the store *before* its first render — true in every dev-preview page (mounted before any file is loaded) and in the standalone Vitest tests, but false for a tab lazily mounted *after* data is already loaded, which is exactly what happens the first time a real user clicks the Deep-Dive tab. Fixed by subscribing before the first render in `DeepDiveView.ts`. Caught by an end-to-end Playwright run through all 11 tabs against the real cutover build — the kind of integration bug that per-tab isolated testing structurally can't see.
+  - The `test:legacy` regression suite (`test/run.cjs`, VM-sandboxed against `index.html`'s inline script) is retired — there's no inline script left to test. `npm test` is now just the Vitest suite, which is the sole regression guard on the actual production logic.
+  - `.github/workflows/pages-vite.yml` now triggers on push to `main` (previously `workflow_dispatch` only, from its Phase 0 proof-of-concept days). **Manual step still required:** GitHub Pages' source setting needs to be switched from "Deploy from a branch" to "GitHub Actions" in the repo's Settings → Pages — that's a repository setting, not something a workflow file or a code change can flip on its own.
+  - Verified with Playwright against the actual built `index.html` (not a `/src/dev/` preview): upload a real CSV, click through all 11 tabs and confirm each renders without console errors, exercise interactive controls (forecast month toggle, Deep-Dive month picker, Vergleich's second-file upload, transaction table), reset back to the upload screen, and reload the page to confirm the persisted session restores automatically.
   - 18 new unit tests against the in-memory store; `dist/index.html` stays byte-identical.
 * ⬜ Phase 5 — Cut over: `index.html`'s inline script is replaced by the `src/` bundle, GitHub Pages source switches to the Actions-based deploy.
 

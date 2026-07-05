@@ -7,7 +7,7 @@
 - **Sprache:** Deutsch (UI), `de-DE` Locale, Euro-Formatierung
 - **Design:** Dark Theme, responsive (Flexbox/Grid)
 - **Externe Abhängigkeiten:** Chart.js 4.4.4, chartjs-adapter-date-fns 3.0.0 (beide via CDN)
-- **Deployment:** GitHub Pages (automatisch via GitHub Actions bei Push auf `main`)
+- **Deployment:** GitHub Pages. Seit Phase 5 baut `.github/workflows/pages-vite.yml` bei jedem Push auf `main`; damit das auch live wirkt, muss die Pages-Source im Repo (Settings → Pages → Source) noch manuell von "Deploy from a branch" auf "GitHub Actions" umgestellt werden — das kann kein Workflow und keine Code-Änderung selbst auslösen
 
 ## Architektur
 
@@ -227,7 +227,12 @@ Ziel: schrittweiser Umbau auf TypeScript + Komponenten + State-Store, ohne die l
   - 18 neue Unit-Tests gegen den In-Memory-Store (190 insgesamt); `dist/index.html` bleibt byte-identisch
   - Bewusste Design-Entscheidung: Rohtext der CSV wird gespeichert (nicht die fertige `Analysis`), damit ein Restore immer durch dieselbe `parseCSV`+`analyze`-Pipeline läuft wie ein echter Upload — kein zweiter, potenziell abweichender Deserialisierungspfad
   - Wie Phase 1/2/3: noch nicht in `index.html` verdrahtet — reine Infrastruktur, die Phase 5 anzapft
-- **Phase 5 (offen):** Cutover — `index.html`s Inline-Script wird durch den `src/`-Bundle ersetzt, Pages-Source wird auf den neuen Workflow umgestellt.
+- **Phase 5 (fertig):** Cutover. `index.html` enthält keine Inline-Logik mehr: das ~1.650-Zeilen-`<script>`-Block sowie die handgeschriebene Pro-Tab-Markup aller 11 Tabs sind weg, ersetzt durch 11 leere `<div id="tab-N">`-Container und ein einziges `<script type="module" src="/src/main.ts">`. Die beiden Chart.js-CDN-`<script>`-Tags sind ebenfalls weg — `chart.js` und `chartjs-adapter-date-fns` sind jetzt echte npm-Dependencies. **Hier endet bewusst die bisher durchgehaltene "`dist/index.html` bleibt byte-identisch"-Garantie** — die galt nur, solange `src/` noch unverdrahtete Parallel-Infrastruktur war; Phase 5 ist genau der Punkt, an dem sie live geschaltet wird.
+  - `src/main.ts` — der neue Einstiegspunkt: erstellt den Phase-2-Store, mountet alle 11 Tab-Komponenten, verdrahtet Upload-Screen (File-Input + Drag&Drop) und den "⟳ Neue Datei"-Button, ruft beim Start `restoreSession()` auf (Phase 4 ist damit live: eine zuvor gespeicherte CSV lädt automatisch neu). Jeder Tab wird lazy gemountet, beim ersten tatsächlichen Klick — ein Chart.js-Canvas in einem `display:none`-Container zu mounten ergibt einen kaputten Chart mit Nullgröße; das entspricht außerdem dem Original-Verhalten (`TAB_FNS`/`rendered`-Set, ebenfalls lazy)
+  - **Bug gefunden und behoben bei der Cutover-Verifikation:** `mountDeepDiveView` wählt automatisch den letzten Monat, falls noch keiner gewählt ist, indem es `actions.setDeepDiveMonth()` aus der eigenen Render-Funktion heraus aufruft und sich darauf verlässt, dass die daraus resultierende State-Änderung denselben Subscriber synchron erneut triggert (in Phase 3 dokumentiertes Muster). Das funktioniert nur, wenn die View schon subscribed hat, BEVOR sie zum ersten Mal rendert — in jeder Dev-Preview-Seite und in den Vitest-Tests der Fall (View wird gemountet, bevor überhaupt eine Datei geladen ist), aber nicht mehr, wenn ein Tab erst lazy gemountet wird, NACHDEM Daten schon geladen sind — genau das passiert beim ersten echten Klick auf Deep-Dive. Fix: in `DeepDiveView.ts` wird jetzt vor dem ersten Render subscribed. Gefunden durch einen Playwright-Durchlauf durch alle 11 Tabs gegen den echten Cutover-Build — genau die Art von Integrationsfehler, die isoliertes Pro-Tab-Testen strukturell nicht sehen kann
+  - `test:legacy` (`test/run.cjs`, VM-Sandbox gegen `index.html`s Inline-Script) ist entfernt — es gibt kein Inline-Script mehr zu testen. `npm test` ist jetzt nur noch die Vitest-Suite, die damit die einzige Regressionsabsicherung für die tatsächliche Produktionslogik ist
+  - `.github/workflows/pages-vite.yml` triggert jetzt zusätzlich auf Push nach `main` (vorher nur `workflow_dispatch`, aus der Phase-0-Proof-of-concept-Zeit)
+  - Per Playwright gegen das echte gebaute `index.html` verifiziert (nicht nur eine `/src/dev/`-Preview): reale CSV hochladen, durch alle 11 Tabs klicken und prüfen, dass jeder ohne Konsolenfehler rendert, interaktive Controls durchklicken (Prognose-Monatsumschaltung, Deep-Dive-Monatsauswahl, Vergleichs-Upload, Transaktionstabelle), zurücksetzen auf den Upload-Screen, und Seiten-Reload prüfen (persistierte Sitzung lädt automatisch)
 
 ## Offene PRs
 

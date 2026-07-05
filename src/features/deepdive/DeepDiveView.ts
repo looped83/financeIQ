@@ -52,8 +52,14 @@ export function mountDeepDiveView(container: HTMLElement, store: Store<AppState>
     render(view(snapshots, selectedMonth, actions), container);
     mountCharts(container, snapshots);
   };
+  // Subscribe before the first render: rerender() can itself call
+  // actions.setDeepDiveMonth() (see below), which must synchronously notify this
+  // same subscriber to pick up the resulting state change. Mounting a tab after its
+  // data is already loaded (e.g. a lazily-mounted tab in the real app) skips straight
+  // to that branch on the very first call, so subscribing after would miss it.
+  const unsubscribe = store.subscribe(rerender);
   rerender();
-  return store.subscribe(rerender);
+  return unsubscribe;
 }
 
 function view(snapshots: MonthSnapshot[], selectedMonth: string, actions: AppActions): TemplateResult {
