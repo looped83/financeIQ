@@ -2,7 +2,7 @@ import { html, render, type TemplateResult } from 'lit-html';
 import type { ChartConfiguration } from 'chart.js';
 import { mountChart } from '../../charts/chartManager';
 import { BASE, darkAxes, xScale, yScale } from '../../charts/chartTheme';
-import { fmt } from '../../domain/format';
+import { fmt, mLabel } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import { subscribeSelected, type Store } from '../../state/store';
@@ -10,8 +10,8 @@ import {
   getMonthlyCumulativeChartData,
   getMonthlyGroupedChartData,
   getMonthlySavingsRateChartData,
-  getMonthlyTableRows,
 } from './selectors';
+import { buildMonthlySnapshots, computeDetailTableRows } from '../deepdive/selectors';
 
 export function mountMonthlyView(container: HTMLElement, store: Store<AppState>): () => void {
   return subscribeSelected(store, (s) => [s.analysis], (state) => {
@@ -20,9 +20,17 @@ export function mountMonthlyView(container: HTMLElement, store: Store<AppState>)
   });
 }
 
+function deltaArrow(direction: 'up' | 'down' | null): TemplateResult | '' {
+  if (!direction) return '';
+  const color = direction === 'up' ? 'var(--income)' : 'var(--expense)';
+  const arrow = direction === 'up' ? '▲' : '▼';
+  return html`<span style="font-size:.68rem;color:${color}">${arrow}</span>`;
+}
+
 function view(a: Analysis | null): TemplateResult {
   if (!a) return html`<p style="color:var(--text-muted)">Keine Daten geladen.</p>`;
-  const rows = getMonthlyTableRows(a);
+  const snapshots = buildMonthlySnapshots(a);
+  const detailRows = snapshots.length >= 2 ? computeDetailTableRows(snapshots) : [];
 
   return html`
     <div class="card" style="margin-bottom:1.2rem;">
@@ -39,25 +47,30 @@ function view(a: Analysis | null): TemplateResult {
         <div class="chart-wrap"><canvas data-chart="mo-savings"></canvas></div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Monatliche Detailübersicht</span></div>
-      <div style="overflow-x:auto">
-        <table class="dt">
-          <thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Investiert</th><th>Dividenden</th><th>Netto</th><th>Sparquote</th><th>Kum. Saldo</th><th>Tx</th></tr></thead>
-          <tbody>${rows.map((r) => html`
-            <tr class=${r.isBest ? 'row-best' : r.isWorst ? 'row-worst' : ''}>
-              <td><strong>${r.month}</strong></td>
-              <td class="pos">${r.income}</td><td class="neg">${r.expense}</td>
-              <td class="neu">${r.invested}</td><td style="color:var(--dividend)">${r.dividend}</td>
-              <td class=${r.netPositive ? 'pos' : 'neg'}>${r.net}</td>
-              <td class=${r.savingsRateCls}>${r.savingsRate}</td>
-              <td class=${r.cumBalPositive ? 'pos' : 'neg'}>${r.cumBal}</td>
-              <td style="color:var(--text-muted)">${r.count}</td>
-            </tr>
-          `)}</tbody>
-        </table>
+    ${detailRows.length > 0 ? html`
+      <div class="card">
+        <div class="card-header"><span class="card-title">Monatliche Detailübersicht</span></div>
+        <div style="overflow-x:auto">
+          <table class="dt">
+            <thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Netto</th><th>Sparquote</th><th>Dividenden</th><th>Investiert</th><th>Steuern</th><th>Karten-Tx</th><th>Gesamt-Tx</th></tr></thead>
+            <tbody>${detailRows.map((d) => html`
+              <tr class=${d.isBest ? 'row-best' : d.isWorst ? 'row-worst' : ''}>
+                <td><strong>${d.month}</strong></td>
+                <td class="pos">${d.income} ${deltaArrow(d.incomeDelta)}</td>
+                <td class="neg">${d.expense} ${deltaArrow(d.expenseDelta)}</td>
+                <td class=${d.netPositive ? 'pos' : 'neg'}>${d.net}</td>
+                <td class=${d.savingsRateCls}>${d.savingsRate}</td>
+                <td style="color:var(--dividend)">${d.dividend}</td>
+                <td class="neu">${d.invested}</td>
+                <td style="color:var(--text-muted)">${d.tax}</td>
+                <td style="color:var(--text-muted)">${d.cardCount}×</td>
+                <td style="color:var(--text-muted)">${d.txCount}</td>
+              </tr>
+            `)}</tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    ` : ''}
   `;
 }
 
