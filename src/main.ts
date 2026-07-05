@@ -29,13 +29,13 @@ const TAB_LOADERS: (() => Promise<(container: HTMLElement) => void>)[] = [
   () => import('./features/deepdive/DeepDiveView').then((m) => (el) => m.mountDeepDiveView(el, store, actions)),
   () => import('./features/yearly/YearlyView').then((m) => (el) => m.mountYearlyView(el, store)),
   () => import('./features/monthly/MonthlyView').then((m) => (el) => m.mountMonthlyView(el, store)),
+  () => import('./features/monthcompare/MonthCompareView').then((m) => (el) => m.mountMonthCompareView(el, store, actions)),
   () => import('./features/categories/CategoriesView').then((m) => (el) => m.mountCategoriesView(el, store)),
   () => import('./features/outliers/OutliersView').then((m) => (el) => m.mountOutliersView(el, store)),
   () => import('./features/forecast/ForecastView').then((m) => (el) => m.mountForecastView(el, store, actions)),
   () => import('./features/compare/CompareView').then((m) => (el) => m.mountCompareView(el, store, actions)),
   () => import('./features/recommendations/RecommendationsView').then((m) => (el) => m.mountRecommendationsView(el, store)),
   () => import('./features/transactions/TransactionsView').then((m) => (el) => m.mountTransactionsView(el, store, actions)),
-  () => import('./features/monthcompare/MonthCompareView').then((m) => (el) => m.mountMonthCompareView(el, store, actions)),
 ];
 const mountedTabs = new Set<number>();
 const loadingTabs = new Set<number>();
