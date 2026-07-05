@@ -124,6 +124,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 /* UPLOAD2 */
 .upload2{border:2px dashed var(--border);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface2);position:relative;}
 .upload2:hover{border-color:var(--accent);background:var(--surface3);}
+/* FORM INPUTS */
+.tx-input{padding:.35rem .6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.78rem;font-family:inherit;outline:none;transition:border-color .2s;}
+.tx-input:focus{border-color:var(--accent);}
+.tx-input::placeholder{color:var(--text-muted);}
+.tx-select{appearance:none;-webkit-appearance:none;padding-right:1.6rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .5rem center;cursor:pointer;}
+.tx-select option{background:var(--surface);color:var(--text);}
+input[type="date"].tx-input{color-scheme:dark;}
 /* MISC */
 .gap{margin-top:1.2rem;}
 .row-best td{background:rgba(16,185,129,.07)!important;}
