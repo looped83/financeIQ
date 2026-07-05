@@ -3,7 +3,7 @@ import { unsafeHTML } from 'lit-html/directives/unsafe-html.js';
 import type { ChartConfiguration } from 'chart.js';
 import { BASE, darkAxes, xScale, yScale } from '../../charts/chartTheme';
 import { mountChart } from '../../charts/chartManager';
-import { fmt, fmtD, PAL, typeLabel } from '../../domain/format';
+import { fmt, fmtD, mLabel, PAL, typeLabel } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import { subscribeSelected, type Store } from '../../state/store';
@@ -22,6 +22,13 @@ import {
   getVolumeByTypeChartData,
   type KpiCard,
 } from './selectors';
+import {
+  buildMonthlySnapshots,
+  computeBestWorstMonths,
+  computeDeepDiveChartsData,
+  computeDetailTableRows,
+  computeTrends,
+} from '../deepdive/selectors';
 
 export function mountOverviewView(container: HTMLElement, store: Store<AppState>): () => void {
   return subscribeSelected(store, (s) => [s.analysis], (state) => {
@@ -42,6 +49,12 @@ function view(a: Analysis | null): TemplateResult {
   const alerts = computeAlerts(a, rates);
   const topTx = getTopTransactions(a, 12);
 
+  const snapshots = buildMonthlySnapshots(a);
+  const hasSnapshots = snapshots.length >= 2;
+  const trends = hasSnapshots ? computeTrends(snapshots) : [];
+  const { best, worst } = hasSnapshots ? computeBestWorstMonths(snapshots) : { best: [], worst: [] };
+  const detailRows = hasSnapshots ? computeDetailTableRows(snapshots) : [];
+
   return html`
     <div class="g6" style="margin-bottom:1.2rem;">${kpis.map(kpiCard)}</div>
 
@@ -53,6 +66,23 @@ function view(a: Analysis | null): TemplateResult {
       ${chartCard('Monatlicher Trend — Sparquote', 'ov-sr')}
       ${chartCard('Top-5 Ausgabenkategorien', 'ov-catbar')}
     </div>
+
+    ${hasSnapshots ? html`
+      <div class="g2" style="margin-bottom:1.2rem;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Netto-Cashflow & Sparquote</span></div>
+          <div class="chart-wrap tall"><canvas data-chart="ov-dd-net"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Kumulierter Netto-Cashflow</span></div>
+          <div class="chart-wrap"><canvas data-chart="ov-dd-cumnet"></canvas></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-header"><span class="card-title">Ausgaben nach Kategorie im Zeitverlauf</span></div>
+        <div class="chart-wrap"><canvas data-chart="ov-dd-catstack"></canvas></div>
+      </div>
+    ` : ''}
 
     <div class="g2" style="margin-bottom:1.2rem;">
       <div class="card">
@@ -121,6 +151,47 @@ function view(a: Analysis | null): TemplateResult {
       </div>
     </div>
 
+    ${hasSnapshots && trends.length > 0 ? html`
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-header"><span class="card-title">Trends & Muster</span></div>
+        <div>
+          ${trends.map((t) => html`
+            <div class="insight"><div class="dot ${t.color}"></div><div style="flex:1">
+              <div class="ins-title">${t.title}</div><div class="ins-desc">${t.desc}</div></div></div>
+          `)}
+        </div>
+      </div>
+    ` : ''}
+
+    ${hasSnapshots ? html`
+      <div class="g2" style="margin-bottom:1.2rem;">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Beste Monate</span></div>
+          <div>
+            ${best.map((m, i) => html`
+              <div class="insight"><div class="dot green"></div><div style="flex:1">
+                <div class="ins-title" style="display:flex;align-items:center;gap:.5rem">#${i + 1} ${mLabel(m.month)}
+                  <span class="badge bg">Netto: ${m.net}</span></div>
+                <div class="ins-desc">Einnahmen: ${m.income} | Ausgaben: ${m.expense} | Sparquote: ${m.savingsRate}</div>
+              </div></div>
+            `)}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Schwächste Monate</span></div>
+          <div>
+            ${worst.map((m, i) => html`
+              <div class="insight"><div class="dot ${m.netValue < 0 ? 'red' : 'yellow'}"></div><div style="flex:1">
+                <div class="ins-title" style="display:flex;align-items:center;gap:.5rem">#${i + 1} ${mLabel(m.month)}
+                  <span class="badge ${m.netValue < 0 ? 'br' : 'by'}">Netto: ${m.net}</span></div>
+                <div class="ins-desc">Einnahmen: ${m.income} | Ausgaben: ${m.expense} | Sparquote: ${m.savingsRate}</div>
+              </div></div>
+            `)}
+          </div>
+        </div>
+      </div>
+    ` : ''}
+
     <div class="card" style="margin-bottom:1.2rem;">
       <div class="card-header"><span class="card-title">Auffälligkeiten auf einen Blick</span></div>
       <div>
@@ -131,6 +202,31 @@ function view(a: Analysis | null): TemplateResult {
             `)}
       </div>
     </div>
+
+    ${hasSnapshots ? html`
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-header"><span class="card-title">Monatliche Detailübersicht</span></div>
+        <div style="overflow-x:auto">
+          <table class="dt">
+            <thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Netto</th><th>Sparquote</th><th>Dividenden</th><th>Investiert</th><th>Steuern</th><th>Karten-Tx</th><th>Gesamt-Tx</th></tr></thead>
+            <tbody>${detailRows.map((d) => html`
+              <tr class=${d.isBest ? 'row-best' : d.isWorst ? 'row-worst' : ''}>
+                <td><strong>${d.month}</strong></td>
+                <td class="pos">${d.income} ${deltaArrow(d.incomeDelta)}</td>
+                <td class="neg">${d.expense} ${deltaArrow(d.expenseDelta)}</td>
+                <td class=${d.netPositive ? 'pos' : 'neg'}>${d.net}</td>
+                <td class=${d.savingsRateCls}>${d.savingsRate}</td>
+                <td style="color:var(--dividend)">${d.dividend}</td>
+                <td class="neu">${d.invested}</td>
+                <td style="color:var(--text-muted)">${d.tax}</td>
+                <td style="color:var(--text-muted)">${d.cardCount}×</td>
+                <td style="color:var(--text-muted)">${d.txCount}</td>
+              </tr>
+            `)}</tbody>
+          </table>
+        </div>
+      </div>
+    ` : ''}
 
     <div class="card">
       <div class="card-header"><span class="card-title">Größte Einzeltransaktionen</span></div>
@@ -170,15 +266,20 @@ function chartCard(title: string, chartKey: string): TemplateResult {
   `;
 }
 
-function getCanvas(container: HTMLElement, key: string): HTMLCanvasElement {
-  const el = container.querySelector<HTMLCanvasElement>(`[data-chart="${key}"]`);
-  if (!el) throw new Error(`chart canvas "${key}" not found`);
-  return el;
+function deltaArrow(direction: 'up' | 'down' | null): TemplateResult | '' {
+  if (!direction) return '';
+  const color = direction === 'up' ? 'var(--income)' : 'var(--expense)';
+  const arrow = direction === 'up' ? '▲' : '▼';
+  return html`<span style="font-size:.68rem;color:${color}">${arrow}</span>`;
+}
+
+function getCanvas(container: HTMLElement, key: string): HTMLCanvasElement | null {
+  return container.querySelector<HTMLCanvasElement>(`[data-chart="${key}"]`);
 }
 
 function mountCharts(container: HTMLElement, a: Analysis): void {
   const last6 = getLast6MonthsChartData(a);
-  mountChart(getCanvas(container, 'ov-bar'), {
+  mountChart(getCanvas(container, 'ov-bar')!, {
     type: 'bar',
     data: {
       labels: last6.labels,
@@ -196,7 +297,7 @@ function mountCharts(container: HTMLElement, a: Analysis): void {
   });
 
   const volume = getVolumeByTypeChartData(a);
-  mountChart(getCanvas(container, 'ov-donut'), {
+  mountChart(getCanvas(container, 'ov-donut')!, {
     type: 'doughnut',
     data: {
       labels: volume.labels,
@@ -210,7 +311,7 @@ function mountCharts(container: HTMLElement, a: Analysis): void {
   });
 
   const srData = getSavingsRateTrendData(a);
-  mountChart(getCanvas(container, 'ov-sr'), {
+  mountChart(getCanvas(container, 'ov-sr')!, {
     type: 'line',
     data: {
       labels: srData.labels,
@@ -233,7 +334,7 @@ function mountCharts(container: HTMLElement, a: Analysis): void {
   });
 
   const topCats = getTopExpenseCategoriesData(a, 5);
-  mountChart(getCanvas(container, 'ov-catbar'), {
+  mountChart(getCanvas(container, 'ov-catbar')!, {
     type: 'bar',
     data: {
       labels: topCats.labels,
@@ -246,4 +347,68 @@ function mountCharts(container: HTMLElement, a: Analysis): void {
       plugins: { ...BASE.plugins, legend: { display: false }, tooltip: { callbacks: { label: (c) => fmt(c.parsed.x ?? 0) } } },
     } as ChartConfiguration<'bar'>['options'],
   });
+
+  // Deep-Dive charts (only if enough months)
+  const snapshots = buildMonthlySnapshots(a);
+  if (snapshots.length < 2) return;
+  const dd = computeDeepDiveChartsData(snapshots);
+
+  const netCanvas = getCanvas(container, 'ov-dd-net');
+  if (netCanvas) {
+    mountChart(netCanvas, {
+      type: 'bar',
+      data: {
+        labels: dd.labels,
+        datasets: [
+          { label: 'Netto-Cashflow', data: dd.net, backgroundColor: dd.net.map((v) => (v >= 0 ? 'rgba(16,185,129,.7)' : 'rgba(239,68,68,.7)')), borderRadius: 4, yAxisID: 'y' },
+          { label: 'Sparquote %', data: dd.savingsRate, type: 'line', borderColor: '#f59e0b', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#f59e0b', tension: 0.3, yAxisID: 'y1' },
+        ],
+      },
+      options: {
+        ...BASE, interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: xScale(), y: yScale(),
+          y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#f59e0b', font: { size: 10 }, callback: (v) => Number(v).toFixed(0) + '%' } },
+        },
+        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => (c.datasetIndex === 0 ? `Netto: ${fmt(c.parsed.y ?? 0)}` : `Sparquote: ${Number(c.parsed.y ?? 0).toFixed(1)}%`) } } },
+      } as ChartConfiguration<'bar'>['options'],
+    });
+  }
+
+  const cumCanvas = getCanvas(container, 'ov-dd-cumnet');
+  if (cumCanvas) {
+    mountChart(cumCanvas, {
+      type: 'line',
+      data: {
+        labels: dd.labels,
+        datasets: [
+          { label: 'Kum. Netto', data: dd.cumNet, borderColor: '#3b82f6', borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#3b82f6', fill: { target: 'origin', above: 'rgba(16,185,129,.08)', below: 'rgba(239,68,68,.08)' }, tension: 0.3 },
+        ],
+      },
+      options: {
+        ...BASE, scales: darkAxes(),
+        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `Kumuliert: ${fmt(c.parsed.y ?? 0)}` } } },
+      } as ChartConfiguration<'line'>['options'],
+    });
+  }
+
+  const catStackCanvas = getCanvas(container, 'ov-dd-catstack');
+  if (catStackCanvas) {
+    mountChart(catStackCanvas, {
+      type: 'bar',
+      data: {
+        labels: dd.labels,
+        datasets: dd.categoryStack.map((series, i) => ({
+          label: series.label, data: series.data, backgroundColor: PAL[i % PAL.length] + 'CC', borderRadius: 2,
+        })),
+      },
+      options: {
+        ...BASE, scales: { x: xScale(), y: yScale() },
+        plugins: {
+          ...BASE.plugins, legend: { labels: { color: '#94a3b8', font: { size: 9 }, boxWidth: 8 } },
+          tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } },
+        },
+      } as ChartConfiguration<'bar'>['options'],
+    });
+  }
 }
