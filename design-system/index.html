@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinanceIQ — Design System</title>
+<style>
+/* ==========================================================================
+   TOKENS — lifted verbatim from index.html / base.css, plus the formalized
+   scales from tokens.css. This page is self-contained on purpose so it renders
+   the real components faithfully with no build step.
+   ========================================================================== */
+:root{
+  --bg:#080d18;--surface:#0f1829;--surface2:#162035;--surface3:#1c2a44;--border:#1e3050;
+  --text:#f1f5f9;--text-muted:#8b9bb5;--text-dim:#b0bfd0;
+  --accent:#3b82f6;--accent2:#8b5cf6;
+  --income:#10b981;--expense:#ef4444;--invest:#3b82f6;--dividend:#8b5cf6;--warning:#f59e0b;
+  --radius:12px;
+  --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --mono:'SF Mono',ui-monospace,'Cascadia Code','Roboto Mono',Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;scroll-padding-top:2rem;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh;line-height:1.5;-webkit-font-smoothing:antialiased;}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto;}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+
+/* --- Layout shell --- */
+.wrap{display:grid;grid-template-columns:224px 1fr;max-width:1320px;margin:0 auto;}
+.side{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:1.6rem 1.1rem;border-right:1px solid var(--border);scrollbar-width:thin;}
+.side-brand{font-size:1.15rem;font-weight:800;letter-spacing:-.5px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.1rem;}
+.side-tag{font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.14em;margin-bottom:1.6rem;}
+.side nav{display:flex;flex-direction:column;gap:.05rem;}
+.side .navgroup{font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted);opacity:.7;margin:1.1rem 0 .35rem .5rem;}
+.side a{color:var(--text-dim);text-decoration:none;font-size:.82rem;padding:.32rem .5rem;border-radius:6px;transition:background .2s,color .2s;border-left:2px solid transparent;}
+.side a:hover{background:var(--surface);color:var(--text);}
+.side a:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+.main{padding:2.6rem 2.4rem 6rem;min-width:0;}
+
+/* --- Doc typography --- */
+.hero{margin-bottom:3rem;padding-bottom:2rem;border-bottom:1px solid var(--border);}
+.hero h1{font-size:2.4rem;font-weight:800;letter-spacing:-1.5px;line-height:1.05;margin-bottom:.7rem;}
+.hero h1 em{font-style:normal;background:linear-gradient(120deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.hero p{color:var(--text-dim);font-size:1rem;max-width:60ch;text-wrap:pretty;line-height:1.6;}
+.hero .meta{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1.3rem;}
+.pill{font-size:.68rem;font-weight:600;padding:.28rem .6rem;border-radius:999px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);}
+
+section{margin-bottom:3.4rem;scroll-margin-top:1.5rem;}
+.sec-head{display:flex;align-items:baseline;gap:.8rem;margin-bottom:.35rem;}
+.sec-head h2{font-size:1.35rem;font-weight:700;letter-spacing:-.5px;}
+.sec-head .num{font-family:var(--mono);font-size:.72rem;color:var(--accent);font-weight:600;}
+.sec-desc{color:var(--text-muted);font-size:.88rem;max-width:64ch;margin-bottom:1.5rem;text-wrap:pretty;line-height:1.6;}
+h3.subhead{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);font-weight:600;margin:1.8rem 0 .9rem;}
+
+/* --- Swatches --- */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.7rem;}
+.sw{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface);cursor:pointer;transition:transform .18s,box-shadow .18s;text-align:left;font-family:inherit;color:inherit;display:block;width:100%;}
+.sw:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.35);}
+.sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.sw-chip{height:64px;position:relative;}
+.sw-body{padding:.55rem .65rem .7rem;}
+.sw-name{font-size:.78rem;font-weight:600;margin-bottom:.15rem;}
+.sw-var{font-family:var(--mono);font-size:.66rem;color:var(--text-muted);display:block;}
+.sw-hex{font-family:var(--mono);font-size:.66rem;color:var(--text-dim);display:block;margin-top:.1rem;text-transform:uppercase;}
+.sw-note{font-size:.66rem;color:var(--text-muted);margin-top:.35rem;line-height:1.4;}
+.copied{position:fixed;bottom:1.4rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--income);color:#04140d;font-weight:700;font-size:.78rem;padding:.5rem 1rem;border-radius:8px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:200;}
+.copied.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* categorical ramp */
+.ramp{display:flex;border-radius:10px;overflow:hidden;border:1px solid var(--border);height:52px;}
+.ramp div{flex:1;position:relative;}
+.ramp div span{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:.56rem;color:rgba(255,255,255,.9);text-shadow:0 1px 2px rgba(0,0,0,.6);}
+
+/* --- Type scale rows --- */
+.typerow{display:flex;align-items:baseline;gap:1.4rem;padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,.05);}
+.typerow .tk{font-family:var(--mono);font-size:.68rem;color:var(--accent);width:118px;flex-shrink:0;}
+.typerow .tv{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.typerow .tm{margin-left:auto;font-family:var(--mono);font-size:.66rem;color:var(--text-muted);flex-shrink:0;text-align:right;}
+.weights{display:flex;gap:1.8rem;flex-wrap:wrap;margin-top:.4rem;}
+.weights div{font-size:1.4rem;}
+.weights small{display:block;font-size:.64rem;color:var(--text-muted);font-family:var(--mono);margin-top:.2rem;font-weight:400;letter-spacing:0;}
+
+/* --- Spacing --- */
+.spacerow{display:flex;align-items:center;gap:1rem;padding:.32rem 0;}
+.spacerow .sk{font-family:var(--mono);font-size:.68rem;color:var(--accent);width:118px;flex-shrink:0;}
+.spacebar{height:14px;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;}
+.spacerow .spx{font-family:var(--mono);font-size:.66rem;color:var(--text-muted);}
+
+/* --- Radii / shadow demos --- */
+.demos{display:flex;gap:1rem;flex-wrap:wrap;}
+.radiibox{width:96px;height:72px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:flex-end;justify-content:center;padding:.4rem;}
+.radiibox span{font-family:var(--mono);font-size:.6rem;color:var(--text-muted);}
+.shadowbox{width:150px;height:84px;border-radius:12px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.62rem;color:var(--text-muted);text-align:center;padding:.5rem;}
+
+/* --- Component spec blocks --- */
+.spec{border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:1.3rem;background:linear-gradient(180deg,rgba(255,255,255,.012),transparent);}
+.spec-demo{padding:1.6rem;background:radial-gradient(ellipse at 50% -10%,#0d1a30 0%,var(--bg) 70%);display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-start;}
+.spec-meta{padding:.85rem 1.1rem;border-top:1px solid var(--border);display:flex;gap:1.6rem;flex-wrap:wrap;font-size:.72rem;}
+.spec-meta b{color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:.62rem;display:block;margin-bottom:.15rem;}
+.spec-meta code{font-family:var(--mono);color:var(--text-dim);font-size:.7rem;}
+.state-label{font-size:.6rem;color:var(--text-muted);font-family:var(--mono);text-align:center;margin-top:.4rem;}
+.cluster{display:flex;flex-direction:column;align-items:center;}
+
+/* Do / Don't */
+.dd{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;}
+.dd .box{border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;font-size:.8rem;color:var(--text-dim);line-height:1.5;}
+.dd .do{border-left:3px solid var(--income);}
+.dd .dont{border-left:3px solid var(--expense);}
+.dd .box b{display:block;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;}
+.dd .do b{color:var(--income);}
+.dd .dont b{color:var(--expense);}
+@media(max-width:640px){.dd{grid-template-columns:1fr;}}
+
+/* ==========================================================================
+   APP COMPONENT CSS — verbatim from index.html so specimens are true-to-app.
+   ========================================================================== */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem;min-width:0;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;}
+.card-title{font-size:.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.3rem;position:relative;overflow:hidden;min-width:180px;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kpi.income::before{background:var(--income);}.kpi.expense::before{background:var(--expense);}
+.kpi.balance::before{background:linear-gradient(90deg,var(--income),var(--invest));}
+.kpi.invest::before{background:var(--invest);}.kpi.dividend::before{background:var(--dividend);}
+.kpi.warn::before{background:var(--warning);}.kpi.neutral::before{background:var(--text-muted);}
+.kpi-label{font-size:.72rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem;}
+.kpi-value{font-size:1.5rem;font-weight:800;letter-spacing:-1px;line-height:1;}
+.kpi-value.income{color:var(--income);}.kpi-value.expense{color:var(--expense);}
+.kpi-value.invest{color:var(--invest);}.kpi-value.dividend{color:var(--dividend);}.kpi-value.warn{color:var(--warning);}
+.kpi-sub{font-size:.72rem;color:var(--text-muted);margin-top:.3rem;}
+.kpi-trend{font-size:.72rem;margin-top:.2rem;font-weight:600;}
+.kpi-trend.up{color:var(--income);}.kpi-trend.down{color:var(--expense);}
+.dt{width:100%;border-collapse:collapse;font-size:.81rem;}
+.dt th{text-align:left;padding:.55rem .8rem;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);font-weight:600;}
+.dt td{padding:.55rem .8rem;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text-dim);}
+.dt tr:last-child td{border-bottom:none;}
+.dt tr:hover td{background:var(--surface2);}
+.pos{color:var(--income);font-weight:600;}.neg{color:var(--expense);font-weight:600;}.neu{color:var(--invest);}
+.row-best td{background:rgba(16,185,129,.07)!important;}.row-worst td{background:rgba(239,68,68,.07)!important;}
+.badge{display:inline-flex;align-items:center;padding:.18rem .55rem;border-radius:20px;font-size:.7rem;font-weight:600;}
+.bg{background:rgba(16,185,129,.15);color:var(--income);}.br{background:rgba(239,68,68,.15);color:var(--expense);}
+.by{background:rgba(245,158,11,.15);color:var(--warning);}.bb{background:rgba(59,130,246,.15);color:var(--accent);}
+.bp{background:rgba(139,92,246,.15);color:var(--accent2);}
+.insight{display:flex;align-items:flex-start;gap:.8rem;padding:.85rem;border-radius:8px;background:var(--surface2);margin-bottom:.6rem;min-width:280px;}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:.25rem;}
+.dot.green{background:var(--income);box-shadow:0 0 8px var(--income);}
+.dot.yellow{background:var(--warning);box-shadow:0 0 8px var(--warning);}
+.dot.red{background:var(--expense);box-shadow:0 0 8px var(--expense);}
+.dot.blue{background:var(--accent);box-shadow:0 0 6px var(--accent);}
+.ins-title{font-size:.84rem;font-weight:600;margin-bottom:.15rem;}
+.ins-desc{font-size:.77rem;color:var(--text-muted);line-height:1.55;}
+.controls{display:flex;gap:.4rem;flex-wrap:wrap;}
+.cb{padding:.3rem .8rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-size:.76rem;cursor:pointer;transition:all .2s;font-family:inherit;}
+.cb:hover{border-color:var(--accent);color:var(--text);}
+.cb.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.cb:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.tab-btn{padding:.65rem 1rem;font-size:.85rem;font-weight:500;color:var(--text-muted);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;font-family:inherit;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tabbar{display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0 .5rem;overflow:hidden;}
+.leg{list-style:none;min-width:240px;}
+.leg li{display:flex;align-items:center;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.8rem;color:var(--text-dim);}
+.leg li:last-child{border:none;}
+.leg-label{display:flex;align-items:center;gap:.5rem;}
+.leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.pb-wrap{background:var(--surface3);border-radius:4px;height:5px;overflow:hidden;margin-top:.3rem;width:80px;}
+.pb-fill{height:100%;border-radius:4px;transition:width .6s;}
+.tx-input{padding:.35rem .6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.78rem;font-family:inherit;outline:none;transition:border-color .2s;}
+.tx-input:focus{border-color:var(--accent);}
+.tx-input::placeholder{color:var(--text-muted);}
+.tx-select{appearance:none;-webkit-appearance:none;padding-right:1.6rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .5rem center;cursor:pointer;}
+input[type="date"].tx-input{color-scheme:dark;}
+.section-note{font-size:.78rem;color:var(--text-muted);margin-bottom:.8rem;padding:.5rem .8rem;background:var(--surface2);border-radius:6px;border-left:3px solid var(--accent);}
+.upload-zone{border:2px dashed var(--border);border-radius:20px;padding:2.4rem 2.8rem;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface);position:relative;max-width:420px;}
+.upload-zone:hover{border-color:var(--accent);background:var(--surface2);transform:translateY(-2px);box-shadow:0 8px 40px rgba(59,130,246,.15);}
+.upload-icon{font-size:2.6rem;margin-bottom:.7rem;}
+.upload-title{font-size:1.15rem;font-weight:600;margin-bottom:.4rem;}
+.upload-hint{color:var(--text-muted);font-size:.85rem;line-height:1.6;}
+.upload-hint span{color:var(--accent);font-weight:500;}
+
+@media(max-width:860px){
+  .wrap{grid-template-columns:1fr;}
+  .side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border);}
+  .side nav{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.1rem;}
+  .main{padding:2rem 1.3rem 4rem;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="side">
+    <div class="side-brand">FinanceIQ</div>
+    <div class="side-tag">Design System</div>
+    <nav aria-label="Design system sections">
+      <span class="navgroup">Foundations</span>
+      <a href="#color">Color</a>
+      <a href="#type">Typography</a>
+      <a href="#spacing">Spacing</a>
+      <a href="#radii">Radii &amp; Shadow</a>
+      <span class="navgroup">Components</span>
+      <a href="#kpi">KPI card</a>
+      <a href="#card">Card</a>
+      <a href="#tabs">Tabs</a>
+      <a href="#buttons">Buttons</a>
+      <a href="#badges">Badges</a>
+      <a href="#insight">Insight row</a>
+      <a href="#table">Data table</a>
+      <a href="#legend">Legend &amp; bar</a>
+      <a href="#inputs">Form inputs</a>
+      <a href="#note">Section note</a>
+      <a href="#upload">Upload zone</a>
+      <span class="navgroup">Data</span>
+      <a href="#charts">Chart theming</a>
+    </nav>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <main class="main">
+    <header class="hero">
+      <h1>FinanceIQ <em>Design System</em></h1>
+      <p>The tokens, type scale and components that make up the FinanceIQ analytics dashboard — a dense, dark-first fintech surface for reading personal finance data at a glance. Every value below is extracted from the shipping app; click any swatch to copy it.</p>
+      <div class="meta">
+        <span class="pill">Dark-first</span>
+        <span class="pill">Cool / deep-navy</span>
+        <span class="pill">Data-dense</span>
+        <span class="pill">12-color series ramp</span>
+      </div>
+    </header>
+
+    <!-- ============ COLOR ============ -->
+    <section id="color">
+      <div class="sec-head"><span class="num">01</span><h2>Color</h2></div>
+      <p class="sec-desc">A cool, near-black navy foundation with a blue→purple brand pairing. Semantic colors double as data-encoding: green is money in, red is money out — a mapping that must stay stable across charts, tables and KPIs.</p>
+
+      <h3 class="subhead">Surfaces — elevation ladder</h3>
+      <div class="swatches" data-copy-group>
+        <button class="sw" data-copy="var(--bg)"><div class="sw-chip" style="background:#080d18"></div><div class="sw-body"><div class="sw-name">Background</div><span class="sw-var">--bg</span><span class="sw-hex">#080d18</span></div></button>
+        <button class="sw" data-copy="var(--surface)"><div class="sw-chip" style="background:#0f1829"></div><div class="sw-body"><div class="sw-name">Surface</div><span class="sw-var">--surface</span><span class="sw-hex">#0f1829</span></div></button>
+        <button class="sw" data-copy="var(--surface2)"><div class="sw-chip" style="background:#162035"></div><div class="sw-body"><div class="sw-name">Surface 2</div><span class="sw-var">--surface2</span><span class="sw-hex">#162035</span></div></button>
+        <button class="sw" data-copy="var(--surface3)"><div class="sw-chip" style="background:#1c2a44"></div><div class="sw-body"><div class="sw-name">Surface 3</div><span class="sw-var">--surface3</span><span class="sw-hex">#1c2a44</span></div></button>
+        <button class="sw" data-copy="var(--border)"><div class="sw-chip" style="background:#1e3050"></div><div class="sw-body"><div class="sw-name">Border</div><span class="sw-var">--border</span><span class="sw-hex">#1e3050</span></div></button>
+      </div>
+
+      <h3 class="subhead">Text — three deliberate steps</h3>
+      <div class="swatches" data-copy-group>
+        <button class="sw" data-copy="var(--text)"><div class="sw-chip" style="background:#f1f5f9"></div><div class="sw-body"><div class="sw-name">Text</div><span class="sw-var">--text</span><span class="sw-hex">#f1f5f9</span><div class="sw-note">Values, headings · 15.9:1</div></div></button>
+        <button class="sw" data-copy="var(--text-dim)"><div class="sw-chip" style="background:#b0bfd0"></div><div class="sw-body"><div class="sw-name">Text dim</div><span class="sw-var">--text-dim</span><span class="sw-hex">#b0bfd0</span><div class="sw-note">Table body · 9.6:1</div></div></button>
+        <button class="sw" data-copy="var(--text-muted)"><div class="sw-chip" style="background:#8b9bb5"></div><div class="sw-body"><div class="sw-name">Text muted</div><span class="sw-var">--text-muted</span><span class="sw-hex">#8b9bb5</span><div class="sw-note">Labels, captions · 6.2:1</div></div></button>
+      </div>
+
+      <h3 class="subhead">Brand &amp; semantic</h3>
+      <div class="swatches" data-copy-group>
+        <button class="sw" data-copy="var(--accent)"><div class="sw-chip" style="background:#3b82f6"></div><div class="sw-body"><div class="sw-name">Accent</div><span class="sw-var">--accent</span><span class="sw-hex">#3b82f6</span><div class="sw-note">Primary · interactive</div></div></button>
+        <button class="sw" data-copy="var(--accent2)"><div class="sw-chip" style="background:#8b5cf6"></div><div class="sw-body"><div class="sw-name">Accent 2</div><span class="sw-var">--accent2</span><span class="sw-hex">#8b5cf6</span><div class="sw-note">Secondary</div></div></button>
+        <button class="sw" data-copy="var(--income)"><div class="sw-chip" style="background:#10b981"></div><div class="sw-body"><div class="sw-name">Income</div><span class="sw-var">--income</span><span class="sw-hex">#10b981</span><div class="sw-note">Money in · positive</div></div></button>
+        <button class="sw" data-copy="var(--expense)"><div class="sw-chip" style="background:#ef4444"></div><div class="sw-body"><div class="sw-name">Expense</div><span class="sw-var">--expense</span><span class="sw-hex">#ef4444</span><div class="sw-note">Money out · negative</div></div></button>
+        <button class="sw" data-copy="var(--dividend)"><div class="sw-chip" style="background:#8b5cf6"></div><div class="sw-body"><div class="sw-name">Dividend</div><span class="sw-var">--dividend</span><span class="sw-hex">#8b5cf6</span><div class="sw-note">= accent2</div></div></button>
+        <button class="sw" data-copy="var(--warning)"><div class="sw-chip" style="background:#f59e0b"></div><div class="sw-body"><div class="sw-name">Warning</div><span class="sw-var">--warning</span><span class="sw-hex">#f59e0b</span><div class="sw-note">Outliers · attention</div></div></button>
+      </div>
+
+      <h3 class="subhead">Categorical series ramp — <code style="font-family:var(--mono);font-size:.72rem;color:var(--text-dim)">PAL[i % 12]</code></h3>
+      <div class="ramp" role="img" aria-label="Twelve-color categorical palette used for donut and category charts">
+        <div style="background:#3b82f6"><span>1</span></div><div style="background:#8b5cf6"><span>2</span></div>
+        <div style="background:#10b981"><span>3</span></div><div style="background:#f59e0b"><span>4</span></div>
+        <div style="background:#ef4444"><span>5</span></div><div style="background:#06b6d4"><span>6</span></div>
+        <div style="background:#ec4899"><span>7</span></div><div style="background:#84cc16"><span>8</span></div>
+        <div style="background:#f97316"><span>9</span></div><div style="background:#6366f1"><span>10</span></div>
+        <div style="background:#14b8a6"><span>11</span></div><div style="background:#a855f7"><span>12</span></div>
+      </div>
+
+      <div class="dd">
+        <div class="box do"><b>Do</b>Keep green→in / red→out fixed. Reach for the ramp only for nominal categories (merchants, asset classes) where hue carries no value meaning.</div>
+        <div class="box dont"><b>Don't</b>Invent one-off hex values. If a color isn't a token, it doesn't belong — the palette is capped on purpose so nothing competes with the semantic set.</div>
+      </div>
+    </section>
+
+    <!-- ============ TYPE ============ -->
+    <section id="type">
+      <div class="sec-head"><span class="num">02</span><h2>Typography</h2></div>
+      <p class="sec-desc">One system sans (<code style="font-family:var(--mono);font-size:.8rem">-apple-system, BlinkMacSystemFont, 'Segoe UI'</code>) does all the work. The scale is deliberately compact — this is an information-dense dashboard, not a marketing page — with the KPI value as the one true hero at 24px/800.</p>
+      <div>
+        <div class="typerow"><span class="tk">--text-3xl</span><span class="tv" style="font-size:2.5rem;font-weight:800;letter-spacing:-1px">FinanceIQ</span><span class="tm">40px · 800 · wordmark</span></div>
+        <div class="typerow"><span class="tk">--text-2xl</span><span class="tv" style="font-size:1.5rem;font-weight:800;letter-spacing:-1px">4.812,90&nbsp;€</span><span class="tm">24px · 800 · KPI value</span></div>
+        <div class="typerow"><span class="tk">--text-xl</span><span class="tv" style="font-size:1.2rem;font-weight:800;letter-spacing:-.5px">Section title</span><span class="tm">19px · 800 · titles</span></div>
+        <div class="typerow"><span class="tk">--text-lg</span><span class="tv" style="font-size:1rem">Upload subtitle</span><span class="tm">16px · 400</span></div>
+        <div class="typerow"><span class="tk">--text-md</span><span class="tv" style="font-size:.85rem;font-weight:500">Tab label</span><span class="tm">13.6px · 500</span></div>
+        <div class="typerow"><span class="tk">--text-base</span><span class="tv" style="font-size:.81rem;color:var(--text-dim)">Table body &amp; insight copy</span><span class="tm">13px · 400</span></div>
+        <div class="typerow"><span class="tk">--text-sm</span><span class="tv" style="font-size:.78rem;color:var(--text-muted)">Card title · input · note</span><span class="tm">12.5px</span></div>
+        <div class="typerow"><span class="tk">--text-xs</span><span class="tv" style="font-size:.72rem;color:var(--text-muted)">KPI label · sub · trend</span><span class="tm">11.5px</span></div>
+        <div class="typerow"><span class="tk">--text-2xs</span><span class="tv" style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Table header · badge</span><span class="tm">11.2px · uppercase</span></div>
+      </div>
+
+      <h3 class="subhead">Weights</h3>
+      <div class="weights">
+        <div style="font-weight:400">Aa<small>400 · normal</small></div>
+        <div style="font-weight:500">Aa<small>500 · medium · tabs</small></div>
+        <div style="font-weight:600">Aa<small>600 · semibold · labels</small></div>
+        <div style="font-weight:800">Aa<small>800 · heavy · numerals</small></div>
+      </div>
+    </section>
+
+    <!-- ============ SPACING ============ -->
+    <section id="spacing">
+      <div class="sec-head"><span class="num">03</span><h2>Spacing</h2></div>
+      <p class="sec-desc">The app was authored with rem literals; this is the de-facto scale distilled from what's actually in use. <code style="font-family:var(--mono);font-size:.8rem">--space-lg</code> (1.2rem) is the workhorse — card padding and grid gaps both land here.</p>
+      <div>
+        <div class="spacerow"><span class="sk">--space-3xs</span><div class="spacebar" style="width:3px"></div><span class="spx">0.2rem · 3px</span></div>
+        <div class="spacerow"><span class="sk">--space-2xs</span><div class="spacebar" style="width:5px"></div><span class="spx">0.3rem · 5px</span></div>
+        <div class="spacerow"><span class="sk">--space-xs</span><div class="spacebar" style="width:6px"></div><span class="spx">0.4rem · 6px</span></div>
+        <div class="spacerow"><span class="sk">--space-sm</span><div class="spacebar" style="width:9px"></div><span class="spx">0.55rem · 9px</span></div>
+        <div class="spacerow"><span class="sk">--space-md</span><div class="spacebar" style="width:13px"></div><span class="spx">0.8rem · 13px</span></div>
+        <div class="spacerow"><span class="sk">--space-lg</span><div class="spacebar" style="width:19px"></div><span class="spx">1.2rem · 19px · workhorse</span></div>
+        <div class="spacerow"><span class="sk">--space-xl</span><div class="spacebar" style="width:24px"></div><span class="spx">1.5rem · 24px</span></div>
+        <div class="spacerow"><span class="sk">--space-2xl</span><div class="spacebar" style="width:32px"></div><span class="spx">2rem · 32px</span></div>
+        <div class="spacerow"><span class="sk">--space-3xl</span><div class="spacebar" style="width:48px"></div><span class="spx">3rem · 48px</span></div>
+      </div>
+    </section>
+
+    <!-- ============ RADII / SHADOW ============ -->
+    <section id="radii">
+      <div class="sec-head"><span class="num">04</span><h2>Radii &amp; Shadow</h2></div>
+      <p class="sec-desc">Panels round at 12px; controls and inputs at 6px; badges are full pills. Shadow is used sparingly — the only real elevation is a soft blue lift under the upload zone on hover. Glow (a colored <code style="font-family:var(--mono);font-size:.8rem">box-shadow</code>) is reserved for status dots.</p>
+      <h3 class="subhead">Radii</h3>
+      <div class="demos">
+        <div class="radiibox" style="border-radius:4px"><span>4px · xs</span></div>
+        <div class="radiibox" style="border-radius:6px"><span>6px · sm</span></div>
+        <div class="radiibox" style="border-radius:8px"><span>8px · md</span></div>
+        <div class="radiibox" style="border-radius:12px"><span>12px · radius</span></div>
+        <div class="radiibox" style="border-radius:20px"><span>20px · lg</span></div>
+        <div class="radiibox" style="border-radius:999px"><span>999px · pill</span></div>
+      </div>
+      <h3 class="subhead">Shadow &amp; glow</h3>
+      <div class="demos">
+        <div class="shadowbox" style="box-shadow:0 8px 40px rgba(59,130,246,.15)">--shadow-lift<br>0 8px 40px rgba(59,130,246,.15)</div>
+        <div class="shadowbox" style="border:none;background:var(--surface2)"><span style="display:inline-flex;align-items:center;gap:.5rem"><i style="width:9px;height:9px;border-radius:50%;background:var(--income);box-shadow:0 0 8px var(--income)"></i>--glow-income</span></div>
+        <div class="shadowbox" style="border:none;background:var(--surface2)"><span style="display:inline-flex;align-items:center;gap:.5rem"><i style="width:9px;height:9px;border-radius:50%;background:var(--warning);box-shadow:0 0 8px var(--warning)"></i>--glow-warning</span></div>
+      </div>
+    </section>
+
+    <!-- ============ KPI ============ -->
+    <section id="kpi">
+      <div class="sec-head"><span class="num">05</span><h2>KPI card</h2></div>
+      <p class="sec-desc">The dashboard's signature element. A panel with a 3px semantic accent bar across the top, an uppercase label, a heavy 24px value tinted to its category, and optional sub-text or a directional trend. Seven accent variants.</p>
+      <div class="spec">
+        <div class="spec-demo">
+          <div class="kpi income"><div class="kpi-label">Einnahmen</div><div class="kpi-value income">12.480 €</div><div class="kpi-trend up">▲ 8,2% ggü. Vormonat</div></div>
+          <div class="kpi expense"><div class="kpi-label">Ausgaben</div><div class="kpi-value expense">7.668 €</div><div class="kpi-trend down">▼ 3,1% ggü. Vormonat</div></div>
+          <div class="kpi balance"><div class="kpi-label">Netto-Cashflow</div><div class="kpi-value income">4.812 €</div><div class="kpi-sub">Sparquote 38,6 %</div></div>
+          <div class="kpi invest"><div class="kpi-label">Investitionen</div><div class="kpi-value invest">3.200 €</div><div class="kpi-sub">4 Käufe</div></div>
+          <div class="kpi dividend"><div class="kpi-label">Dividenden</div><div class="kpi-value dividend">184 €</div><div class="kpi-sub">6 Ausschüttungen</div></div>
+          <div class="kpi warn"><div class="kpi-label">Ausreißer</div><div class="kpi-value warn">3</div><div class="kpi-sub">&gt; 2σ vom Mittel</div></div>
+        </div>
+        <div class="spec-meta">
+          <div><b>Class</b><code>.kpi.{income|expense|balance|invest|dividend|warn|neutral}</code></div>
+          <div><b>Value tint</b><code>.kpi-value.{income|expense|invest|dividend|warn}</code></div>
+          <div><b>Trend</b><code>.kpi-trend.{up|down}</code></div>
+        </div>
+      </div>
+      <div class="dd">
+        <div class="box do"><b>Do</b>Use the accent bar to encode meaning; pair the value tint with it. Keep the label short and uppercase.</div>
+        <div class="box dont"><b>Don't</b>Tint the value a different category than the bar, or stack more than one trend/sub line — the KPI reads in under a second or not at all.</div>
+      </div>
+    </section>
+
+    <!-- ============ CARD ============ -->
+    <section id="card">
+      <div class="sec-head"><span class="num">06</span><h2>Card</h2></div>
+      <p class="sec-desc">The generic container for charts, tables and lists. Flat <code style="font-family:var(--mono);font-size:.8rem">--surface</code> fill, 1px hairline border, 12px radius — no shadow. The optional header pairs an uppercase title with inline controls.</p>
+      <div class="spec">
+        <div class="spec-demo">
+          <div class="card" style="min-width:320px;flex:1">
+            <div class="card-header">
+              <span class="card-title">Netto-Cashflow</span>
+              <div class="controls"><button class="cb active">Monat</button><button class="cb">Quartal</button></div>
+            </div>
+            <div style="height:80px;border-radius:8px;background:linear-gradient(180deg,rgba(59,130,246,.18),transparent);border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-family:var(--mono);font-size:.7rem">chart canvas</div>
+          </div>
+        </div>
+        <div class="spec-meta">
+          <div><b>Structure</b><code>.card &gt; .card-header (.card-title + .controls)</code></div>
+          <div><b>Padding</b><code>1.2rem (--space-lg)</code></div>
+          <div><b>Border</b><code>1px var(--border) · radius 12px</code></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TABS ============ -->
+    <section id="tabs">
+      <div class="sec-head"><span class="num">07</span><h2>Tabs</h2></div>
+      <p class="sec-desc">Top-level navigation across the ten analytics views. A ghost button that gains an accent underline and accent text when active. This is the primary "where am I" signal — the active state must always be unambiguous.</p>
+      <div class="spec">
+        <div class="spec-demo">
+          <div class="tabbar" role="tablist" aria-label="Analytics views">
+            <button class="tab-btn active" role="tab" aria-selected="true">Übersicht</button>
+            <button class="tab-btn" role="tab" aria-selected="false">Zeitverlauf</button>
+            <button class="tab-btn" role="tab" aria-selected="false">Kategorien</button>
+            <button class="tab-btn" role="tab" aria-selected="false">Prognose</button>
+          </div>
+        </div>
+        <div class="spec-meta">
+          <div><b>States</b><code>default · :hover (text→--text) · .active (accent + underline)</code></div>
+          <div><b>Count</b><code>10 tabs, horizontally scrollable</code></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ BUTTONS ============ -->
+    <section id="buttons">
+      <div class="sec-head"><span class="num">08</span><h2>Buttons</h2></div>
+      <p class="sec-desc">The <code style="font-family:var(--mono);font-size:.8rem">.cb</code> control button is the workhorse — chip-sized toggles for chart ranges, metrics and view modes. All four interactive states are defined; hover, focus and active are shown side by side.</p>
+      <div class="spec">
+        <div class="spec-demo" style="align-items:flex-end">
+          <div class="cluster"><button class="cb">Default</button><div class="state-label">:default</div></div>
+          <div class="cluster"><button class="cb" style="border-color:var(--accent);color:var(--text)">Hover</button><div class="state-label">:hover</div></div>
+          <div class="cluster"><button class="cb active">Active</button><div class="state-label">.active</div></div>
+          <div class="cluster"><button class="cb" style="outline:2px solid var(--accent);outline-offset:2px">Focus</button><div class="state-label">:focus-visible</div></div>
+          <div class="cluster"><button class="cb" style="opacity:.45;cursor:not-allowed" disabled>Disabled</button><div class="state-label">:disabled *</div></div>
+        </div>
+        <div class="spec-meta">
+          <div><b>Class</b><code>.cb / .cb.active</code></div>
+          <div><b>Transition</b><code>all .2s (--ease)</code></div>
+          <div><b>Note</b><code>* disabled style proposed — not yet in app</code></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ BADGES ============ -->
+    <section id="badges">
+      <div class="sec-head"><span class="num">09</span><h2>Badges</h2></div>
+      <p class="sec-desc">Full-pill tags with a 15%-alpha tint of a semantic color and matching solid text. Used for status, category and delta markers inline in tables and lists.</p>
+      <div class="spec">
+        <div class="spec-demo" style="align-items:center">
+          <span class="badge bg">Einnahme</span>
+          <span class="badge br">Ausgabe</span>
+          <span class="badge by">Achtung</span>
+          <span class="badge bb">Investition</span>
+          <span class="badge bp">Dividende</span>
+        </div>
+        <div class="spec-meta">
+          <div><b>Classes</b><code>.badge + .bg / .br / .by / .bb / .bp</code></div>
+          <div><b>Fill</b><code>rgba(color, .15) · text = solid color</code></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ INSIGHT ============ -->
+    <section id="insight">
+      <div class="sec-head"><span class="num">10</span><h2>Insight row</h2></div>
+      <p class="sec-desc">The vehicle for AI-generated insights and recommendations. A <code style="font-family:var(--mono);font-size:.8rem">--surface2</code> block led by a small glowing status dot, then a bold title over muted description copy. Dot color carries severity.</p>
+      <div class="spec">
+        <div class="spec-demo" style="flex-direction:column">
+          <div class="insight"><span class="dot green"></span><div><div class="ins-title">Sparquote über Zielwert</div><div class="ins-desc">Deine Sparquote liegt bei 38,6 % — deutlich über der empfohlenen 20 %-Marke.</div></div></div>
+          <div class="insight"><span class="dot yellow"></span><div><div class="ins-title">Abo-Ausgaben gestiegen</div><div class="ins-desc">Wiederkehrende Zahlungen sind gegenüber dem Vormonat um 12 % gewachsen.</div></div></div>
+          <div class="insight"><span class="dot red"></span><div><div class="ins-title">Ungewöhnlich hohe Ausgabe</div><div class="ins-desc">Eine Transaktion liegt mehr als 2σ über deinem üblichen Ausgabenmuster.</div></div></div>
+        </div>
+        <div class="spec-meta">
+          <div><b>Dot severity</b><code>.dot.green / .yellow / .red / .blue</code></div>
+          <div><b>Glow</b><code>box-shadow 0 0 8px &lt;color&gt;</code></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TABLE ============ -->
+    <section id="table">
+      <div class="sec-head"><span class="num">11</span><h2>Data table</h2></div>
+      <p class="sec-desc">Dense, borderless-except-hairlines table (<code style="font-family:var(--mono);font-size:.8rem">.dt</code>). Uppercase muted headers, dim body text, semantic tints for signed values, and best/worst row highlights for monthly rankings. Rows lift to <code style="font-family:var(--mono);font-size:.8rem">--surface2</code> on hover.</p>
+      <div class="spec">
+        <div class="spec-demo">
+          <div style="flex:1;min-width:340px;overflow-x:auto">
+          <table class="dt">
+            <thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Netto</th></tr></thead>
+            <tbody>
+              <tr class="row-best"><td>März</td><td class="pos">14.200 €</td><td class="neg">6.900 €</td><td class="pos">+7.300 €</td></tr>
+              <tr><td>Februar</td><td class="pos">11.800 €</td><td class="neg">8.100 €</td><td class="pos">+3.700 €</td></tr>
+              <tr><td>Januar</td><td class="pos">12.100 €</td><td class="neg">9.400 €</td><td class="neu">+2.700 €</td></tr>
+              <tr class="row-worst"><td>April</td><td class="pos">9.600 €</td><td class="neg">10.200 €</td><td class="neg">−600 €</td></tr>
+            </tbody>
+          </table>
+          </div>
+        </div>
+        <div class="spec-meta">
+          <div><b>Value tints</b><code>.pos (income) · .neg (expense) · .neu (invest)</code></div>
+          <div><b>Row states</b><code>:hover · .row-best · .row-worst</code></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ LEGEND / BAR ============ -->
+    <section id="legend">
+      <div class="sec-head"><span class="num">12</span><h2>Legend &amp; progress bar</h2></div>
+      <p class="sec-desc">The companion to donut and category charts: a colored dot + label on the left, value on the right, and an optional inline progress bar showing share of total.</p>
+      <div class="spec">
+        <div class="spec-demo">
+          <ul class="leg">
+            <li><span class="leg-label"><span class="leg-dot" style="background:#3b82f6"></span>Lebensmittel</span><span>2.140 €</span></li>
+            <li><span class="leg-label"><span class="leg-dot" style="background:#8b5cf6"></span>Wohnen</span><span>1.680 €</span></li>
+            <li><span class="leg-label"><span class="leg-dot" style="background:#10b981"></span>Transport</span><span>640 €</span></li>
+          </ul>
+          <div style="min-width:160px">
+            <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem">Sparquote</div>
+            <div class="pb-wrap" style="width:100%"><div class="pb-fill" style="width:62%;background:var(--income)"></div></div>
+          </div>
+        </div>
+        <div class="spec-meta"><div><b>Classes</b><code>.leg &gt; li (.leg-label + .leg-dot) · .pb-wrap &gt; .pb-fill</code></div></div>
+      </div>
+    </section>
+
+    <!-- ============ INPUTS ============ -->
+    <section id="inputs">
+      <div class="sec-head"><span class="num">13</span><h2>Form inputs</h2></div>
+      <p class="sec-desc">Used in the transaction filter bar and comparison controls. Surface-2 fill, 6px radius; the border shifts to accent on focus. The select carries a custom chevron; date inputs opt into the dark color scheme.</p>
+      <div class="spec">
+        <div class="spec-demo" style="align-items:center">
+          <input class="tx-input" type="text" placeholder="Suche Händler…" aria-label="Search merchant">
+          <select class="tx-input tx-select" aria-label="Category filter"><option>Alle Kategorien</option><option>Lebensmittel</option><option>Wohnen</option></select>
+          <input class="tx-input" type="date" aria-label="From date" value="2026-01-01">
+          <input class="tx-input" type="text" placeholder="Fokus mich" style="border-color:var(--accent)" aria-label="Focused example">
+        </div>
+        <div class="spec-meta">
+          <div><b>Class</b><code>.tx-input · .tx-select</code></div>
+          <div><b>Focus</b><code>border-color → --accent</code></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECTION NOTE ============ -->
+    <section id="note">
+      <div class="sec-head"><span class="num">14</span><h2>Section note</h2></div>
+      <p class="sec-desc">An inline explanatory callout above a chart or table. This is the one sanctioned use of a left accent border — it marks genuinely secondary, explanatory context, never a default card.</p>
+      <div class="spec">
+        <div class="spec-demo">
+          <div class="section-note" style="flex:1;min-width:320px">Monate werden nach Kalendermonat ausgerichtet — ein 2024-Datensatz vergleicht sich sauber gegen 2025.</div>
+        </div>
+        <div class="spec-meta"><div><b>Class</b><code>.section-note · border-left 3px var(--accent)</code></div></div>
+      </div>
+    </section>
+
+    <!-- ============ UPLOAD ============ -->
+    <section id="upload">
+      <div class="sec-head"><span class="num">15</span><h2>Upload zone</h2></div>
+      <p class="sec-desc">The entry point — a large dashed drop target. On hover / drag it borders-accent, fills to surface-2, lifts 2px and casts the one real shadow in the system. Hover the specimen to see it.</p>
+      <div class="spec">
+        <div class="spec-demo" style="justify-content:center;padding:2.4rem">
+          <div class="upload-zone">
+            <div class="upload-icon">📊</div>
+            <div class="upload-title">CSV-Datei hochladen</div>
+            <div class="upload-hint">Datei hier ablegen oder <span>klicken zum Auswählen</span><br>Trade Republic, Sparkasse, DKB &amp; mehr</div>
+          </div>
+        </div>
+        <div class="spec-meta">
+          <div><b>States</b><code>default · :hover / .drag (accent border + lift + shadow)</code></div>
+          <div><b>Radius</b><code>20px (--radius-lg)</code></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CHARTS ============ -->
+    <section id="charts">
+      <div class="sec-head"><span class="num">16</span><h2>Chart theming</h2></div>
+      <p class="sec-desc">Chart.js defaults, centralized in <code style="font-family:var(--mono);font-size:.8rem">src/charts/chartTheme.ts</code>. Axes use faint white grid lines and muted tick labels so data ink dominates; series colors come from the semantic set (single-metric) or the categorical ramp (breakdowns).</p>
+      <div class="spec">
+        <div class="spec-demo">
+          <div class="spec-meta" style="border:none;padding:0;flex:1">
+            <div><b>Grid lines</b><code>rgba(255,255,255,.05)</code></div>
+            <div><b>Tick labels</b><code>#8b9bb5 · 10px (--text-muted)</code></div>
+            <div><b>Legend labels</b><code>#b0bfd0 · 11px (--text-dim)</code></div>
+            <div><b>Y-axis format</b><code>fmtN(v) + '€'</code></div>
+            <div><b>Single-metric</b><code>--income / --expense / --invest / --dividend</code></div>
+            <div><b>Breakdowns</b><code>PAL[i % 12] (categorical ramp)</code></div>
+            <div><b>Bar radius</b><code>4px · borderRadius</code></div>
+            <div><b>Fills</b><code>rgba(color, .75) for bars, solid for donuts</code></div>
+          </div>
+        </div>
+      </div>
+      <div class="dd">
+        <div class="box do"><b>Do</b>Route every new chart through <code style="font-family:var(--mono);font-size:.72rem">BASE</code> + <code style="font-family:var(--mono);font-size:.72rem">darkAxes()</code> so grid, ticks and legend stay uniform across all ten tabs.</div>
+        <div class="box dont"><b>Don't</b>Set per-chart tick or grid colors by hand — that's how the axes drift out of sync tab-to-tab.</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="copied" id="toast" role="status" aria-live="polite">Copied</div>
+
+<script>
+// Click any swatch to copy its var() token.
+const toast = document.getElementById('toast');
+let toastTimer;
+document.querySelectorAll('.sw[data-copy]').forEach(function(el){
+  el.addEventListener('click', function(){
+    const val = el.getAttribute('data-copy');
+    navigator.clipboard && navigator.clipboard.writeText(val).then(function(){
+      toast.textContent = 'Copied ' + val;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function(){ toast.classList.remove('show'); }, 1600);
+    });
+  });
+});
+</script>
+</body>
+</html>
