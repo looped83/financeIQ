@@ -58,12 +58,21 @@ function showTab(i: number): void {
 tabBtns.forEach((btn, i) => btn.addEventListener('click', () => showTab(i)));
 
 function loadPrimaryFile(text: string, fileName: string): void {
-  const rows = parseCSV(text);
-  if (!rows.length) {
-    alert('Keine Daten gefunden.');
+  let rows: ReturnType<typeof parseCSV>;
+  let analysis: ReturnType<typeof analyze>;
+  try {
+    rows = parseCSV(text);
+    if (!rows.length) {
+      alert('Keine Daten gefunden.');
+      return;
+    }
+    analysis = analyze(rows);
+  } catch (err) {
+    console.error('Fehler beim Verarbeiten der CSV:', err);
+    alert(`Fehler beim Verarbeiten der CSV-Datei: ${err instanceof Error ? err.message : String(err)}`);
     return;
   }
-  actions.loadFile(analyze(rows), fileName);
+  actions.loadFile(analysis, fileName);
   void persistPrimaryFile(kv, fileName, text);
   uploadScreen.style.display = 'none';
   dashboard.style.display = 'block';
