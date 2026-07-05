@@ -67,7 +67,10 @@ function view(a: Analysis | null): TemplateResult {
           <div class="chart-wrap tall"><canvas data-chart="ov-dd-net"></canvas></div>
         </div>
       ` : chartCard('Netto-Cashflow & Sparquote', 'ov-dd-net')}
-      ${chartCard('Top-5 Ausgabenkategorien', 'ov-catbar')}
+      <div class="card">
+        <div class="card-header"><span class="card-title">Top-5 Ausgabenkategorien</span></div>
+        <div class="chart-wrap tall"><canvas data-chart="ov-catbar"></canvas></div>
+      </div>
     </div>
 
     <div class="g2" style="margin-bottom:1.2rem;">
@@ -158,6 +161,29 @@ function view(a: Analysis | null): TemplateResult {
     </div>
 
     ${hasSnapshots ? html`
+      <div class="card" style="margin-bottom:1.2rem;">
+        <div class="card-header"><span class="card-title">Monatliche Detailübersicht</span></div>
+        <div style="overflow-x:auto">
+          <table class="dt">
+            <thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Netto</th><th>Sparquote</th><th>Dividenden</th><th>Investiert</th><th>Steuern</th><th>Karten-Tx</th><th>Gesamt-Tx</th></tr></thead>
+            <tbody>${detailRows.map((d) => html`
+              <tr class=${d.isBest ? 'row-best' : d.isWorst ? 'row-worst' : ''}>
+                <td><strong>${d.month}</strong></td>
+                <td class="pos">${d.income} ${deltaArrow(d.incomeDelta)}</td>
+                <td class="neg">${d.expense} ${deltaArrow(d.expenseDelta)}</td>
+                <td class=${d.netPositive ? 'pos' : 'neg'}>${d.net}</td>
+                <td class=${d.savingsRateCls}>${d.savingsRate}</td>
+                <td style="color:var(--dividend)">${d.dividend}</td>
+                <td class="neu">${d.invested}</td>
+                <td style="color:var(--text-muted)">${d.tax}</td>
+                <td style="color:var(--text-muted)">${d.cardCount}×</td>
+                <td style="color:var(--text-muted)">${d.txCount}</td>
+              </tr>
+            `)}</tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="g2" style="margin-bottom:1.2rem;">
         <div class="card">
           <div class="card-header"><span class="card-title">Beste Monate</span></div>
@@ -195,36 +221,18 @@ function view(a: Analysis | null): TemplateResult {
         `) : ''}
         ${alerts.length === 0 && (!hasSnapshots || trends.length === 0)
           ? html`<div class="ins-desc" style="padding:.5rem">Keine besonderen Auffälligkeiten.</div>`
-          : alerts.map((al) => html`
-              <div class="insight"><div class="dot ${al.color}"></div><div class="ins-desc">${unsafeHTML(al.text)}</div></div>
-            `)}
+          : alerts.map((al) => {
+              const m = al.text.match(/^<strong>(.+?):?<\/strong>\s*(.+)$/);
+              const title = m ? m[1] : '';
+              const desc = m ? m[2] : al.text;
+              return html`
+                <div class="insight"><div class="dot ${al.color}"></div><div style="flex:1">
+                  ${title ? html`<div class="ins-title">${title}</div>` : ''}
+                  <div class="ins-desc">${unsafeHTML(desc)}</div></div></div>
+              `;
+            })}
       </div>
     </div>
-
-    ${hasSnapshots ? html`
-      <div class="card" style="margin-bottom:1.2rem;">
-        <div class="card-header"><span class="card-title">Monatliche Detailübersicht</span></div>
-        <div style="overflow-x:auto">
-          <table class="dt">
-            <thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Netto</th><th>Sparquote</th><th>Dividenden</th><th>Investiert</th><th>Steuern</th><th>Karten-Tx</th><th>Gesamt-Tx</th></tr></thead>
-            <tbody>${detailRows.map((d) => html`
-              <tr class=${d.isBest ? 'row-best' : d.isWorst ? 'row-worst' : ''}>
-                <td><strong>${d.month}</strong></td>
-                <td class="pos">${d.income} ${deltaArrow(d.incomeDelta)}</td>
-                <td class="neg">${d.expense} ${deltaArrow(d.expenseDelta)}</td>
-                <td class=${d.netPositive ? 'pos' : 'neg'}>${d.net}</td>
-                <td class=${d.savingsRateCls}>${d.savingsRate}</td>
-                <td style="color:var(--dividend)">${d.dividend}</td>
-                <td class="neu">${d.invested}</td>
-                <td style="color:var(--text-muted)">${d.tax}</td>
-                <td style="color:var(--text-muted)">${d.cardCount}×</td>
-                <td style="color:var(--text-muted)">${d.txCount}</td>
-              </tr>
-            `)}</tbody>
-          </table>
-        </div>
-      </div>
-    ` : ''}
 
   `;
 }
