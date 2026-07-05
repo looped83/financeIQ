@@ -1,12 +1,16 @@
-name: Pages (Vite build) — Phase 0 proof of concept
+name: Pages (Vite build)
 
-# Manual trigger only. This does NOT replace the current GitHub Pages
-# deployment — that keeps running exactly as before via the repo's
-# "Deploy from a branch" Pages source setting. This workflow only takes
-# over once someone deliberately switches the Pages source to
-# "GitHub Actions" in repo settings (the Phase 5 cutover step in the
-# V2 migration plan). Until then it's inert and safe to keep around.
+# Phase 5 cutover: index.html now loads its logic from a built src/ bundle
+# (src/main.ts), so it needs this workflow to actually build it before
+# deploying — the old "Deploy from a branch" Pages source would just ship
+# the raw, unbuilt index.html and a broken page. This workflow only takes
+# effect once the repo's Pages source is switched to "GitHub Actions" in
+# repo settings (Settings → Pages → Source) — a manual step outside of
+# what this workflow file itself can do. Until that switch happens, this
+# still runs (e.g. via workflow_dispatch) but doesn't affect what's live.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

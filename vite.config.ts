@@ -27,6 +27,7 @@ export default defineConfig({
         comparePreview: resolve(__dirname, 'src/dev/compare-preview.html'),
         recommendationsPreview: resolve(__dirname, 'src/dev/recommendations-preview.html'),
         persistencePreview: resolve(__dirname, 'src/dev/persistence-preview.html'),
+        timelinePreview: resolve(__dirname, 'src/dev/timeline-preview.html'),
       },
     },
   },
