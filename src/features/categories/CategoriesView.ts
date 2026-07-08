@@ -78,11 +78,11 @@ function view(a: Analysis | null): TemplateResult {
       <div class="card-header"><span class="card-title">Dividenden nach Wertpapier</span></div>
       <div style="overflow-x:auto">
         <table class="dt">
-          <thead><tr><th>Wertpapier</th><th>Zahlungen</th><th>Brutto</th><th>Steuern</th><th>Netto</th><th>Anteil</th></tr></thead>
+          <thead><tr><th>Wertpapier</th><th>Zahlungen</th><th>Dividende</th><th>Anteil</th></tr></thead>
           <tbody>${dividends.map((d) => html`
             <tr>
               <td>${d.name}</td><td>${d.count}×</td>
-              <td class="pos">${d.brutto}</td><td class="neg">${d.steuer}</td><td class="pos">${d.netto}</td>
+              <td style="color:var(--dividend)">${d.amount}</td>
               <td style="color:var(--text-muted)">${d.pctLabel}</td>
             </tr>
           `)}</tbody>

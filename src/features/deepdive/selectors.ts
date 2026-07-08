@@ -445,7 +445,6 @@ export interface DeepDiveDetailRow {
   savingsRateCls: 'pos' | 'warn' | '' | 'neg';
   dividend: string;
   invested: string;
-  tax: string;
   cardCount: number;
   txCount: number;
   isBest: boolean;
@@ -468,7 +467,7 @@ export function computeDetailTableRows(snapshots: MonthSnapshot[]): DeepDiveDeta
     const sr = a.totalInc > 0 ? (net / a.totalInc) * 100 : 0;
     return {
       month: s.month, income: a.totalInc, expense: Math.abs(a.totalExp), net, sr,
-      dividend: a.totalDiv, invested: a.totalInv, tax: a.totalTax,
+      dividend: a.totalDiv, invested: a.totalInv,
       count: a.enriched.length, cardCount: a.exp.filter((r) => r._isCard).length,
     };
   });
@@ -485,7 +484,7 @@ export function computeDetailTableRows(snapshots: MonthSnapshot[]): DeepDiveDeta
       expense: fmt(d.expense), expenseDelta: deltaDirection(-d.expense, prev ? -prev.expense : null),
       net: fmt(d.net), netPositive: d.net >= 0,
       savingsRate: fmtP(d.sr), savingsRateCls: d.sr >= 20 ? 'pos' : d.sr >= 10 ? '' : 'neg',
-      dividend: fmt(d.dividend), invested: fmt(d.invested), tax: fmt(d.tax),
+      dividend: fmt(d.dividend), invested: fmt(d.invested),
       cardCount: d.cardCount, txCount: d.count,
       isBest: i === bestIdx, isWorst: i === worstIdx,
     };

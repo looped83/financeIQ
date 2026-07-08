@@ -234,9 +234,7 @@ function view(state: AppState, actions: AppActions): TemplateResult {
           <thead><tr><th>Kennzahl</th><th>${labelA}</th><th>${labelB}</th><th>Delta</th></tr></thead>
           <tbody>
             <tr><td><strong>Ausschüttungen</strong></td><td style="color:var(--text-dim)">${divs.countA}</td><td style="color:var(--text-dim)">${divs.countB}</td><td class=${divs.countB >= divs.countA ? 'pos' : 'neg'}>${divs.countB - divs.countA >= 0 ? '+' : ''}${divs.countB - divs.countA}</td></tr>
-            <tr><td><strong>Brutto</strong></td><td style="color:var(--text-dim)">${fmt(divs.grossA)}</td><td style="color:var(--text-dim)">${fmt(divs.grossB)}</td><td class=${divs.grossB >= divs.grossA ? 'pos' : 'neg'}>${fmt(divs.grossB - divs.grossA)} ${deltaArrow(divs.grossB >= divs.grossA)}</td></tr>
-            <tr><td><strong>Steuer</strong></td><td style="color:var(--text-muted)">${fmt(divs.taxA)}</td><td style="color:var(--text-muted)">${fmt(divs.taxB)}</td><td style="color:var(--text-muted)">${fmt(divs.taxB - divs.taxA)}</td></tr>
-            <tr><td><strong>Netto</strong></td><td style="color:var(--dividend)">${fmt(divs.netA)}</td><td style="color:var(--dividend)">${fmt(divs.netB)}</td><td class=${divs.netB >= divs.netA ? 'pos' : 'neg'}>${fmt(divs.netB - divs.netA)} ${deltaArrow(divs.netB >= divs.netA)}</td></tr>
+            <tr><td><strong>Dividenden</strong></td><td style="color:var(--dividend)">${fmt(divs.totalA)}</td><td style="color:var(--dividend)">${fmt(divs.totalB)}</td><td class=${divs.totalB >= divs.totalA ? 'pos' : 'neg'}>${fmt(divs.totalB - divs.totalA)} ${deltaArrow(divs.totalB >= divs.totalA)}</td></tr>
           </tbody>
         </table>
       </div>

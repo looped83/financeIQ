@@ -297,38 +297,20 @@ export function getTopSingleExpenses(analysis: Analysis, month: string, limit = 
 export interface DividendComparison {
   countA: number;
   countB: number;
-  grossA: number;
-  grossB: number;
-  taxA: number;
-  taxB: number;
-  netA: number;
-  netB: number;
+  totalA: number;
+  totalB: number;
 }
 
 export function getDividendComparison(analysis: Analysis, monthA: string, monthB: string): DividendComparison {
-  let countA = 0, countB = 0, grossA = 0, grossB = 0, taxA = 0, taxB = 0;
+  let countA = 0, countB = 0, totalA = 0, totalB = 0;
 
   for (const r of analysis.enriched) {
     if (!r._isDiv) continue;
-    if (r._month === monthA) {
-      countA++;
-      grossA += r._amt + Math.abs(r._tax);
-      taxA += Math.abs(r._tax);
-    }
-    if (r._month === monthB) {
-      countB++;
-      grossB += r._amt + Math.abs(r._tax);
-      taxB += Math.abs(r._tax);
-    }
+    if (r._month === monthA) { countA++; totalA += r._amt; }
+    if (r._month === monthB) { countB++; totalB += r._amt; }
   }
 
-  return {
-    countA, countB,
-    grossA, grossB,
-    taxA, taxB,
-    netA: grossA - taxA,
-    netB: grossB - taxB,
-  };
+  return { countA, countB, totalA, totalB };
 }
 
 // ── 5. Wiederkehrende Ausgaben Delta ──
@@ -342,20 +324,39 @@ export interface RecurringDelta {
 }
 
 export function getRecurringExpensesDelta(analysis: Analysis, monthA: string, monthB: string): RecurringDelta[] {
+  // Identify recurring merchants by name frequency (3+ months or 40% of data range)
+  const nameMonths = new Map<string, Set<string>>();
+  for (const r of analysis.enriched) {
+    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
+    const name = r._name || '';
+    if (!name) continue;
+    let months = nameMonths.get(name);
+    if (!months) { months = new Set(); nameMonths.set(name, months); }
+    months.add(r._month);
+  }
+  const minMonths = Math.min(3, Math.max(2, Math.floor(analysis.mKeys.length * 0.4)));
+  const recurringNames = new Set<string>();
+  for (const [name, months] of nameMonths) {
+    if (months.size >= minMonths) recurringNames.add(name);
+  }
+
+  // Sum recurring expense amounts per month
   const mapA = new Map<string, number>();
   const mapB = new Map<string, number>();
-
-  for (const sub of analysis.subscriptions) {
-    if (sub.months.has(monthA)) mapA.set(sub.name, sub.amt);
-    if (sub.months.has(monthB)) mapB.set(sub.name, sub.amt);
+  for (const r of analysis.enriched) {
+    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
+    const name = r._name || '';
+    if (!recurringNames.has(name)) continue;
+    if (r._month === monthA) mapA.set(name, (mapA.get(name) ?? 0) + Math.abs(r._amt));
+    if (r._month === monthB) mapB.set(name, (mapB.get(name) ?? 0) + Math.abs(r._amt));
   }
 
   const shared: RecurringDelta[] = [];
   for (const [name, amtA] of mapA) {
     if (mapB.has(name)) {
       const amtB = mapB.get(name)!;
-      const delta = Math.abs(amtB) - Math.abs(amtA);
-      shared.push({ name, amountA: Math.abs(amtA), amountB: Math.abs(amtB), delta, deltaPositive: delta <= 0 });
+      const delta = amtB - amtA;
+      shared.push({ name, amountA: amtA, amountB: amtB, delta, deltaPositive: delta <= 0 });
     }
   }
 

@@ -119,7 +119,6 @@ export interface YearlyTableRow {
   invested: string;
   dividend: string;
   fees: string;
-  tax: string;
   savingsRate: string;
   savingsRateCls: 'pos' | 'warn' | 'neg';
   isBest: boolean;
@@ -153,7 +152,6 @@ export function getYearlyTableRows(a: Analysis): YearlyTableRow[] {
       invested: fmt(yr.invested),
       dividend: fmt(yr.dividend),
       fees: fmt(yr.fees),
-      tax: fmt(yr.tax),
       savingsRate: fmtP(sr),
       savingsRateCls: sr >= 20 ? 'pos' : sr >= 10 ? 'warn' : 'neg',
       isBest: i === bestIdx,

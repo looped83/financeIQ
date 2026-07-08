@@ -85,9 +85,9 @@ describe('getTopExpenseCategoriesData', () => {
 });
 
 describe('computeFinancialRatios', () => {
-  it('returns exactly 10 ratio rows including best/worst month', () => {
+  it('returns exactly 9 ratio rows including best/worst month', () => {
     const rows = computeFinancialRatios(a, computeOverviewRates(a));
-    expect(rows).toHaveLength(10);
+    expect(rows).toHaveLength(9);
     const bestMonth = rows.find((r) => r.label === 'Bester Monat');
     expect(bestMonth?.value).toContain('Feb'); // Feb has the higher net (2024.50 vs 0)
   });

@@ -159,7 +159,21 @@ export interface FixVarTimelineData {
 }
 
 export function getFixVarTimelineData(a: Analysis): FixVarTimelineData {
-  const recurringNames = new Set(a.subscriptions.map((s) => s.name));
+  // Build set of recurring merchant names: appear as expenses in 3+ distinct months
+  const nameMonths = new Map<string, Set<string>>();
+  for (const r of a.enriched) {
+    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
+    const name = r._name || '';
+    if (!name) continue;
+    let months = nameMonths.get(name);
+    if (!months) { months = new Set(); nameMonths.set(name, months); }
+    months.add(r._month);
+  }
+  const minMonths = Math.min(3, Math.max(2, Math.floor(a.mKeys.length * 0.4)));
+  const recurringNames = new Set<string>();
+  for (const [name, months] of nameMonths) {
+    if (months.size >= minMonths) recurringNames.add(name);
+  }
 
   const labels = a.mKeys.map(mLabel);
   const fixed: number[] = [];

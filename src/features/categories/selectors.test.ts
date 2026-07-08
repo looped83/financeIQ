@@ -54,23 +54,13 @@ describe('getAssetClassChartData', () => {
 });
 
 describe('getDividendsBySecurity', () => {
-  it('aggregates net/tax/gross per security', () => {
+  it('aggregates dividends per security', () => {
     const rows = getDividendsBySecurity(a);
     expect(rows).toHaveLength(1);
     const testCorp = rows[0]!;
     expect(testCorp.name).toBe('TestCorp');
     expect(testCorp.count).toBe(2);
-    expect(testCorp.netto).toBe(fmtTestValue(70)); // 85 + -15, matches totalDiv
-    // "Brutto" is displayed as netto+steuer (v.total+v.tax) — this reconstructs
-    // the true gross (100 + -20 = 80) only when every tax value for a security
-    // has the same sign. Here tx-004's tax is a *positive* refund (+5), summed
-    // as abs()=5 alongside tx-003's abs(-15)=15, so steuer=20 and the displayed
-    // "Brutto" comes out to 90, not the actual raw-amount sum of 80. This is a
-    // faithful port of the same formula index.html uses today — a pre-existing
-    // rounding/edge-case quirk when a dividend reversal has a positive tax
-    // component, not something introduced by this migration.
-    expect(testCorp.steuer).toBe(fmtTestValue(20));
-    expect(testCorp.brutto).toBe(fmtTestValue(90));
+    expect(testCorp.amount).toBe(fmtTestValue(70)); // 85 + -15, matches totalDiv
   });
 
   it('percentage share is based on total net dividend income', () => {

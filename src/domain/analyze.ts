@@ -65,9 +65,6 @@ export function analyze(rows: RawRow[]): Analysis {
     const isDiv = type === 'DIVIDEND';
     const isInterest = type === 'INTEREST_PAYMENT';
     const isCard = type === 'CARD_TRANSACTION' || type === 'CARD_TRANSACTION_INTERNATIONAL';
-    // "amount" ist bei Dividenden/Zinsen/Steuerkorrekturen der Bruttobetrag vor Steuerabzug;
-    // die tatsächlich zugeflossene Summe ist amount+tax (tax trägt bereits das richtige Vorzeichen).
-    // Bei Käufen/Verkäufen bleibt amount unverändert (Kostenbasis/Erlös ohne Steuer/Gebühr).
     const amt = isBuy || isSell ? rawAmt : rawAmt + tax;
     return {
       ...r,
@@ -95,7 +92,6 @@ export function analyze(rows: RawRow[]): Analysis {
   const totalDiv = divs.reduce((s, r) => s + r._amt, 0);
   const netBal = totalInc + totalExp;
   const totalFee = enriched.reduce((s, r) => s + Math.abs(r._fee), 0);
-  const totalTax = enriched.reduce((s, r) => s + Math.abs(r._tax), 0);
 
   // Monthly
   const months: Record<string, MonthAgg> = {};
@@ -128,7 +124,7 @@ export function analyze(rows: RawRow[]): Analysis {
   for (const mk of mKeys) {
     const y = mk.split('-')[0]!;
     const yr = (years[y] ??= {
-      income: 0, expense: 0, invested: 0, sold: 0, dividend: 0, fees: 0, tax: 0, net: 0, months: 0,
+      income: 0, expense: 0, invested: 0, sold: 0, dividend: 0, fees: 0, net: 0, months: 0,
     });
     const m = months[mk]!;
     yr.months++;
@@ -143,7 +139,6 @@ export function analyze(rows: RawRow[]): Analysis {
     const yr = r._year ? years[r._year] : undefined;
     if (yr) {
       yr.fees += Math.abs(r._fee);
-      yr.tax += Math.abs(r._tax);
     }
   }
   const yKeys = Object.keys(years).sort();
@@ -162,10 +157,9 @@ export function analyze(rows: RawRow[]): Analysis {
   const byAsset: Record<string, ByAssetAgg> = {};
   for (const r of divs) {
     const nm = r._name || 'Unbekannt';
-    const ba = (byAsset[nm] ??= { total: 0, count: 0, tax: 0 });
+    const ba = (byAsset[nm] ??= { total: 0, count: 0 });
     ba.total += r._amt;
     ba.count++;
-    ba.tax += Math.abs(r._tax);
   }
 
   // By asset class (trading)
@@ -224,7 +218,7 @@ export function analyze(rows: RawRow[]): Analysis {
 
   return {
     enriched, cash, inc, exp, buys, sells, divs,
-    totalInc, totalExp, totalInv, totalSold, totalDiv, netBal, totalFee, totalTax,
+    totalInc, totalExp, totalInv, totalSold, totalDiv, netBal, totalFee,
     months, mKeys, years, yKeys, byType, byAsset, byAssetClass, expCat, merchants, outliers, subscriptions,
     avgInc, avgExp, avgNet, mean, std, mc,
   };
