@@ -11,7 +11,9 @@ import {
   computeMainChartData,
   getCumulativeIncExpChartData,
   getDividendChartData,
+  getFixVarTimelineData,
   getInvestChartData,
+  getMerchantTimelineData,
   getMonthlyNetChartData,
 } from './selectors';
 
@@ -54,7 +56,7 @@ function view(a: Analysis | null, timelineView: TimelineViewMode, actions: AppAc
         <div class="chart-wrap"><canvas data-chart="tl-div"></canvas></div>
       </div>
     </div>
-    <div class="g2">
+    <div class="g2" style="margin-bottom:1.2rem;">
       <div class="card">
         <div class="card-header"><span class="card-title">Investitionsvolumen — Käufe &amp; Verkäufe</span></div>
         <div class="chart-wrap"><canvas data-chart="tl-inv"></canvas></div>
@@ -62,6 +64,16 @@ function view(a: Analysis | null, timelineView: TimelineViewMode, actions: AppAc
       <div class="card">
         <div class="card-header"><span class="card-title">Einnahmen vs. Ausgaben (kumuliert getrennt)</span></div>
         <div class="chart-wrap"><canvas data-chart="tl-inex"></canvas></div>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Ausgaben nach Top-Händlern</span></div>
+        <div class="chart-wrap tall"><canvas data-chart="tl-merchants"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Fixkosten vs. variable Ausgaben</span></div>
+        <div class="chart-wrap tall"><canvas data-chart="tl-fixvar"></canvas></div>
       </div>
     </div>
   `;
@@ -156,6 +168,53 @@ function mountTimelineCharts(container: HTMLElement, a: Analysis, timelineView: 
         ...BASE, interaction: { mode: 'index', intersect: false }, scales: darkAxes(),
         plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } } },
       } as ChartConfiguration<'line'>['options'],
+    });
+  }
+
+  const MERCHANT_COLORS = [
+    'rgba(59,130,246,.75)', 'rgba(139,92,246,.75)', 'rgba(16,185,129,.75)',
+    'rgba(245,158,11,.75)', 'rgba(239,68,68,.75)', 'rgba(236,72,153,.75)',
+  ];
+
+  const merchCanvas = getCanvas(container, 'tl-merchants');
+  if (merchCanvas) {
+    const merch = getMerchantTimelineData(a);
+    mountChart(merchCanvas, {
+      type: 'bar',
+      data: {
+        labels: merch.labels,
+        datasets: merch.merchants.map((name, i) => ({
+          label: name,
+          data: merch.series[i]!,
+          backgroundColor: MERCHANT_COLORS[i % MERCHANT_COLORS.length],
+          borderRadius: 2,
+        })),
+      },
+      options: {
+        ...BASE, interaction: { mode: 'index', intersect: false },
+        scales: { ...darkAxes(), x: { ...darkAxes().x, stacked: true }, y: { ...darkAxes().y, stacked: true } },
+        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } } },
+      } as ChartConfiguration<'bar'>['options'],
+    });
+  }
+
+  const fvCanvas = getCanvas(container, 'tl-fixvar');
+  if (fvCanvas) {
+    const fv = getFixVarTimelineData(a);
+    mountChart(fvCanvas, {
+      type: 'bar',
+      data: {
+        labels: fv.labels,
+        datasets: [
+          { label: 'Fixkosten', data: fv.fixed, backgroundColor: 'rgba(59,130,246,.7)', borderRadius: 2 },
+          { label: 'Variable', data: fv.variable, backgroundColor: 'rgba(245,158,11,.7)', borderRadius: 2 },
+        ],
+      },
+      options: {
+        ...BASE, interaction: { mode: 'index', intersect: false },
+        scales: { ...darkAxes(), x: { ...darkAxes().x, stacked: true }, y: { ...darkAxes().y, stacked: true } },
+        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } } },
+      } as ChartConfiguration<'bar'>['options'],
     });
   }
 }

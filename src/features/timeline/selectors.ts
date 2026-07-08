@@ -113,6 +113,76 @@ export function getInvestChartData(a: Analysis): InvestChartData {
   };
 }
 
+// ── Top-Händler im Zeitverlauf (Stacked Bar) ──
+
+export interface MerchantTimelineData {
+  labels: string[];
+  merchants: string[];
+  series: number[][];
+}
+
+export function getMerchantTimelineData(a: Analysis, limit = 6): MerchantTimelineData {
+  const totals = new Map<string, number>();
+  for (const r of a.enriched) {
+    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
+    const name = r._name || 'Sonstiges';
+    totals.set(name, (totals.get(name) ?? 0) + Math.abs(r._amt));
+  }
+
+  const topNames = [...totals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([n]) => n);
+
+  const labels = a.mKeys.map(mLabel);
+  const series = topNames.map((name) =>
+    a.mKeys.map((mk) => {
+      let sum = 0;
+      for (const r of a.enriched) {
+        if (r._month === mk && r._amt < 0 && !r._isDiv && !r._isInterest && !r._isBuy && !r._isSell) {
+          if ((r._name || 'Sonstiges') === name) sum += Math.abs(r._amt);
+        }
+      }
+      return sum;
+    }),
+  );
+
+  return { labels, merchants: topNames, series };
+}
+
+// ── Fixkosten vs. variable Ausgaben (Stacked Area) ──
+
+export interface FixVarTimelineData {
+  labels: string[];
+  fixed: number[];
+  variable: number[];
+}
+
+export function getFixVarTimelineData(a: Analysis): FixVarTimelineData {
+  const recurringNames = new Set(a.subscriptions.map((s) => s.name));
+
+  const labels = a.mKeys.map(mLabel);
+  const fixed: number[] = [];
+  const variable: number[] = [];
+
+  for (const mk of a.mKeys) {
+    let f = 0, v = 0;
+    for (const r of a.enriched) {
+      if (r._month !== mk || r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
+      const name = r._name || '';
+      if (recurringNames.has(name)) {
+        f += Math.abs(r._amt);
+      } else {
+        v += Math.abs(r._amt);
+      }
+    }
+    fixed.push(f);
+    variable.push(v);
+  }
+
+  return { labels, fixed, variable };
+}
+
 export interface CumulativeIncExpChartData {
   labels: string[];
   cumInc: number[];
