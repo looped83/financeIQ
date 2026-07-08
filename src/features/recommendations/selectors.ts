@@ -104,16 +104,7 @@ export function computeRecommendations(a: Analysis): Recommendation[] {
     }
   }
 
-  // 6. Tax
-  if (a.totalTax > 0) {
-    const freibetrag = a.totalDiv + a.totalTax;
-    recs.push({
-      level: 'yellow', priority: 3, category: 'Steuern', title: 'Freistellungsauftrag prüfen',
-      desc: `${fmt(a.totalTax)} Kapitalertragsteuer auf ${fmt(freibetrag)} Brutto-Erträge. Freibetrag: 2.000€. ${freibetrag < 2000 ? 'Liegt unter dem Freibetrag — Freistellungsauftrag sollte volle Steuer verhindern.' : 'Über dem Freibetrag — Steuer unvermeidbar, Verlustverrechnungstopf nutzen.'}`,
-    });
-  }
-
-  // 7. Large expenses
+  // 6. Large expenses
   const bigExp = a.exp.filter((r) => Math.abs(r._amt) > 500);
   if (bigExp.length) {
     const sorted = [...bigExp].sort((x, y) => Math.abs(y._amt) - Math.abs(x._amt));

@@ -74,11 +74,6 @@ describe('analyze() — dividends, corrections, buy/sell, tax optimization', () 
     expect(a.totalFee).toBeCloseTo(2.0, 3);
   });
 
-  it('totalTax sums abs(tax) across every row type', () => {
-    // 15 (div) + 5 (div correction) + 20 (sell) + 30 (tax debit) + 30 (tax credit) = 100
-    expect(a.totalTax).toBeCloseTo(100.0, 3);
-  });
-
   it('expense-by-category excludes dividends even when net-negative', () => {
     expect(a.expCat['Dividenden']).toBeUndefined();
   });

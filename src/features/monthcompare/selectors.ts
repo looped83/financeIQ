@@ -297,38 +297,20 @@ export function getTopSingleExpenses(analysis: Analysis, month: string, limit = 
 export interface DividendComparison {
   countA: number;
   countB: number;
-  grossA: number;
-  grossB: number;
-  taxA: number;
-  taxB: number;
-  netA: number;
-  netB: number;
+  totalA: number;
+  totalB: number;
 }
 
 export function getDividendComparison(analysis: Analysis, monthA: string, monthB: string): DividendComparison {
-  let countA = 0, countB = 0, grossA = 0, grossB = 0, taxA = 0, taxB = 0;
+  let countA = 0, countB = 0, totalA = 0, totalB = 0;
 
   for (const r of analysis.enriched) {
     if (!r._isDiv) continue;
-    if (r._month === monthA) {
-      countA++;
-      grossA += r._amt + Math.abs(r._tax);
-      taxA += Math.abs(r._tax);
-    }
-    if (r._month === monthB) {
-      countB++;
-      grossB += r._amt + Math.abs(r._tax);
-      taxB += Math.abs(r._tax);
-    }
+    if (r._month === monthA) { countA++; totalA += r._amt; }
+    if (r._month === monthB) { countB++; totalB += r._amt; }
   }
 
-  return {
-    countA, countB,
-    grossA, grossB,
-    taxA, taxB,
-    netA: grossA - taxA,
-    netB: grossB - taxB,
-  };
+  return { countA, countB, totalA, totalB };
 }
 
 // ── 5. Wiederkehrende Ausgaben Delta ──

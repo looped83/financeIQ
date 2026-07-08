@@ -122,7 +122,6 @@ export function computeFinancialRatios(a: Analysis, rates: OverviewRates): Ratio
   const cardRatio = Math.abs(a.totalExp) > 0 ? (cardTotal / Math.abs(a.totalExp)) * 100 : 0;
   const avgTxSize = a.exp.length > 0 ? Math.abs(a.totalExp) / a.exp.length : 0;
   const feeRatio = a.totalInv > 0 ? (a.totalFee / a.totalInv) * 100 : 0;
-  const taxRatio = a.totalDiv > 0 ? (a.totalTax / (a.totalDiv + a.totalTax)) * 100 : 0;
 
   const maxMonth = a.mKeys.reduce(
     (best, mk) => {
@@ -146,7 +145,6 @@ export function computeFinancialRatios(a: Analysis, rates: OverviewRates): Ratio
     { label: 'Kartenzahlungsanteil', value: fmtP(cardRatio), good: cardRatio < 50 },
     { label: 'Ø Ausgabe pro Transaktion', value: fmt(avgTxSize), good: true },
     { label: 'Gebührenquote', value: a.totalInv > 0 ? fmtP(feeRatio) : '-', good: feeRatio < 0.5 },
-    { label: 'Steuerbelastung Dividenden', value: a.totalDiv > 0 ? fmtP(taxRatio) : '-', good: false },
     { label: 'Ø Monats-Transaktionen', value: Math.round(a.enriched.length / a.mc) + '×', good: true },
     { label: 'Bester Monat', value: `${mLabel(maxMonth.k)} (${fmt(maxMonth.v)})`, good: true },
     { label: 'Schwächster Monat', value: `${mLabel(minMonth.k)} (${fmt(minMonth.v)})`, good: minMonth.v >= 0 },

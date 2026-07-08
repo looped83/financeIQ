@@ -46,7 +46,6 @@ export interface YearAgg {
   sold: number;
   dividend: number;
   fees: number;
-  tax: number;
   net: number;
   months: number;
 }
@@ -60,7 +59,6 @@ export interface ByTypeAgg {
 export interface ByAssetAgg {
   total: number;
   count: number;
-  tax: number;
 }
 
 export interface Subscription {
@@ -85,7 +83,6 @@ export interface Analysis {
   totalDiv: number;
   netBal: number;
   totalFee: number;
-  totalTax: number;
 
   months: Record<string, MonthAgg>;
   mKeys: string[];

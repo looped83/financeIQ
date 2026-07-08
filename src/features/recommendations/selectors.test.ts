@@ -47,8 +47,8 @@ describe('computeRecommendations — rich fixture (positive cashflow, strong sav
     expect(recs.some((r) => r.category === 'Kosten' && r.title.startsWith('Gebühren optimieren'))).toBe(true);
   });
 
-  it('flags the Freistellungsauftrag check since dividend tax was paid', () => {
-    expect(recs.some((r) => r.title === 'Freistellungsauftrag prüfen' && r.desc.includes('unter dem Freibetrag'))).toBe(true);
+  it('does not show tax-related recommendations (dividends arrive net)', () => {
+    expect(recs.some((r) => r.title === 'Freistellungsauftrag prüfen')).toBe(false);
   });
 
   it('flags the one-time >500€ expense (Elektronik Laden)', () => {

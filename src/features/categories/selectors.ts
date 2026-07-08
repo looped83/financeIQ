@@ -74,9 +74,7 @@ export function getAssetClassChartData(a: Analysis): AssetClassChartData {
 export interface DividendSecurityRow {
   name: string;
   count: number;
-  brutto: string;
-  steuer: string;
-  netto: string;
+  amount: string;
   pctLabel: string;
 }
 
@@ -86,9 +84,7 @@ export function getDividendsBySecurity(a: Analysis): DividendSecurityRow[] {
     .map(([name, v]) => ({
       name,
       count: v.count,
-      brutto: fmt(v.total + v.tax),
-      steuer: fmt(v.tax),
-      netto: fmt(v.total),
+      amount: fmt(v.total),
       pctLabel: (a.totalDiv > 0 ? (v.total / a.totalDiv) * 100 : 0).toFixed(1) + '%',
     }));
 }

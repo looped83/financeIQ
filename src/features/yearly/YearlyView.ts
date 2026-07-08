@@ -86,14 +86,14 @@ function multiYearView(a: Analysis): TemplateResult {
       <div class="card-header"><span class="card-title">Jahres-Übersicht</span></div>
       <div style="overflow-x:auto">
         <table class="dt">
-          <thead><tr><th>Jahr</th><th>Einnahmen</th><th>Ausgaben</th><th>Netto</th><th>Investiert</th><th>Dividenden</th><th>Gebühren</th><th>Steuern</th><th>Sparquote</th></tr></thead>
+          <thead><tr><th>Jahr</th><th>Einnahmen</th><th>Ausgaben</th><th>Netto</th><th>Investiert</th><th>Dividenden</th><th>Gebühren</th><th>Sparquote</th></tr></thead>
           <tbody>${rows.map((r) => html`
             <tr class=${r.isBest ? 'row-best' : r.isWorst ? 'row-worst' : ''}>
               <td><strong>${r.year}</strong></td>
               <td class="pos">${r.income} ${deltaArrow(r.incomeDelta)}</td><td class="neg">${r.expense} ${deltaArrow(r.expenseDelta)}</td>
               <td class=${r.netPositive ? 'pos' : 'neg'}>${r.net}</td>
               <td class="neu">${r.invested}</td><td style="color:var(--dividend)">${r.dividend}</td>
-              <td style="color:var(--text-muted)">${r.fees}</td><td style="color:var(--text-muted)">${r.tax}</td>
+              <td style="color:var(--text-muted)">${r.fees}</td>
               <td class=${r.savingsRateCls}>${r.savingsRate}</td>
             </tr>
           `)}</tbody>

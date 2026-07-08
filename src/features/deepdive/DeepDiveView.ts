@@ -214,7 +214,7 @@ function view(snapshots: MonthSnapshot[], selectedMonth: string, actions: AppAct
       <div class="card-header"><span class="card-title">Monatliche Detailübersicht</span></div>
       <div style="overflow-x:auto">
         <table class="dt">
-          <thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Netto</th><th>Sparquote</th><th>Dividenden</th><th>Investiert</th><th>Steuern</th><th>Karten-Tx</th><th>Gesamt-Tx</th></tr></thead>
+          <thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Netto</th><th>Sparquote</th><th>Dividenden</th><th>Investiert</th><th>Karten-Tx</th><th>Gesamt-Tx</th></tr></thead>
           <tbody>${detailRows.map((d) => html`
             <tr class=${d.isBest ? 'row-best' : d.isWorst ? 'row-worst' : ''}>
               <td><strong>${d.month}</strong></td>
@@ -224,7 +224,6 @@ function view(snapshots: MonthSnapshot[], selectedMonth: string, actions: AppAct
               <td class=${d.savingsRateCls}>${d.savingsRate}</td>
               <td style="color:var(--dividend)">${d.dividend}</td>
               <td class="neu">${d.invested}</td>
-              <td style="color:var(--text-muted)">${d.tax}</td>
               <td style="color:var(--text-muted)">${d.cardCount}×</td>
               <td style="color:var(--text-muted)">${d.txCount}</td>
             </tr>
