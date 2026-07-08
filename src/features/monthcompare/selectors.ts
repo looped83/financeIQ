@@ -1,6 +1,7 @@
 import { fmt, fmtPP, mLabel } from '../../domain/format';
 import type { Analysis, MonthAgg } from '../../domain/types';
 import type { MonthCompareMetric } from '../../state/appState';
+import { getFixedCostNames } from '../shared/commonSelectors';
 
 export interface MonthKpi {
   label: string;
@@ -324,21 +325,8 @@ export interface RecurringDelta {
 }
 
 export function getRecurringExpensesDelta(analysis: Analysis, monthA: string, monthB: string): RecurringDelta[] {
-  // Identify recurring merchants by name frequency (3+ months or 40% of data range)
-  const nameMonths = new Map<string, Set<string>>();
-  for (const r of analysis.enriched) {
-    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
-    const name = r._name || '';
-    if (!name) continue;
-    let months = nameMonths.get(name);
-    if (!months) { months = new Set(); nameMonths.set(name, months); }
-    months.add(r._month);
-  }
-  const minMonths = Math.min(3, Math.max(2, Math.floor(analysis.mKeys.length * 0.4)));
-  const recurringNames = new Set<string>();
-  for (const [name, months] of nameMonths) {
-    if (months.size >= minMonths) recurringNames.add(name);
-  }
+  // Identify fixed/recurring merchants: appear across several months with a stable amount.
+  const recurringNames = getFixedCostNames(analysis);
 
   // Sum recurring expense amounts per month
   const mapA = new Map<string, number>();
