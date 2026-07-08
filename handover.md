@@ -33,8 +33,8 @@ src/
                                deepdive (in overview integriert, selectors.ts wird noch
                                  von overview und monthly importiert)
                                compare (komplett entfernt aus TAB_LOADERS, Code noch vorhanden)
-  features/shared/        — commonSelectors.ts (getTopMerchants, getRecurringExpenses —
-                             von mehreren Tabs genutzt)
+  features/shared/        — commonSelectors.ts (getTopMerchants, getRecurringExpenses,
+                             getFixedCostNames — von mehreren Tabs genutzt)
   charts/                 — chartTheme.ts (BASE/xScale/yScale/darkAxes), chartManager.ts
                              (mountChart(), WeakMap-basiert, registriert Chart.js + den
                              Datums-Adapter einmalig)
@@ -76,9 +76,28 @@ Jeder Tab folgt demselben Muster: `mount<Tab>View(container, store[, actions])` 
 
 Alle Detail-Tabellen folgen dem gleichen Schema mit Delta-Pfeilen (▲/▼):
 
-- **Monate → "Monatliche Detailübersicht":** Spalten Monat, Einnahmen (▲/▼), Ausgaben (▲/▼), Netto, Sparquote, Dividenden, Investiert, Steuern, Karten-Tx, Gesamt-Tx. Nutzt `buildMonthlySnapshots` und `computeDetailTableRows` aus `deepdive/selectors.ts`. Zeilen-Highlighting für besten/schlechtesten Monat (`row-best`/`row-worst`).
-- **Jahre → "Jahres-Übersicht":** Einnahmen (▲/▼ YoY) und Ausgaben (▲/▼ YoY). Gebühren und Steuern in `var(--text-muted)`.
+- **Monate → "Monatliche Detailübersicht":** Spalten Monat, Einnahmen (▲/▼), Ausgaben (▲/▼), Netto, Sparquote, Dividenden, Investiert, Karten-Tx, Gesamt-Tx. Nutzt `buildMonthlySnapshots` und `computeDetailTableRows` aus `deepdive/selectors.ts`. Zeilen-Highlighting für besten/schlechtesten Monat (`row-best`/`row-worst`).
+- **Jahre → "Jahres-Übersicht":** Einnahmen (▲/▼ YoY) und Ausgaben (▲/▼ YoY). Gebühren in `var(--text-muted)`.
 - **Monatsvergleich → "Detailvergleich":** Fettgedruckte Labels, Werte in `var(--text-dim)`, Delta-Spalte mit ▲/▼-Pfeilen.
+
+### Monatsvergleich-Tab: Detailsektionen
+
+Zwischen der Erkenntnisse/Kategorie-Zeile und dem Detailvergleich rendert der Tab fünf datenreiche Vergleichssektionen (Selektoren in `monthcompare/selectors.ts`):
+
+1. **Händler-Vergleich** (`getMerchantComparison`) — Top-Händler mit Anzahl, Summe und Delta pro Monat, inkl. visueller Balken.
+2. **Neue & weggefallene Händler** (`getUniqueMerchants`) — Händler, die nur in einem der beiden Monate auftauchen.
+3. **Top-Einzelausgaben** (`getTopSingleExpenses`) — größte Einzeltransaktionen je Monat mit Datum.
+4. **Dividenden-Vergleich** (`getDividendComparison`) — Ausschüttungen (Anzahl) und Dividendensumme je Monat mit Delta (Netto, siehe Dividenden-Abschnitt unten).
+5. **Wiederkehrende Ausgaben** (`getRecurringExpensesDelta`) — geteilte Fixkosten beider Monate mit Delta, nutzt `getFixedCostNames`.
+
+### Zeitverlauf-Tab: zwei zusätzliche Charts
+
+- **Ausgaben nach Top-Händlern** (Stacked Bar, `getMerchantTimelineData`) — die 6 größten Händler nach Ausgaben, gestapelt über alle Monate.
+- **Fixkosten vs. variable Ausgaben** (Stacked Bar, `getFixVarTimelineData`) — trennt monatliche Ausgaben in Fixkosten (blau) und Variable (bernstein) anhand von `getFixedCostNames`.
+
+### Fixkosten-Erkennung (`getFixedCostNames` in `commonSelectors.ts`)
+
+Ein Händler gilt als **Fixkosten**, wenn er (1) in mindestens 3 Monaten als Ausgabe auftaucht **und** (2) sein Monatsbetrag stabil ist (Variationskoeffizient std/mean ≤ 0,30). Damit werden Miete, Versicherungen, Fitness, Strom, Handy erfasst, während häufige aber schwankende Ausgaben (Supermärkte, Drogerien, Amazon) korrekt als variabel gelten. Der Schwellwert wurde an echten Daten kalibriert: Miete/Versicherung/Fitness liegen bei CV 0,0–0,22, Supermärkte/Shopping bei 0,39+.
 
 ### Vergleich-Tab entfernt
 
@@ -106,22 +125,28 @@ Nur Transaktionen ab **01.01.2024** werden berücksichtigt (Konstante `MIN_DATE`
 .filter(r => r._date !== null && r._date >= MIN_DATE)
 ```
 
-### Brutto/Netto bei Dividenden, Zinsen, Steuerkorrekturen
+### Dividenden kommen netto an — keine Steuer-Ausweisung
 
-Wichtig für jeden, der an `analyze()` arbeitet: Das `amount`-Feld vieler CSV-Exporte (z.B. Trade Republic) ist bei `DIVIDEND`/`INTEREST_PAYMENT`/`TAX_OPTIMIZATION`-Zeilen der **Bruttobetrag vor Steuerabzug** — die tatsächlich geflossene Summe ist `amount + tax` (tax trägt bereits das richtige Vorzeichen). Bei `BUY`/`SELL` bleibt `amount` unverändert (Kostenbasis/Erlös ohne Steuer/Gebühr, Gebühr wird separat in `totalFee` erfasst):
+Wichtig für jeden, der an `analyze()` arbeitet: Bei `DIVIDEND`/`INTEREST_PAYMENT`/`TAX_OPTIMIZATION`-Zeilen ist das `amount`-Feld der Betrag vor Steuerabzug; die tatsächlich geflossene Summe ist `amount + tax` (tax trägt bereits das richtige Vorzeichen). Bei `BUY`/`SELL` bleibt `amount` unverändert (Kostenbasis/Erlös ohne Steuer/Gebühr, Gebühr wird separat in `totalFee` erfasst):
 
 ```ts
 const amt = (isBuy || isSell) ? rawAmt : rawAmt + tax;
 ```
 
+`_amt` ist damit durchgängig der **netto zugeflossene Betrag**. Da die Dividenden bereits mit Steuerabzug ankommen, wird die Steuer **nirgends mehr separat ausgewiesen** — Brutto/Steuer/Netto-Aufschlüsselungen wurden seitenweit entfernt (Kategorien, Jahre, Monate, Monatsvergleich, Übersicht-Kennzahlen, Empfehlungen). Es gibt daher kein `totalTax` mehr und `YearAgg`/`ByAssetAgg` tragen kein `tax`-Feld. Dividenden werden überall nur noch als Nettobetrag angezeigt.
+
 Als Konsequenz schließt `expCat` (Ausgaben nach Kategorie) Dividenden/Zinsen explizit aus, da vereinzelte Korrekturbuchungen (Storno einer Dividende) netto negativ sein können, ohne eine echte Ausgabenkategorie zu sein.
+
+### Händlername aus Beschreibung ableiten
+
+Banküberweisungen (Miete, Versicherung, Nebenkosten) kommen oft mit leerem `name`-Feld an — der Empfänger steht nur in der Beschreibung (z.B. `"Outgoing transfer for Jens Spitzner (DE47…)"` oder `"Sepa Direct Debit transfer to Vodafone GmbH (DE13…)"`). `analyze()` extrahiert den Empfänger per `payeeFromDescription()` aus der Beschreibung, wenn die Namensspalte leer ist. Ohne das würden diese wiederkehrenden Kosten in einem namenlosen „Sonstiges"-Topf zusammenfallen und die Fixkosten-Erkennung in den frühen Monaten (Überweisungen statt benannter Buchungen) zu niedrig ausfallen. Da dies auf der Domain-Ebene passiert, profitieren Händlerlisten, Vergleiche und Fixkosten-Erkennung gleichermaßen.
 
 ### Analysis-Objekt
 
 `analyze()` liefert (typisiert in `src/domain/types.ts`):
 
 - **Rohdaten:** `enriched`, `cash`, `inc`, `exp`, `buys`, `sells`, `divs`
-- **Aggregate:** `totalInc`, `totalExp`, `totalInv`, `totalSold`, `totalDiv`, `netBal`, `totalFee`, `totalTax`
+- **Aggregate:** `totalInc`, `totalExp`, `totalInv`, `totalSold`, `totalDiv`, `netBal`, `totalFee`
 - **Zeitlich:** `months` (Objekt pro Monat), `mKeys` (sortierte Monats-Keys), `years`, `yKeys`
 - **Kategorien:** `byType`, `byAsset`, `byAssetClass`, `expCat`, `merchants`
 - **Statistik:** `outliers`, `subscriptions` (wiederkehrende Ausgaben), `avgInc`, `avgExp`, `avgNet`, `mean`, `std`, `mc`
@@ -132,9 +157,9 @@ Als Konsequenz schließt `expCat` (Ausgaben nach Kategorie) Dividenden/Zinsen ex
 
 ## Testing
 
-- `npm test` — Vitest-Suite gegen `src/` (aktuell 222 Tests, 20 Test-Dateien). Das ist die einzige Regressionsabsicherung.
+- `npm test` — Vitest-Suite gegen `src/` (aktuell 221 Tests, 20 Test-Dateien). Das ist die einzige Regressionsabsicherung.
 - `npm run typecheck` — TypeScript-Check ohne Build (`tsc --noEmit`).
-- Fixtures unter `test/fixtures/` decken u.a. ab: Datumsfilter, Brutto/Netto-Dividendenlogik, Korrekturbuchungen, BUY/SELL-Gebührenbehandlung, deutsche CSV-Spaltennamen mit Semikolon-Trennung.
+- Fixtures unter `test/fixtures/` decken u.a. ab: Datumsfilter, Netto-Dividendenlogik (`amount + tax`), Korrekturbuchungen, BUY/SELL-Gebührenbehandlung, deutsche CSV-Spaltennamen mit Semikolon-Trennung.
 - Vor jedem Merge auf `main`: `npm run typecheck && npm test && npm run build` — der Workflow `.github/workflows/pages-vite.yml` führt genau das bei jedem Push auf `main` aus, bevor deployed wird.
 
 ## V2-Migration — Historie (Phase 0–5, abgeschlossen)
@@ -167,4 +192,4 @@ CSV-Upload-Fehler sichtbar gemacht: Falls `parseCSV()`/`analyze()` eine Exceptio
 | #33 | Phase 5 Cutover — Inline-Script entfernt |
 | #34 | Post-Cutover-Fix: CSV-Upload-Fehler sichtbar machen |
 | #40 | Deep-Dive in Übersicht integriert, Emojis entfernt (gemerged) |
-| #46 | Tabellen vereinheitlicht, Detail-Tabelle nach Monate, Vergleich-Tab entfernt (offen) |
+| #46 | Tabellen vereinheitlicht, Detail-Tabelle nach Monate, Vergleich-Tab entfernt; Monatsvergleich-Detailsektionen + Zeitverlauf-Charts (Top-Händler, Fixkosten vs. Variable); Dividenden-Steuer seitenweit entfernt; CV-basierte Fixkosten-Erkennung + Empfänger-Extraktion aus Beschreibung (offen) |
