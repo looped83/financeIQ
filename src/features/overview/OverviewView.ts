@@ -141,9 +141,9 @@ function view(a: Analysis | null): TemplateResult {
             ? html`<div style="padding:.5rem;color:var(--text-muted);font-size:.82rem;">Keine wiederkehrenden Zahlungen erkannt.</div>`
             : html`
                 ${recurring.rows.map((s) => html`
-                  <div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
-                    <div><span style="color:var(--text)">${s.name}</span> <span style="color:var(--text-muted);font-size:.72rem;">(${s.monthCount} Monate)</span></div>
-                    <div style="display:flex;align-items:center;gap:.6rem;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
+                    <div style="flex:1;min-width:0;"><span style="color:var(--text)">${s.name}</span> <span style="color:var(--text-muted);font-size:.72rem;">(${s.monthCount} Monate)</span></div>
+                    <div style="display:flex;align-items:center;gap:.6rem;flex-shrink:0;white-space:nowrap;">
                       <span class="neg">${s.perMonth}/Mo</span>
                       <span style="color:var(--text-muted);font-size:.72rem;">≈ ${s.perYear}/Jahr</span>
                     </div>
