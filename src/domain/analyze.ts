@@ -37,6 +37,20 @@ function parseDate(v: string | undefined): Date | null {
   return null;
 }
 
+/**
+ * Bank transfers (rent, insurance, utilities) often arrive with an empty `name`
+ * column — the payee lives only in the description, e.g.
+ * "Outgoing transfer for Jens Spitzner (DE47…)" or
+ * "Sepa Direct Debit transfer to Vodafone GmbH (DE13…)".
+ * Extract the payee so these recurring costs aggregate under a stable name
+ * instead of collapsing into a single nameless "Sonstiges" bucket. The capture
+ * stops before the trailing IBAN in parentheses.
+ */
+function payeeFromDescription(desc: string): string {
+  const m = desc.match(/transfer (?:for|to) (.+?)(?:\s*\((?:[A-Z]{2}\d)|$)/i);
+  return m ? m[1]!.trim() : '';
+}
+
 export function analyze(rows: RawRow[]): Analysis {
   const amtCol = findCol(rows, ['amount', 'betrag', 'value', 'wert']);
   const dateCol = findCol(rows, ['date', 'datum', 'buchungsdatum', 'valuta']);
@@ -55,9 +69,10 @@ export function analyze(rows: RawRow[]): Analysis {
     const date = dateCol ? parseDate(r[dateCol]) : null;
     const type = typeCol ? r[typeCol] ?? '' : '';
     const cat = catCol ? r[catCol] ?? '' : '';
-    const name = nameCol ? r[nameCol] ?? '' : '';
     const asset = assetCol ? r[assetCol] ?? '' : '';
     const desc = descCol ? r[descCol] ?? '' : '';
+    let name = nameCol ? r[nameCol] ?? '' : '';
+    if (!name.trim() && desc) name = payeeFromDescription(desc);
     const month = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}` : '';
     const year = date ? String(date.getFullYear()) : '';
     const isBuy = type === 'BUY';
