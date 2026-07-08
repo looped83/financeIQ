@@ -121,15 +121,13 @@ function view(a: Analysis | null): TemplateResult {
           ${incomeSources.length === 0
             ? html`<div style="padding:.5rem;color:var(--text-muted);font-size:.82rem;">Keine Einnahmen erkannt.</div>`
             : incomeSources.map((s) => html`
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
-                  <div><span style="color:var(--text)">${s.label}</span> <span style="color:var(--text-muted);font-size:.72rem;">(${s.count}×)</span></div>
-                  <div style="display:flex;align-items:center;gap:.8rem;">
-                    <div style="width:60px;background:var(--surface3);border-radius:3px;height:4px;overflow:hidden;">
-                      <div style="width:${s.pct}%;height:100%;background:var(--income);border-radius:3px;"></div>
-                    </div>
-                    <strong class="pos" style="min-width:80px;text-align:right;">${s.total}</strong>
-                    <span style="color:var(--text-muted);min-width:40px;text-align:right;">${s.pctLabel}</span>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 56px auto 42px;align-items:center;gap:.7rem;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
+                  <div style="min-width:0;"><span style="color:var(--text)">${s.label}</span> <span style="color:var(--text-muted);font-size:.72rem;">(${s.count}×)</span></div>
+                  <div style="background:var(--surface3);border-radius:3px;height:4px;overflow:hidden;">
+                    <div style="width:${s.pct}%;height:100%;background:var(--income);border-radius:3px;"></div>
                   </div>
+                  <strong class="pos" style="text-align:right;white-space:nowrap;">${s.total}</strong>
+                  <span style="color:var(--text-muted);text-align:right;white-space:nowrap;">${s.pctLabel}</span>
                 </div>
               `)}
         </div>
