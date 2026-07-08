@@ -182,6 +182,187 @@ export function getMonthDeltaTableRows(a: MonthAgg, b: MonthAgg, analysis: Analy
   return rows;
 }
 
+// ── 1. Händler-Vergleich ──
+
+export interface MerchantCompareRow {
+  name: string;
+  countA: number;
+  countB: number;
+  totalA: number;
+  totalB: number;
+  delta: number;
+  deltaPositive: boolean;
+}
+
+export function getMerchantComparison(analysis: Analysis, monthA: string, monthB: string, limit = 10): MerchantCompareRow[] {
+  const mapA = new Map<string, { count: number; total: number }>();
+  const mapB = new Map<string, { count: number; total: number }>();
+
+  for (const r of analysis.enriched) {
+    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
+    const name = r._name || 'Sonstiges';
+    if (r._month === monthA) {
+      const e = mapA.get(name) ?? { count: 0, total: 0 };
+      e.count++;
+      e.total += Math.abs(r._amt);
+      mapA.set(name, e);
+    }
+    if (r._month === monthB) {
+      const e = mapB.get(name) ?? { count: 0, total: 0 };
+      e.count++;
+      e.total += Math.abs(r._amt);
+      mapB.set(name, e);
+    }
+  }
+
+  const allNames = new Set([...mapA.keys(), ...mapB.keys()]);
+  const rows: MerchantCompareRow[] = [];
+  for (const name of allNames) {
+    const a = mapA.get(name) ?? { count: 0, total: 0 };
+    const b = mapB.get(name) ?? { count: 0, total: 0 };
+    const delta = b.total - a.total;
+    rows.push({ name, countA: a.count, countB: b.count, totalA: a.total, totalB: b.total, delta, deltaPositive: delta >= 0 });
+  }
+
+  rows.sort((a, b) => (b.totalA + b.totalB) - (a.totalA + a.totalB));
+  return rows.slice(0, limit);
+}
+
+// ── 2. Neue & weggefallene Händler ──
+
+export interface UniqueExpense {
+  name: string;
+  total: number;
+  count: number;
+}
+
+export function getUniqueMerchants(analysis: Analysis, monthA: string, monthB: string): { onlyA: UniqueExpense[]; onlyB: UniqueExpense[] } {
+  const mapA = new Map<string, { count: number; total: number }>();
+  const mapB = new Map<string, { count: number; total: number }>();
+
+  for (const r of analysis.enriched) {
+    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
+    const name = r._name || 'Sonstiges';
+    if (r._month === monthA) {
+      const e = mapA.get(name) ?? { count: 0, total: 0 };
+      e.count++;
+      e.total += Math.abs(r._amt);
+      mapA.set(name, e);
+    }
+    if (r._month === monthB) {
+      const e = mapB.get(name) ?? { count: 0, total: 0 };
+      e.count++;
+      e.total += Math.abs(r._amt);
+      mapB.set(name, e);
+    }
+  }
+
+  const onlyA: UniqueExpense[] = [];
+  const onlyB: UniqueExpense[] = [];
+  for (const [name, v] of mapA) {
+    if (!mapB.has(name)) onlyA.push({ name, total: v.total, count: v.count });
+  }
+  for (const [name, v] of mapB) {
+    if (!mapA.has(name)) onlyB.push({ name, total: v.total, count: v.count });
+  }
+  onlyA.sort((a, b) => b.total - a.total);
+  onlyB.sort((a, b) => b.total - a.total);
+
+  return { onlyA: onlyA.slice(0, 8), onlyB: onlyB.slice(0, 8) };
+}
+
+// ── 3. Top-Einzelausgaben ──
+
+export interface TopExpense {
+  name: string;
+  amount: number;
+  date: string;
+}
+
+export function getTopSingleExpenses(analysis: Analysis, month: string, limit = 5): TopExpense[] {
+  const txs = analysis.enriched
+    .filter((r) => r._month === month && r._amt < 0 && !r._isBuy && !r._isSell)
+    .sort((a, b) => a._amt - b._amt)
+    .slice(0, limit);
+
+  return txs.map((r) => ({
+    name: r._name || r._desc || 'Unbekannt',
+    amount: Math.abs(r._amt),
+    date: r._date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+  }));
+}
+
+// ── 4. Dividenden-Vergleich ──
+
+export interface DividendComparison {
+  countA: number;
+  countB: number;
+  grossA: number;
+  grossB: number;
+  taxA: number;
+  taxB: number;
+  netA: number;
+  netB: number;
+}
+
+export function getDividendComparison(analysis: Analysis, monthA: string, monthB: string): DividendComparison {
+  let countA = 0, countB = 0, grossA = 0, grossB = 0, taxA = 0, taxB = 0;
+
+  for (const r of analysis.enriched) {
+    if (!r._isDiv) continue;
+    if (r._month === monthA) {
+      countA++;
+      grossA += r._amt + Math.abs(r._tax);
+      taxA += Math.abs(r._tax);
+    }
+    if (r._month === monthB) {
+      countB++;
+      grossB += r._amt + Math.abs(r._tax);
+      taxB += Math.abs(r._tax);
+    }
+  }
+
+  return {
+    countA, countB,
+    grossA, grossB,
+    taxA, taxB,
+    netA: grossA - taxA,
+    netB: grossB - taxB,
+  };
+}
+
+// ── 5. Wiederkehrende Ausgaben Delta ──
+
+export interface RecurringDelta {
+  name: string;
+  amountA: number;
+  amountB: number;
+  delta: number;
+  deltaPositive: boolean;
+}
+
+export function getRecurringExpensesDelta(analysis: Analysis, monthA: string, monthB: string): RecurringDelta[] {
+  const mapA = new Map<string, number>();
+  const mapB = new Map<string, number>();
+
+  for (const sub of analysis.subscriptions) {
+    if (sub.months.has(monthA)) mapA.set(sub.name, sub.amt);
+    if (sub.months.has(monthB)) mapB.set(sub.name, sub.amt);
+  }
+
+  const shared: RecurringDelta[] = [];
+  for (const [name, amtA] of mapA) {
+    if (mapB.has(name)) {
+      const amtB = mapB.get(name)!;
+      const delta = Math.abs(amtB) - Math.abs(amtA);
+      shared.push({ name, amountA: Math.abs(amtA), amountB: Math.abs(amtB), delta, deltaPositive: delta <= 0 });
+    }
+  }
+
+  shared.sort((a, b) => (b.amountA + b.amountB) - (a.amountA + a.amountB));
+  return shared;
+}
+
 export function getMonthMetricTimelineData(
   analysis: Analysis, metric: MonthCompareMetric, monthA: string, monthB: string,
 ): { labels: string[]; values: number[]; highlightA: number; highlightB: number } {

@@ -10,10 +10,15 @@ import { subscribeSelected, type Store } from '../../state/store';
 import {
   computeMonthInsights,
   computeMonthKpis,
+  getDividendComparison,
+  getMerchantComparison,
   getMonthCategoryComparison,
   getMonthDeltaTableRows,
   getMonthMetricBarData,
   getMonthMetricTimelineData,
+  getRecurringExpensesDelta,
+  getTopSingleExpenses,
+  getUniqueMerchants,
 } from './selectors';
 
 const METRIC_LABELS: Record<MonthCompareMetric, string> = {
@@ -65,6 +70,12 @@ function view(state: AppState, actions: AppActions): TemplateResult {
   const kpis = computeMonthKpis(mA, mB);
   const insights = computeMonthInsights(mA, mB, labelA, labelB, a, monthA, monthB);
   const deltaRows = getMonthDeltaTableRows(mA, mB, a, monthA, monthB);
+  const merchants = getMerchantComparison(a, monthA, monthB);
+  const unique = getUniqueMerchants(a, monthA, monthB);
+  const topA = getTopSingleExpenses(a, monthA);
+  const topB = getTopSingleExpenses(a, monthB);
+  const divs = getDividendComparison(a, monthA, monthB);
+  const recurring = getRecurringExpensesDelta(a, monthA, monthB);
 
   return html`
     <div class="compare-header">
@@ -141,6 +152,115 @@ function view(state: AppState, actions: AppActions): TemplateResult {
         </div>
       </div>
     </div>
+
+    ${merchants.length > 0 ? html`
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header"><span class="card-title">Händler-Vergleich — Top Ausgaben</span></div>
+      <div style="overflow-x:auto">
+        <table class="dt">
+          <thead><tr><th>Händler</th><th>${labelA}</th><th></th><th>${labelB}</th><th></th><th>Delta</th></tr></thead>
+          <tbody>${merchants.map((m) => html`
+            <tr>
+              <td><strong>${m.name}</strong></td>
+              <td style="color:var(--text-dim)">${m.countA}× ${fmt(m.totalA)}</td>
+              <td><div style="background:rgba(59,130,246,.6);height:8px;border-radius:4px;width:${Math.min(100, merchants[0]!.totalA > 0 ? (m.totalA / merchants[0]!.totalA) * 100 : 0)}%"></div></td>
+              <td style="color:var(--text-dim)">${m.countB}× ${fmt(m.totalB)}</td>
+              <td><div style="background:rgba(139,92,246,.6);height:8px;border-radius:4px;width:${Math.min(100, merchants[0]!.totalB > 0 ? (m.totalB / merchants[0]!.totalB) * 100 : 0)}%"></div></td>
+              <td class=${m.delta <= 0 ? 'pos' : 'neg'}>${m.delta >= 0 ? '+' : ''}${fmt(m.delta)} ${deltaArrow(m.delta <= 0)}</td>
+            </tr>
+          `)}</tbody>
+        </table>
+      </div>
+    </div>
+    ` : ''}
+
+    ${unique.onlyA.length > 0 || unique.onlyB.length > 0 ? html`
+    <div class="g2" style="margin-bottom:1.2rem;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Nur in ${labelA}</span></div>
+        <div style="padding:.2rem 0">
+          ${unique.onlyA.length > 0 ? unique.onlyA.map((u) => html`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem .8rem;border-bottom:1px solid var(--border)">
+              <span style="color:var(--text);font-size:.82rem">${u.name} <span style="color:var(--text-muted);font-size:.72rem">${u.count}×</span></span>
+              <strong style="color:var(--expense);font-size:.82rem">${fmt(u.total)}</strong>
+            </div>
+          `) : html`<div style="padding:.5rem .8rem;color:var(--text-muted);font-size:.82rem">Keine exklusiven Händler</div>`}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Nur in ${labelB}</span></div>
+        <div style="padding:.2rem 0">
+          ${unique.onlyB.length > 0 ? unique.onlyB.map((u) => html`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem .8rem;border-bottom:1px solid var(--border)">
+              <span style="color:var(--text);font-size:.82rem">${u.name} <span style="color:var(--text-muted);font-size:.72rem">${u.count}×</span></span>
+              <strong style="color:var(--expense);font-size:.82rem">${fmt(u.total)}</strong>
+            </div>
+          `) : html`<div style="padding:.5rem .8rem;color:var(--text-muted);font-size:.82rem">Keine exklusiven Händler</div>`}
+        </div>
+      </div>
+    </div>
+    ` : ''}
+
+    <div class="g2" style="margin-bottom:1.2rem;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Top-Einzelausgaben ${labelA}</span></div>
+        <div style="padding:.2rem 0">
+          ${topA.map((t, i) => html`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem .8rem;border-bottom:1px solid var(--border)">
+              <span style="color:var(--text);font-size:.82rem"><span style="color:var(--text-muted);font-size:.72rem">${i + 1}.</span> ${t.name} <span style="color:var(--text-muted);font-size:.72rem">${t.date}</span></span>
+              <strong style="color:var(--expense);font-size:.82rem">${fmt(t.amount)}</strong>
+            </div>
+          `)}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Top-Einzelausgaben ${labelB}</span></div>
+        <div style="padding:.2rem 0">
+          ${topB.map((t, i) => html`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem .8rem;border-bottom:1px solid var(--border)">
+              <span style="color:var(--text);font-size:.82rem"><span style="color:var(--text-muted);font-size:.72rem">${i + 1}.</span> ${t.name} <span style="color:var(--text-muted);font-size:.72rem">${t.date}</span></span>
+              <strong style="color:var(--expense);font-size:.82rem">${fmt(t.amount)}</strong>
+            </div>
+          `)}
+        </div>
+      </div>
+    </div>
+
+    ${divs.countA > 0 || divs.countB > 0 ? html`
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header"><span class="card-title">Dividenden-Vergleich</span></div>
+      <div style="overflow-x:auto">
+        <table class="dt">
+          <thead><tr><th>Kennzahl</th><th>${labelA}</th><th>${labelB}</th><th>Delta</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Ausschüttungen</strong></td><td style="color:var(--text-dim)">${divs.countA}</td><td style="color:var(--text-dim)">${divs.countB}</td><td class=${divs.countB >= divs.countA ? 'pos' : 'neg'}>${divs.countB - divs.countA >= 0 ? '+' : ''}${divs.countB - divs.countA}</td></tr>
+            <tr><td><strong>Brutto</strong></td><td style="color:var(--text-dim)">${fmt(divs.grossA)}</td><td style="color:var(--text-dim)">${fmt(divs.grossB)}</td><td class=${divs.grossB >= divs.grossA ? 'pos' : 'neg'}>${fmt(divs.grossB - divs.grossA)} ${deltaArrow(divs.grossB >= divs.grossA)}</td></tr>
+            <tr><td><strong>Steuer</strong></td><td style="color:var(--text-muted)">${fmt(divs.taxA)}</td><td style="color:var(--text-muted)">${fmt(divs.taxB)}</td><td style="color:var(--text-muted)">${fmt(divs.taxB - divs.taxA)}</td></tr>
+            <tr><td><strong>Netto</strong></td><td style="color:var(--dividend)">${fmt(divs.netA)}</td><td style="color:var(--dividend)">${fmt(divs.netB)}</td><td class=${divs.netB >= divs.netA ? 'pos' : 'neg'}>${fmt(divs.netB - divs.netA)} ${deltaArrow(divs.netB >= divs.netA)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    ` : ''}
+
+    ${recurring.length > 0 ? html`
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header"><span class="card-title">Wiederkehrende Ausgaben</span></div>
+      <div style="overflow-x:auto">
+        <table class="dt">
+          <thead><tr><th>Ausgabe</th><th>${labelA}</th><th>${labelB}</th><th>Delta</th></tr></thead>
+          <tbody>${recurring.map((r) => html`
+            <tr>
+              <td><strong>${r.name}</strong></td>
+              <td style="color:var(--text-dim)">${fmt(r.amountA)}</td>
+              <td style="color:var(--text-dim)">${fmt(r.amountB)}</td>
+              <td class=${r.deltaPositive ? 'pos' : 'neg'}>${r.delta >= 0 ? '+' : ''}${fmt(r.delta)} ${r.delta !== 0 ? deltaArrow(r.deltaPositive) : ''}</td>
+            </tr>
+          `)}</tbody>
+        </table>
+      </div>
+    </div>
+    ` : ''}
 
     <div class="card">
       <div class="card-header"><span class="card-title">Detailvergleich</span></div>
