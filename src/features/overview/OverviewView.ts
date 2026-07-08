@@ -105,9 +105,9 @@ function view(a: Analysis | null): TemplateResult {
         <div class="card-header"><span class="card-title">Top-Händler / Empfänger</span></div>
         <div style="overflow-x:auto">
           <table class="dt">
-            <thead><tr><th>Händler</th><th>Zahlungen</th><th>Ø Betrag</th><th>Gesamt</th></tr></thead>
+            <thead><tr><th>Händler</th><th>Zahlungen</th><th>Gesamt</th></tr></thead>
             <tbody>${merchants.map((m) => html`
-              <tr><td>${m.name}</td><td>${m.count}×</td><td class="neg">${m.avg}</td><td class="neg">${m.total}</td></tr>
+              <tr><td>${m.name}</td><td>${m.count}×</td><td class="neg">${m.total}</td></tr>
             `)}</tbody>
           </table>
         </div>
