@@ -10,6 +10,7 @@ import { subscribeSelected, type Store } from '../../state/store';
 import {
   computeMonthInsights,
   computeMonthKpis,
+  getCumulativeCashflowCompareData,
   getDividendComparison,
   getMerchantComparison,
   getMonthCategoryComparison,
@@ -76,6 +77,8 @@ function view(state: AppState, actions: AppActions): TemplateResult {
   const topB = getTopSingleExpenses(a, monthB);
   const divs = getDividendComparison(a, monthA, monthB);
   const recurring = getRecurringExpensesDelta(a, monthA, monthB);
+  const cumCash = getCumulativeCashflowCompareData(a, monthA, monthB);
+  const cumDelta = cumCash.cumB - cumCash.cumA;
 
   return html`
     <div class="compare-header">
@@ -136,6 +139,16 @@ function view(state: AppState, actions: AppActions): TemplateResult {
       </div>
       <div class="chart-wrap"><canvas data-chart="mc-timeline"></canvas></div>
       <div style="margin-top:.5rem;font-size:.72rem;color:var(--text-muted);">Die ausgewählten Monate sind hervorgehoben.</div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-header"><span class="card-title">Kumulierter Cashflow-Verlauf</span></div>
+      <div class="chart-wrap tall"><canvas data-chart="mc-cumcash"></canvas></div>
+      <div style="margin-top:.6rem;display:flex;flex-wrap:wrap;gap:1.2rem;font-size:.78rem;">
+        <span style="color:var(--text-muted)">Kum. bis <strong style="color:#3b82f6">${labelA}</strong>: ${fmt(cumCash.cumA)}</span>
+        <span style="color:var(--text-muted)">Kum. bis <strong style="color:#8b5cf6">${labelB}</strong>: ${fmt(cumCash.cumB)}</span>
+        <span style="color:var(--text-muted)">Veränderung: <strong style="color:${cumDelta >= 0 ? 'var(--income)' : 'var(--expense)'}">${cumDelta >= 0 ? '+' : ''}${fmt(cumDelta)} ${deltaArrow(cumDelta >= 0)}</strong></span>
+      </div>
     </div>
 
     <div class="g2" style="margin-bottom:1.2rem;">
@@ -341,6 +354,39 @@ function mountMonthCompareCharts(
         ...BASE, scales: darkAxes(),
         plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `${METRIC_LABELS[metric]}: ${fmt(c.parsed.y ?? 0)}` } } },
       } as ChartConfiguration<'bar'>['options'],
+    });
+  }
+
+  const cumCanvas = getCanvas(container, 'mc-cumcash');
+  if (cumCanvas) {
+    const cc = getCumulativeCashflowCompareData(analysis, monthA, monthB);
+    const pointRadius = cc.cumulative.map((_, i) => (i === cc.highlightA || i === cc.highlightB ? 6 : 2));
+    const pointColors = cc.cumulative.map((_, i) => {
+      if (i === cc.highlightA) return '#3b82f6';
+      if (i === cc.highlightB) return '#8b5cf6';
+      return 'rgba(148,163,184,.5)';
+    });
+    mountChart(cumCanvas, {
+      type: 'line',
+      data: {
+        labels: cc.labels,
+        datasets: [{
+          label: 'Kumulierter Cashflow',
+          data: cc.cumulative,
+          borderColor: '#22c55e',
+          borderWidth: 2.5,
+          pointRadius,
+          pointHoverRadius: 7,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: pointColors,
+          fill: { target: 'origin', above: 'rgba(34,197,94,.08)', below: 'rgba(239,68,68,.1)' },
+          tension: 0.3,
+        }],
+      },
+      options: {
+        ...BASE, interaction: { mode: 'index', intersect: false }, scales: darkAxes(),
+        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `Kumuliert: ${fmt(c.parsed.y ?? 0)}` } } },
+      } as ChartConfiguration<'line'>['options'],
     });
   }
 

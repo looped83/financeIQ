@@ -352,6 +352,40 @@ export function getRecurringExpensesDelta(analysis: Analysis, monthA: string, mo
   return shared;
 }
 
+export interface CumulativeCashflowCompareData {
+  labels: string[];
+  cumulative: number[];
+  highlightA: number;
+  highlightB: number;
+  cumA: number;
+  cumB: number;
+}
+
+/**
+ * Cumulative net cashflow across all months (same running-sum logic as the Zeitverlauf
+ * tab's "Kumulierter Cashflow" monthly view), with the two compared months flagged so
+ * the view can highlight them and surface the cumulative delta between them.
+ */
+export function getCumulativeCashflowCompareData(
+  analysis: Analysis, monthA: string, monthB: string,
+): CumulativeCashflowCompareData {
+  let cum = 0;
+  const cumulative = analysis.mKeys.map((mk) => {
+    cum += analysis.months[mk]?.net ?? 0;
+    return cum;
+  });
+  const highlightA = analysis.mKeys.indexOf(monthA);
+  const highlightB = analysis.mKeys.indexOf(monthB);
+  return {
+    labels: analysis.mKeys.map(mLabel),
+    cumulative,
+    highlightA,
+    highlightB,
+    cumA: highlightA >= 0 ? cumulative[highlightA]! : 0,
+    cumB: highlightB >= 0 ? cumulative[highlightB]! : 0,
+  };
+}
+
 export function getMonthMetricTimelineData(
   analysis: Analysis, metric: MonthCompareMetric, monthA: string, monthB: string,
 ): { labels: string[]; values: number[]; highlightA: number; highlightB: number } {
