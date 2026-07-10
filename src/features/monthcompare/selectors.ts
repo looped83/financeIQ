@@ -352,37 +352,60 @@ export function getRecurringExpensesDelta(analysis: Analysis, monthA: string, mo
   return shared;
 }
 
-export interface CumulativeCashflowCompareData {
-  labels: string[];
-  cumulative: number[];
-  highlightA: number;
-  highlightB: number;
-  cumA: number;
-  cumB: number;
+export interface IntraMonthCashflowData {
+  days: number[];
+  seriesA: (number | null)[];
+  seriesB: (number | null)[];
+  labelA: string;
+  labelB: string;
+  endA: number;
+  endB: number;
 }
 
 /**
- * Cumulative net cashflow across all months (same running-sum logic as the Zeitverlauf
- * tab's "Kumulierter Cashflow" monthly view), with the two compared months flagged so
- * the view can highlight them and surface the cumulative delta between them.
+ * Intra-month cumulative cashflow for the two compared months, indexed by day-of-month
+ * (1…31). Each series is the running sum of that month's cash movements (`a.cash` =
+ * everything except BUY/SELL) day by day, so the two months' cashflow trajectories can
+ * be overlaid and compared directly — not an account-balance overview across months.
+ * The final value of each line equals that month's net cashflow (income + expense).
+ * Days beyond a month's length are `null` so the shorter month's line ends naturally.
  */
-export function getCumulativeCashflowCompareData(
+export function getIntraMonthCashflowData(
   analysis: Analysis, monthA: string, monthB: string,
-): CumulativeCashflowCompareData {
-  let cum = 0;
-  const cumulative = analysis.mKeys.map((mk) => {
-    cum += analysis.months[mk]?.net ?? 0;
-    return cum;
-  });
-  const highlightA = analysis.mKeys.indexOf(monthA);
-  const highlightB = analysis.mKeys.indexOf(monthB);
+): IntraMonthCashflowData {
+  const build = (month: string): { cum: number[]; daysInMonth: number } => {
+    const daily = new Map<number, number>();
+    for (const r of analysis.cash) {
+      if (r._month !== month) continue;
+      const d = r._date.getDate();
+      daily.set(d, (daily.get(d) ?? 0) + r._amt);
+    }
+    const [y, m] = month.split('-').map(Number);
+    const daysInMonth = new Date(y!, m!, 0).getDate();
+    const cum: number[] = [];
+    let run = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      run += daily.get(d) ?? 0;
+      cum.push(run);
+    }
+    return { cum, daysInMonth };
+  };
+
+  const A = build(monthA);
+  const B = build(monthB);
+  const maxDay = Math.max(A.daysInMonth, B.daysInMonth);
+  const days = Array.from({ length: maxDay }, (_, i) => i + 1);
+  const pad = (x: { cum: number[]; daysInMonth: number }): (number | null)[] =>
+    days.map((d) => (d <= x.daysInMonth ? x.cum[d - 1]! : null));
+
   return {
-    labels: analysis.mKeys.map(mLabel),
-    cumulative,
-    highlightA,
-    highlightB,
-    cumA: highlightA >= 0 ? cumulative[highlightA]! : 0,
-    cumB: highlightB >= 0 ? cumulative[highlightB]! : 0,
+    days,
+    seriesA: pad(A),
+    seriesB: pad(B),
+    labelA: mLabel(monthA),
+    labelB: mLabel(monthB),
+    endA: A.cum[A.daysInMonth - 1] ?? 0,
+    endB: B.cum[B.daysInMonth - 1] ?? 0,
   };
 }
 

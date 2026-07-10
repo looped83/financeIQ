@@ -10,11 +10,11 @@ import { subscribeSelected, type Store } from '../../state/store';
 import {
   computeMonthInsights,
   computeMonthKpis,
-  getCumulativeCashflowCompareData,
   getDividendComparison,
   getMerchantComparison,
   getMonthCategoryComparison,
   getMonthDeltaTableRows,
+  getIntraMonthCashflowData,
   getMonthMetricBarData,
   getMonthMetricTimelineData,
   getRecurringExpensesDelta,
@@ -77,8 +77,8 @@ function view(state: AppState, actions: AppActions): TemplateResult {
   const topB = getTopSingleExpenses(a, monthB);
   const divs = getDividendComparison(a, monthA, monthB);
   const recurring = getRecurringExpensesDelta(a, monthA, monthB);
-  const cumCash = getCumulativeCashflowCompareData(a, monthA, monthB);
-  const cumDelta = cumCash.cumB - cumCash.cumA;
+  const intraCash = getIntraMonthCashflowData(a, monthA, monthB);
+  const cashDelta = intraCash.endB - intraCash.endA;
 
   return html`
     <div class="compare-header">
@@ -142,13 +142,14 @@ function view(state: AppState, actions: AppActions): TemplateResult {
     </div>
 
     <div class="card" style="margin-bottom:1.2rem;">
-      <div class="card-header"><span class="card-title">Kumulierter Cashflow-Verlauf</span></div>
+      <div class="card-header"><span class="card-title">Kumulierter Cashflow im Monatsverlauf</span></div>
       <div class="chart-wrap tall"><canvas data-chart="mc-cumcash"></canvas></div>
       <div style="margin-top:.6rem;display:flex;flex-wrap:wrap;gap:1.2rem;font-size:.78rem;">
-        <span style="color:var(--text-muted)">Kum. bis <strong style="color:#3b82f6">${labelA}</strong>: ${fmt(cumCash.cumA)}</span>
-        <span style="color:var(--text-muted)">Kum. bis <strong style="color:#8b5cf6">${labelB}</strong>: ${fmt(cumCash.cumB)}</span>
-        <span style="color:var(--text-muted)">Veränderung: <strong style="color:${cumDelta >= 0 ? 'var(--income)' : 'var(--expense)'}">${cumDelta >= 0 ? '+' : ''}${fmt(cumDelta)} ${deltaArrow(cumDelta >= 0)}</strong></span>
+        <span style="color:var(--text-muted)">Netto Ende <strong style="color:#3b82f6">${labelA}</strong>: ${fmt(intraCash.endA)}</span>
+        <span style="color:var(--text-muted)">Netto Ende <strong style="color:#8b5cf6">${labelB}</strong>: ${fmt(intraCash.endB)}</span>
+        <span style="color:var(--text-muted)">Differenz: <strong style="color:${cashDelta >= 0 ? 'var(--income)' : 'var(--expense)'}">${cashDelta >= 0 ? '+' : ''}${fmt(cashDelta)} ${deltaArrow(cashDelta >= 0)}</strong></span>
       </div>
+      <div style="margin-top:.4rem;font-size:.72rem;color:var(--text-muted);">Laufende Summe der Barumsätze je Tag des Monats — so lässt sich der Cashflow-Verlauf beider Monate direkt vergleichen.</div>
     </div>
 
     <div class="g2" style="margin-bottom:1.2rem;">
@@ -359,33 +360,31 @@ function mountMonthCompareCharts(
 
   const cumCanvas = getCanvas(container, 'mc-cumcash');
   if (cumCanvas) {
-    const cc = getCumulativeCashflowCompareData(analysis, monthA, monthB);
-    const pointRadius = cc.cumulative.map((_, i) => (i === cc.highlightA || i === cc.highlightB ? 6 : 2));
-    const pointColors = cc.cumulative.map((_, i) => {
-      if (i === cc.highlightA) return '#3b82f6';
-      if (i === cc.highlightB) return '#8b5cf6';
-      return 'rgba(148,163,184,.5)';
-    });
+    const ic = getIntraMonthCashflowData(analysis, monthA, monthB);
     mountChart(cumCanvas, {
       type: 'line',
       data: {
-        labels: cc.labels,
-        datasets: [{
-          label: 'Kumulierter Cashflow',
-          data: cc.cumulative,
-          borderColor: '#22c55e',
-          borderWidth: 2.5,
-          pointRadius,
-          pointHoverRadius: 7,
-          pointBackgroundColor: pointColors,
-          pointBorderColor: pointColors,
-          fill: { target: 'origin', above: 'rgba(34,197,94,.08)', below: 'rgba(239,68,68,.1)' },
-          tension: 0.3,
-        }],
+        labels: ic.days.map((d) => `${d}.`),
+        datasets: [
+          {
+            label: ic.labelA, data: ic.seriesA, borderColor: '#3b82f6', borderWidth: 2.5,
+            pointRadius: 0, pointHoverRadius: 5, backgroundColor: 'rgba(59,130,246,.08)',
+            fill: false, tension: 0.25, spanGaps: false,
+          },
+          {
+            label: ic.labelB, data: ic.seriesB, borderColor: '#8b5cf6', borderWidth: 2.5,
+            pointRadius: 0, pointHoverRadius: 5, backgroundColor: 'rgba(139,92,246,.08)',
+            fill: false, tension: 0.25, spanGaps: false,
+          },
+        ],
       },
       options: {
-        ...BASE, interaction: { mode: 'index', intersect: false }, scales: darkAxes(),
-        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `Kumuliert: ${fmt(c.parsed.y ?? 0)}` } } },
+        ...BASE, interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: { ...darkAxes().x, title: { display: true, text: 'Tag im Monat', color: '#8b9bb5', font: { size: 10 } } },
+          y: darkAxes().y,
+        },
+        plugins: { ...BASE.plugins, tooltip: { callbacks: { title: (items) => `Tag ${items[0]?.label ?? ''}`, label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } } },
       } as ChartConfiguration<'line'>['options'],
     });
   }
