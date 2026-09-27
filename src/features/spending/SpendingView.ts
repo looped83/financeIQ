@@ -59,7 +59,7 @@ function view(a: Analysis, fixVar: ReturnType<typeof getFixVarTimelineData>, sta
       { label: 'Ausreißer', value: String(k.outliers), sub: 'Buchungen > 2σ vom Schnitt', status: k.outliers ? 'warn' : 'good' },
     ])}
 
-    <div class="grid">
+    <div class="grid grid--charts">
       ${card({ title: 'Ausgaben nach Typ', sub: 'Pro Monat, gestapelt' }, chartBox('sp-types', 'Ausgaben nach Buchungstyp je Monat', '', seriesLegend(stacks.types)))}
       ${card({ title: 'Fixkosten vs. variabel', sub: 'Fix: stabile, mindestens dreimal wiederkehrende Empfänger' },
         chartBox('sp-fixvar', 'Fixkosten und variable Ausgaben je Monat', '', seriesLegend(stacks.fixVar)))}
