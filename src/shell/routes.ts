@@ -32,7 +32,7 @@ export const AREAS: Area[] = [
     ],
   },
   { id: 'ausgaben', label: 'Ausgaben', short: 'Ausgaben', icon: 'spending', mobile: true, usesPeriod: true },
-  { id: 'investments', label: 'Investments & Dividenden', short: 'Investments', icon: 'invest', mobile: false, usesPeriod: true },
+  { id: 'investments', label: 'Investment', short: 'Investment', icon: 'invest', mobile: false, usesPeriod: true },
   {
     id: 'vergleich', label: 'Vergleich', short: 'Vergleich', icon: 'compare', mobile: false, usesPeriod: false,
     subs: [

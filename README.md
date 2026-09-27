@@ -13,7 +13,7 @@ FinanceIQ organizes the analysis into 6 areas (sidebar on desktop, bottom bar on
 * Übersicht — headline KPIs, income vs. expenses, where the money goes, ratios, recurring costs, hints & recommendations
 * Cashflow — cumulative trend, monthly net and income sources · month table with savings rate · forecast
 * Ausgaben — spending by type and payee over time, fixed vs. variable, top merchants, recurring costs, outliers
-* Investments & Dividenden — dividends per month and per security, buy/sell volume, asset classes
+* Investment — dividends per month and per security, buy/sell volume, asset classes
 * Vergleich — two months side by side · year over year
 * Transaktionen — grouped by day, quick filters, search
 

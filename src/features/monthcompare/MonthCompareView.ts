@@ -7,7 +7,7 @@ import type { AppActions } from '../../state/appStore';
 import type { AppState, MonthCompareMetric } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { alpha, COLORS, SERIES } from '../../theme/palette';
-import { card, chartBox, deltaMark, emptyState, getCanvas, insight, legend, segmented } from '../../ui/components';
+import { card, chartBox, deltaMark, emptyState, getCanvas, insight, segmented } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import {
   computeMonthInsights,
@@ -81,7 +81,8 @@ function view(a: Analysis, monthA: string, monthB: string, metric: MonthCompareM
   const divs = getDividendComparison(a, monthA, monthB);
   const recurring = getRecurringExpensesDelta(a, monthA, monthB);
   const intra = getIntraMonthCashflowData(a, monthA, monthB);
-  const abLegend = legend([{ label: labelA, color: COLOR_A }, { label: labelB, color: COLOR_B }]);
+  const ab = [{ label: labelA, color: COLOR_A }, { label: labelB, color: COLOR_B }];
+  const abLines = ab.map((i) => ({ ...i, mark: 'line' as const }));
 
   return html`
     <section class="card">
@@ -111,17 +112,17 @@ function view(a: Analysis, monthA: string, monthB: string, metric: MonthCompareM
       ${card({
         title: 'Cashflow im Monatsverlauf',
         sub: html`Laufende Summe je Tag · Ende ${labelA}: <span class="num">${fmt(intra.endA)}</span> · ${labelB}: <span class="num">${fmt(intra.endB)}</span>`,
-      }, chartBox('mc-intra', 'Kumulierter Cashflow je Tag beider Monate'))}
+      }, chartBox('mc-intra', 'Kumulierter Cashflow je Tag beider Monate', '', abLines))}
     </div>
 
     ${card({
       title: `Verlauf: ${METRICS.find((m) => m.value === metric)!.label}`,
       sub: 'Alle Monate, die beiden gewählten hervorgehoben',
       actions: segmented('Kennzahl', METRICS, metric, (m) => actions.setMonthCompareMetric(m)),
-    }, html`${abLegend}${chartBox('mc-timeline', 'Kennzahl über alle Monate', 'sm')}`)}
+    }, chartBox('mc-timeline', 'Kennzahl über alle Monate', 'sm', ab))}
 
     <div class="grid">
-      ${card({ title: 'Ausgaben nach Kategorie' }, chartBox('mc-cat', 'Ausgaben je Kategorie in beiden Monaten', 'lg'))}
+      ${card({ title: 'Ausgaben nach Kategorie' }, chartBox('mc-cat', 'Ausgaben je Kategorie in beiden Monaten', 'lg', ab))}
       ${card({ title: 'Händler im Vergleich', sub: 'Größte Ausgaben, Differenz = zweiter minus erster Monat' }, merchants.length
         ? html`<ul class="rows">${merchants.map((m) => html`
             <li>
@@ -194,7 +195,7 @@ function charts(root: HTMLElement, a: Analysis, monthA: string, monthB: string, 
         backgroundColor: tl.values.map((_, i) => (i === tl.highlightA ? COLOR_A : i === tl.highlightB ? COLOR_B : alpha(COLORS.other, 0.45))),
       }],
     },
-    options: { ...INDEX_TOOLTIP, scales: axes(), plugins: { ...INDEX_TOOLTIP.plugins, legend: { display: false } } },
+    options: { ...INDEX_TOOLTIP, scales: axes() },
   });
 
   const cat = getMonthCategoryComparison(a, monthA, monthB);

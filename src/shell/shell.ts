@@ -35,12 +35,9 @@ export function createShell(el: ShellElements, store: Store<AppState>, actions: 
   function draw(): void {
     if (!route) return;
     const s = store.getState();
-    const outliers = s.analysis?.outliers.filter((r) => r._amt < 0).length ?? 0;
-    const badge = (a: Area) => (a.id === 'ausgaben' && outliers > 0 ? outliers : 0);
-
-    render(sidebar(s, route, badge, onReset), el.sidebar);
+    render(sidebar(s, route, onReset), el.sidebar);
     render(header(s, route, actions, onReset), el.header);
-    render(bottomNav(route, badge, sheetOpen, () => setSheet(!sheetOpen)), el.bottomNav);
+    render(bottomNav(route, sheetOpen, () => setSheet(!sheetOpen)), el.bottomNav);
     render(sheetOpen ? sheet(route, () => setSheet(false), onReset) : nothing, el.sheet);
     document.title = `${route.sub ? `${route.area.label} · ${route.sub.label}` : route.area.label} · FinanceIQ`;
   }
@@ -59,11 +56,10 @@ export function createShell(el: ShellElements, store: Store<AppState>, actions: 
   };
 }
 
-function navLink(a: Area, route: Route, count: number, extraClass = ''): TemplateResult {
+function navLink(a: Area, route: Route): TemplateResult {
   return html`
-    <a class="nav-item ${extraClass}" href=${href(a.id)} aria-current=${a.id === route.area.id ? 'page' : 'false'}>
+    <a class="nav-item" href=${href(a.id)} aria-current=${a.id === route.area.id ? 'page' : 'false'}>
       ${icon(a.icon)}<span class="nav-label">${a.label}</span>
-      ${count ? html`<span class="nav-badge" aria-label="${count} Ausreißer">${count}</span>` : nothing}
     </a>
   `;
 }
@@ -75,11 +71,11 @@ function fileInfo(s: AppState): string {
   return `${fmtN(a.enriched.length)} Buchungen${first ? ` · seit ${mLabel(first)}` : ''}`;
 }
 
-function sidebar(s: AppState, route: Route, badge: (a: Area) => number, onReset: () => void): TemplateResult {
+function sidebar(s: AppState, route: Route, onReset: () => void): TemplateResult {
   return html`
     <div class="brand"><span class="brand-mark">${icon('logo', 18)}</span>FinanceIQ</div>
     <nav aria-label="Hauptnavigation"><ul class="nav">
-      ${AREAS.map((a) => html`<li>${navLink(a, route, badge(a))}</li>`)}
+      ${AREAS.map((a) => html`<li>${navLink(a, route)}</li>`)}
     </ul></nav>
     <div class="file-card">
       <span>Aktuelle Datei</span>
@@ -151,18 +147,12 @@ function periodControl(s: AppState, actions: AppActions): TemplateResult {
   `;
 }
 
-function bottomNav(route: Route, badge: (a: Area) => number, sheetOpen: boolean, toggleSheet: () => void): TemplateResult {
+function bottomNav(route: Route, sheetOpen: boolean, toggleSheet: () => void): TemplateResult {
   const inMore = MORE.some((a) => a.id === route.area.id);
   return html`
     ${MOBILE.map((id) => {
       const a = AREAS.find((x) => x.id === id)!;
-      const count = badge(a);
-      return html`
-        <a href=${href(a.id)} aria-current=${a.id === route.area.id ? 'page' : 'false'}>
-          ${icon(a.icon, 22)}${a.short}
-          ${count ? html`<span class="nav-badge" aria-label="${count} Ausreißer">${count}</span>` : nothing}
-        </a>
-      `;
+      return html`<a href=${href(a.id)} aria-current=${a.id === route.area.id ? 'page' : 'false'}>${icon(a.icon, 22)}${a.short}</a>`;
     })}
     <button type="button" aria-current=${inMore ? 'page' : 'false'} aria-expanded=${sheetOpen ? 'true' : 'false'}
       aria-controls="more-sheet" @click=${toggleSheet}>${icon('more', 22)}Mehr</button>
@@ -175,7 +165,7 @@ function sheet(route: Route, close: () => void, onReset: () => void): TemplateRe
     <div class="sheet" id="more-sheet" role="dialog" aria-modal="true" aria-label="Weitere Bereiche">
       <div class="sheet-handle"></div>
       <ul class="nav">
-        ${MORE.map((a) => html`<li>${navLink(a, route, 0)}</li>`)}
+        ${MORE.map((a) => html`<li>${navLink(a, route)}</li>`)}
         <li><button type="button" class="nav-item" @click=${onReset}>${icon('upload')}<span class="nav-label">Neue Datei laden</span></button></li>
       </ul>
     </div>

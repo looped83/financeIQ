@@ -32,13 +32,19 @@ function view(a: Analysis, mode: Mode, actions: AppActions): TemplateResult {
   return html`
     ${card({
       title: 'Kumulierter Cashflow',
-      sub: `Nur Barumsätze · gestrichelt: ${MA_NOTE[mode]}`,
+      sub: 'Nur Barumsätze',
       actions: segmented('Auflösung', MODES, mode, (m) => actions.setTimelineView(m)),
-    }, chartBox('tl-main', 'Kumulierter Cashflow im Zeitverlauf', 'lg'))}
+    }, chartBox('tl-main', 'Kumulierter Cashflow im Zeitverlauf', 'lg', [
+      { label: 'Kumuliert', color: SERIES[0], mark: 'line' },
+      { label: MA_NOTE[mode], color: COLORS.textMuted, mark: 'dash' },
+    ]))}
 
     <div class="grid grid--wide-left">
       ${card({ title: 'Netto-Cashflow pro Monat', sub: `Ø ${a.avgNet >= 0 ? '+' : ''}${fmt(a.avgNet)} pro Monat` },
-        chartBox('tl-net', 'Netto-Cashflow je Monat'))}
+        chartBox('tl-net', 'Netto-Cashflow je Monat', '', [
+          { label: 'Überschuss', color: COLORS.income },
+          { label: 'Defizit', color: COLORS.expense },
+        ]))}
       ${card({ title: 'Einnahmenquellen', sub: `${fmt(a.totalInc)} gesamt` },
         sources.length
           ? barList(sources.map((s) => ({ label: s.label, sub: `${s.count}×`, value: s.total, share: s.pctLabel, pct: s.pct, barColor: COLORS.income })))
@@ -85,6 +91,6 @@ function charts(root: HTMLElement, a: Analysis, mode: Mode): void {
         backgroundColor: net.values.map((v) => (v >= 0 ? COLORS.income : COLORS.expense)),
       }],
     },
-    options: { ...INDEX_TOOLTIP, scales: axes(), plugins: { ...INDEX_TOOLTIP.plugins, legend: { display: false } } },
+    options: { ...INDEX_TOOLTIP, scales: axes() },
   });
 }
