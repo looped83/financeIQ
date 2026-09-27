@@ -6,7 +6,6 @@ import {
   Chart,
   DoughnutController,
   Filler,
-  Legend,
   LinearScale,
   LineController,
   LineElement,
@@ -22,11 +21,13 @@ import { track, untrack } from './registry';
 
 // Register only what the app draws (bar, line, doughnut) instead of every
 // controller/scale Chart.js ships — keeps the lazily loaded chart chunk small.
+// No Legend plugin: legends are HTML (ui/components chartBox), so they sit in
+// the same place on every card instead of wherever the canvas layout puts them.
 Chart.register(
   BarController, LineController, DoughnutController,
   BarElement, LineElement, PointElement, ArcElement,
   CategoryScale, LinearScale, TimeScale,
-  Filler, Legend, Tooltip,
+  Filler, Tooltip,
 );
 
 // Theme once, globally, so individual chart configs only carry their data.
@@ -45,14 +46,6 @@ d.elements.point.hoverRadius = 4;
 d.elements.point.hitRadius = 8;
 d.elements.arc.borderWidth = 2;
 d.elements.arc.borderColor = COLORS.surface;
-const legend = d.plugins.legend;
-legend.align = 'start';
-legend.labels.color = COLORS.textSecondary;
-legend.labels.usePointStyle = true;
-legend.labels.pointStyle = 'rectRounded';
-legend.labels.boxWidth = 8;
-legend.labels.boxHeight = 8;
-legend.labels.padding = 14;
 const tip = d.plugins.tooltip;
 tip.backgroundColor = COLORS.raised;
 tip.borderColor = COLORS.lineStrong;

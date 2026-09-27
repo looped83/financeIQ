@@ -6,7 +6,7 @@ import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, seriesColor } from '../../theme/palette';
-import { card, chartBox, getCanvas, kpiGrid } from '../../ui/components';
+import { card, chartBox, getCanvas, kpiGrid, type LegendItem } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import { getRecurringExpenses, getTopMerchants } from '../shared/commonSelectors';
 import {
@@ -25,11 +25,25 @@ export function mountSpendingView(container: HTMLElement, store: Store<AppState>
     const a = state.analysis;
     if (!hasData(a)) return { view: noData() };
     const fixVar = getFixVarTimelineData(a);
-    return { view: view(a, fixVar), charts: () => charts(container, a, fixVar) };
+    const stacks: Stacks = {
+      types: getTypeStackData(a),
+      merchants: getMerchantTimelineData(a),
+      fixVar: { labels: fixVar.labels, series: [{ label: 'Fixkosten', data: fixVar.fixed }, { label: 'Variabel', data: fixVar.variable }] },
+    };
+    return { view: view(a, fixVar, stacks), charts: () => charts(container, stacks) };
   });
 }
 
-function view(a: Analysis, fixVar: ReturnType<typeof getFixVarTimelineData>): TemplateResult {
+interface Stacks {
+  types: StackedSeries;
+  merchants: StackedSeries;
+  fixVar: StackedSeries;
+}
+
+/** Legend entries in the same order and colors as the stacked datasets. */
+const seriesLegend = (d: StackedSeries): LegendItem[] => d.series.map((s, i) => ({ label: s.label, color: seriesColor(i) }));
+
+function view(a: Analysis, fixVar: ReturnType<typeof getFixVarTimelineData>, stacks: Stacks): TemplateResult {
   const k = getSpendingKpis(a);
   const fixedTotal = fixVar.fixed.reduce((s, v) => s + v, 0);
   const spendTotal = fixedTotal + fixVar.variable.reduce((s, v) => s + v, 0);
@@ -46,13 +60,13 @@ function view(a: Analysis, fixVar: ReturnType<typeof getFixVarTimelineData>): Te
     ])}
 
     <div class="grid">
-      ${card({ title: 'Ausgaben nach Typ', sub: 'Pro Monat, gestapelt' }, chartBox('sp-types', 'Ausgaben nach Buchungstyp je Monat'))}
+      ${card({ title: 'Ausgaben nach Typ', sub: 'Pro Monat, gestapelt' }, chartBox('sp-types', 'Ausgaben nach Buchungstyp je Monat', '', seriesLegend(stacks.types)))}
       ${card({ title: 'Fixkosten vs. variabel', sub: 'Fix: stabile, mindestens dreimal wiederkehrende Empfänger' },
-        chartBox('sp-fixvar', 'Fixkosten und variable Ausgaben je Monat'))}
+        chartBox('sp-fixvar', 'Fixkosten und variable Ausgaben je Monat', '', seriesLegend(stacks.fixVar)))}
     </div>
 
     <div class="grid grid--wide-left">
-      ${card({ title: 'Top-Empfänger im Zeitverlauf' }, chartBox('sp-merchants', 'Ausgaben der größten Empfänger je Monat', 'lg'))}
+      ${card({ title: 'Top-Empfänger im Zeitverlauf' }, chartBox('sp-merchants', 'Ausgaben der größten Empfänger je Monat', 'lg', seriesLegend(stacks.merchants)))}
       ${card({ title: 'Top-Händler', sub: 'Kartenzahlungen' }, merchants.length
         ? html`<ul class="rows">${merchants.map((m) => html`
             <li>
@@ -99,11 +113,8 @@ function stacked(canvas: HTMLCanvasElement | null, d: StackedSeries): void {
   });
 }
 
-function charts(root: HTMLElement, a: Analysis, fixVar: ReturnType<typeof getFixVarTimelineData>): void {
-  stacked(getCanvas(root, 'sp-types'), getTypeStackData(a));
-  stacked(getCanvas(root, 'sp-merchants'), getMerchantTimelineData(a));
-  stacked(getCanvas(root, 'sp-fixvar'), {
-    labels: fixVar.labels,
-    series: [{ label: 'Fixkosten', data: fixVar.fixed }, { label: 'Variabel', data: fixVar.variable }],
-  });
+function charts(root: HTMLElement, stacks: Stacks): void {
+  stacked(getCanvas(root, 'sp-types'), stacks.types);
+  stacked(getCanvas(root, 'sp-merchants'), stacks.merchants);
+  stacked(getCanvas(root, 'sp-fixvar'), stacks.fixVar);
 }

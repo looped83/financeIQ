@@ -17,6 +17,7 @@ import {
 } from './selectors';
 
 const PASSIVE_TARGET = 5;
+const SECURITIES_SHOWN = 6;
 
 export function mountInvestmentsView(container: HTMLElement, store: Store<AppState>): Unsubscribe {
   return mountPage(container, store, (s) => [s.analysis], (state) => {
@@ -43,18 +44,16 @@ function view(a: Analysis, classes: [string, number][]): TemplateResult {
       { label: 'Gebühren', value: fmt(k.fees), sub: k.invested ? `${fmtP((k.fees / k.invested) * 100)} der Käufe` : 'keine Käufe' },
     ])}
 
-    <div class="grid grid--wide-left">
+    <div class="grid">
       ${card({ title: 'Dividenden pro Monat', sub: `${k.positions} ${k.positions === 1 ? 'Position' : 'Positionen'} · netto nach Steuern` },
         chartBox('in-div', 'Dividenden je Monat'))}
-      ${card({ title: 'Dividenden nach Wertpapier' }, securities.length
-        ? barList(securities.map((s) => ({
-            label: s.name, sub: `${s.count}×`, value: s.amount, share: s.pctLabel, pct: s.pct, barColor: COLORS.dividend,
-          })))
-        : html`<p class="muted">Keine Dividenden im Zeitraum.</p>`)}
+      ${card({ title: 'Kauf- und Verkaufsvolumen', sub: 'Pro Monat' }, chartBox('in-trades', 'Käufe und Verkäufe je Monat', '', [
+        { label: 'Käufe', color: COLORS.invest },
+        { label: 'Verkäufe', color: SERIES[2] },
+      ]))}
     </div>
 
-    <div class="grid grid--wide-left">
-      ${card({ title: 'Kauf- und Verkaufsvolumen', sub: 'Pro Monat' }, chartBox('in-trades', 'Käufe und Verkäufe je Monat'))}
+    <div class="grid grid--wide-right">
       ${card({ title: 'Käufe nach Anlageklasse' }, classes.length
         ? html`
           <div class="donut-wrap">
@@ -67,7 +66,24 @@ function view(a: Analysis, classes: [string, number][]): TemplateResult {
             })))}
           </div>`
         : html`<p class="muted">Keine Käufe im Zeitraum.</p>`)}
+      ${card({ title: 'Dividenden nach Wertpapier', sub: securities.length ? `${securities.length} Wertpapiere · sortiert nach Betrag` : '' },
+        securities.length ? securityList(securities) : html`<p class="muted">Keine Dividenden im Zeitraum.</p>`)}
     </div>
+  `;
+}
+
+/** Top positions always visible; the long tail folds away so the card keeps the height of its neighbour. */
+function securityList(securities: ReturnType<typeof getDividendsBySecurity>): TemplateResult {
+  const rows = securities.map((s) => ({
+    label: s.name, sub: `${s.count}×`, value: s.amount, share: s.pctLabel, pct: s.pct, barColor: COLORS.dividend,
+  }));
+  if (rows.length <= SECURITIES_SHOWN + 1) return barList(rows);
+  return html`
+    ${barList(rows.slice(0, SECURITIES_SHOWN))}
+    <details class="disclosure">
+      <summary class="more">Alle ${rows.length} Wertpapiere anzeigen</summary>
+      ${barList(rows.slice(SECURITIES_SHOWN))}
+    </details>
   `;
 }
 
@@ -76,7 +92,7 @@ function charts(root: HTMLElement, a: Analysis, classes: [string, number][]): vo
   mountChart(getCanvas(root, 'in-div'), {
     type: 'bar',
     data: { labels: div.labels, datasets: [{ label: 'Dividenden', data: div.values, backgroundColor: COLORS.dividend, maxBarThickness: 22 }] },
-    options: { ...INDEX_TOOLTIP, scales: axes(), plugins: { ...INDEX_TOOLTIP.plugins, legend: { display: false } } },
+    options: { ...INDEX_TOOLTIP, scales: axes() },
   });
 
   const trades = getTradeVolumeData(a);
@@ -102,7 +118,6 @@ function charts(root: HTMLElement, a: Analysis, classes: [string, number][]): vo
     options: {
       cutout: '72%',
       plugins: {
-        legend: { display: false },
         tooltip: { callbacks: { label: (c) => ` ${fmt(Number(c.parsed))} · ${fmtP(total ? (Number(c.parsed) / total) * 100 : 0)}` } },
       },
     },

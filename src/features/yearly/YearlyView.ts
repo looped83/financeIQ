@@ -6,7 +6,7 @@ import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS } from '../../theme/palette';
-import { card, chartBox, deltaMark, getCanvas, kpiGrid } from '../../ui/components';
+import { card, chartBox, deltaMark, getCanvas, kpiGrid, type LegendItem } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import {
   computeQuarterlyBreakdown,
@@ -17,6 +17,13 @@ import {
   isMultiYear,
   type QuarterKey,
 } from './selectors';
+
+const YEAR_SERIES: LegendItem[] = [
+  { label: 'Einnahmen', color: COLORS.income },
+  { label: 'Ausgaben', color: COLORS.expense },
+  { label: 'Investiert', color: COLORS.invest },
+  { label: 'Dividenden', color: COLORS.dividend },
+];
 
 /** Years are compared across the whole history, independent of the global period. */
 export function mountYearlyView(container: HTMLElement, store: Store<AppState>): Unsubscribe {
@@ -36,7 +43,7 @@ function singleYear(a: Analysis): TemplateResult {
       return { label: `${q} ${b.year}`, value: fmt(qa.net), sub: `Ein ${fmt(qa.income)} · Aus ${fmt(Math.abs(qa.expense))}` };
     }))}
     ${card({ title: `Quartale ${b.year}`, sub: 'Die Daten umfassen nur ein Jahr – für den Jahresvergleich eine mehrjährige CSV laden.' },
-      chartBox('yr-chart', 'Kennzahlen je Quartal', 'lg'))}
+      chartBox('yr-chart', 'Kennzahlen je Quartal', 'lg', YEAR_SERIES))}
   `;
 }
 
@@ -50,7 +57,7 @@ function multiYear(a: Analysis): TemplateResult {
       status: c.yoyIncomeChange ? (c.yoyIncomeUp ? 'good' : 'warn') : undefined,
     })))}
 
-    ${card({ title: 'Jahresvergleich' }, chartBox('yr-chart', 'Kennzahlen je Jahr', 'lg'))}
+    ${card({ title: 'Jahresvergleich' }, chartBox('yr-chart', 'Kennzahlen je Jahr', 'lg', YEAR_SERIES))}
 
     ${card({ title: 'Jahresübersicht', sub: 'Hervorgehoben: bestes und schwächstes Jahr nach Netto' }, html`
       <div class="table-wrap">
@@ -82,10 +89,9 @@ function chart(root: HTMLElement, a: Analysis, multi: boolean): void {
     data: {
       labels: d.labels,
       datasets: [
-        { label: 'Einnahmen', data: d.income, backgroundColor: COLORS.income, ...bar },
-        { label: 'Ausgaben', data: d.expense, backgroundColor: COLORS.expense, ...bar },
-        { label: 'Investiert', data: d.invested, backgroundColor: COLORS.invest, ...bar },
-        { label: 'Dividenden', data: d.dividend, backgroundColor: COLORS.dividend, ...bar },
+        ...[d.income, d.expense, d.invested, d.dividend].map((data, i) => ({
+          label: YEAR_SERIES[i]!.label, data, backgroundColor: YEAR_SERIES[i]!.color, ...bar,
+        })),
       ],
     },
     options: { ...INDEX_TOOLTIP, scales: axes(), datasets: { bar: { categoryPercentage: 0.7, barPercentage: 0.92 } } },

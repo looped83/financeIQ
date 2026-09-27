@@ -5,7 +5,7 @@
 **FinanceIQ** ist ein CSV-Analytics-Dashboard für die Analyse von Finanztransaktionen (Trade Republic, Sparkasse, DKB u.a.). Nach Abschluss der V2-Migration (Phase 0–5) und anschließendem UI-Refactoring ist die Anwendung eine typisierte, komponentenbasierte TypeScript-App, gebaut mit Vite, deployed über GitHub Actions auf GitHub Pages.
 
 - **Sprache:** Deutsch (UI), `de-DE` Locale, Euro-Formatierung
-- **Design:** Dark Mode (warmes Anthrazit, Akzent Orange, Systemschrift), Seitenleiste auf Desktop, Leiste unten + „Mehr“-Sheet auf Mobil
+- **Design:** Dark Mode (warmes Anthrazit, Akzent Orange, Systemschrift), feste Seitenleiste auf Desktop und Tablet (ab 768 px), Leiste unten + „Mehr“-Sheet auf Smartphones; Diagramm-Legenden als HTML immer links über dem Plot (`chartBox(..., series)`), Chart.js-Legend-Plugin nicht registriert
 - **Stack:** TypeScript, Vite, `lit-html` (~5kb, Template-Literal-basiert, kein virtuelles DOM), Chart.js + `chartjs-adapter-date-fns` (echte npm-Dependencies, nicht mehr CDN), Vitest
 - **Deployment:** GitHub Pages via `.github/workflows/pages-vite.yml`, das bei jedem Push auf `main` baut und deployed. Pages-Source ist auf "GitHub Actions" umgestellt und **läuft produktiv** (verifiziert: Build+Deploy grün, App vom Nutzer live getestet und funktionsfähig bestätigt).
 
@@ -45,7 +45,7 @@ test/fixtures/            — CSV-Fixtures für die Vitest-Suite
 | `#/cashflow/monate` | Cashflow › Monate | monthly/MonthlyView | ja |
 | `#/cashflow/prognose` | Cashflow › Prognose | forecast/ForecastView | nein (ganze Historie) |
 | `#/ausgaben` | Ausgaben | spending/SpendingView | ja |
-| `#/investments` | Investments & Dividenden | investments/InvestmentsView | ja |
+| `#/investments` | Investment | investments/InvestmentsView | ja |
 | `#/vergleich/monate` | Vergleich › Monate | monthcompare/MonthCompareView | nein |
 | `#/vergleich/jahre` | Vergleich › Jahre | yearly/YearlyView | nein |
 | `#/transaktionen` | Transaktionen | transactions/TransactionsView | ja |

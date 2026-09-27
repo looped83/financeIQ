@@ -23,8 +23,11 @@ export function mountMonthlyView(container: HTMLElement, store: Store<AppState>)
 function view(a: Analysis): TemplateResult {
   const rows = getMonthlyDetailRows(a);
   return html`
-    ${card({ title: 'Sparquote pro Monat', sub: `Gestrichelt: Ziel ${fmtP(TARGET_RATE)}` },
-      chartBox('mo-savings', 'Sparquote je Monat'))}
+    ${card({ title: 'Sparquote pro Monat', sub: 'Netto in Prozent der Einnahmen' },
+      chartBox('mo-savings', 'Sparquote je Monat', '', [
+        { label: 'Sparquote', color: SERIES[0], mark: 'line' },
+        { label: `Ziel ${fmtP(TARGET_RATE)}`, color: COLORS.textMuted, mark: 'dash' },
+      ]))}
 
     ${card({ title: 'Monatliche Detailübersicht', sub: 'Hervorgehoben: bester und schwächster Monat nach Netto' }, html`
       <div class="table-wrap">

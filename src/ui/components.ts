@@ -59,9 +59,14 @@ export function statusIcon(status: 'good' | 'warn'): TemplateResult {
     >${icon(status === 'good' ? 'checkCircle' : 'alertTriangle', 14)}</span>`;
 }
 
-/** A sized box for a Chart.js canvas; `key` is how the page finds it after render. */
-export function chartBox(key: string, label: string, size: '' | 'sm' | 'lg' = ''): TemplateResult {
-  return html`<div class="chart ${size ? `chart--${size}` : ''}"><canvas data-chart=${key} role="img" aria-label=${label}></canvas></div>`;
+/**
+ * A sized box for a Chart.js canvas; `key` is how the page finds it after render.
+ * Multi-series charts pass `series`: the legend then always sits in the same place,
+ * left-aligned between card header and plot (Chart.js' own legend is not registered).
+ */
+export function chartBox(key: string, label: string, size: '' | 'sm' | 'lg' = '', series?: LegendItem[]): TemplateResult {
+  const box = html`<div class="chart ${size ? `chart--${size}` : ''}"><canvas data-chart=${key} role="img" aria-label=${label}></canvas></div>`;
+  return series?.length ? html`<div class="chart-block">${legend(series)}${box}</div>` : box;
 }
 
 export function getCanvas(root: HTMLElement, key: string): HTMLCanvasElement | null {
@@ -85,8 +90,16 @@ export function segmented<T extends string>(
   `;
 }
 
-export function legend(items: { label: string; color: string }[]): TemplateResult {
-  return html`<ul class="legend">${items.map((i) => html`<li><span class="swatch" style="--c:${i.color}"></span>${i.label}</li>`)}</ul>`;
+export interface LegendItem {
+  label: string;
+  color: string;
+  /** Swatch shape mirrors the mark: filled box (bars, areas), solid or dashed line. */
+  mark?: 'box' | 'line' | 'dash';
+}
+
+export function legend(items: LegendItem[]): TemplateResult {
+  return html`<ul class="legend" aria-label="Legende">${items.map((i) => html`
+    <li><span class="swatch ${i.mark && i.mark !== 'box' ? `swatch--${i.mark}` : ''}" style="--c:${i.color}"></span>${i.label}</li>`)}</ul>`;
 }
 
 export interface BarRow {

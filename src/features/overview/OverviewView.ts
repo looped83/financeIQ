@@ -56,7 +56,10 @@ function view(
           { value: 'monthly', label: 'Monatlich' },
           { value: 'cumulative', label: 'Kumuliert' },
         ], ui.trend, (v) => set('trend', v)),
-      }, chartBox('ov-trend', 'Einnahmen und Ausgaben je Monat'))}
+      }, chartBox('ov-trend', 'Einnahmen und Ausgaben je Monat', '', [
+        { label: 'Einnahmen', color: COLORS.income, mark: ui.trend === 'monthly' ? 'box' : 'line' },
+        { label: 'Ausgaben', color: COLORS.expense, mark: ui.trend === 'monthly' ? 'box' : 'line' },
+      ]))}
 
       ${card({
         title: 'Wohin das Geld geht',
@@ -178,7 +181,6 @@ function charts(root: HTMLElement, a: Analysis, spend: ReturnType<typeof getSpen
     options: {
       cutout: '72%',
       plugins: {
-        legend: { display: false },
         tooltip: { callbacks: { label: (c) => ` ${fmt(Number(c.parsed))} · ${fmtP(spend.total ? (Number(c.parsed) / spend.total) * 100 : 0)}` } },
       },
     },
