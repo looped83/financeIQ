@@ -17,68 +17,34 @@ export function getTopMerchants(a: Analysis, limit = 10): MerchantRow[] {
     .map(([name, v]) => ({ name, count: v.count, avg: fmt(v.total / v.count), total: fmt(v.total) }));
 }
 
-/**
- * Set of merchant names that qualify as *fixed costs* (Fixkosten): expenses that
- * recur across several months **with a roughly stable amount** — rent, insurance,
- * gym, streaming, loan payments. Merchants that recur but fluctuate a lot (groceries,
- * drugstores, Amazon) are deliberately excluded and treated as variable spending.
- *
- * A name qualifies when it appears as an expense in `minMonths` distinct months and
- * the coefficient of variation (std/mean) of its per-month totals stays at or below
- * `maxCv`. The default 0.30 threshold was calibrated against real transaction data:
- * insurances/rent/gym land at CV 0.0–0.22, while groceries/shopping sit at 0.39+.
- */
-export function getFixedCostNames(a: Analysis, maxCv = 0.3): Set<string> {
-  const nameMonthTotals = new Map<string, Map<string, number>>();
-  for (const r of a.enriched) {
-    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
-    const name = r._name || '';
-    if (!name) continue;
-    let months = nameMonthTotals.get(name);
-    if (!months) { months = new Map(); nameMonthTotals.set(name, months); }
-    months.set(r._month, (months.get(r._month) ?? 0) + Math.abs(r._amt));
-  }
-
-  const minMonths = a.mKeys.length >= 3 ? 3 : Math.max(2, a.mKeys.length);
-  const fixed = new Set<string>();
-  for (const [name, months] of nameMonthTotals) {
-    if (months.size < minMonths) continue;
-    const vals = [...months.values()];
-    const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
-    if (mean <= 0) continue;
-    const variance = vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length;
-    const cv = Math.sqrt(variance) / mean;
-    if (cv <= maxCv) fixed.add(name);
-  }
-  return fixed;
-}
-
-export interface RecurringExpenseRow {
+export interface FixedCostRow {
   name: string;
   monthCount: number;
-  perMonth: string;
-  perYear: string;
+  /** Average amount in the months it was paid. */
+  perMonth: number;
 }
 
-export interface RecurringExpensesSummary {
-  rows: RecurringExpenseRow[];
-  totalPerMonth: string;
-  totalPerYear: string;
+export interface FixedCosts {
+  /** Largest first. */
+  rows: FixedCostRow[];
+  /** Sum of every row's monthly amount — what the fixed costs add up to in a typical month. */
+  totalPerMonth: number;
 }
 
-/** Recurring same-name/same-amount expenses across 2+ months (Übersicht summary, Ausgaben list). */
-export function getRecurringExpenses(a: Analysis, limit = 8): RecurringExpensesSummary {
-  const totalPerMonth = a.subscriptions.reduce((s, x) => s + x.amt, 0);
-  return {
-    rows: a.subscriptions.slice(0, limit).map((s) => ({
-      name: s.name,
-      monthCount: s.months.size,
-      perMonth: fmt(s.amt),
-      perYear: fmt(s.amt * 12),
-    })),
-    totalPerMonth: fmt(totalPerMonth),
-    totalPerYear: fmt(totalPerMonth * 12),
-  };
+/** Fixed costs (see `markFixedCosts` in domain/analyze) paid within `a`, one row per payee. */
+export function getFixedCosts(a: Analysis): FixedCosts {
+  const byName = new Map<string, { total: number; months: Set<string> }>();
+  for (const r of a.enriched) {
+    if (!r._isFixed) continue;
+    const e = byName.get(r._name) ?? { total: 0, months: new Set<string>() };
+    e.total += Math.abs(r._amt);
+    e.months.add(r._month);
+    byName.set(r._name, e);
+  }
+  const rows = [...byName]
+    .map(([name, e]) => ({ name, monthCount: e.months.size, perMonth: e.total / e.months.size }))
+    .sort((x, y) => y.perMonth - x.perMonth);
+  return { rows, totalPerMonth: rows.reduce((s, r) => s + r.perMonth, 0) };
 }
 
 export interface SpendBreakdown {

@@ -8,7 +8,7 @@ import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, seriesColor } from '../../theme/palette';
 import { card, chartBox, getCanvas, kpiGrid, type LegendItem } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
-import { getRecurringExpenses, getTopMerchants } from '../shared/commonSelectors';
+import { getFixedCosts, getTopMerchants } from '../shared/commonSelectors';
 import {
   getFixVarTimelineData,
   getMerchantTimelineData,
@@ -30,7 +30,7 @@ export function mountSpendingView(container: HTMLElement, store: Store<AppState>
       merchants: getMerchantTimelineData(a),
       fixVar: { labels: fixVar.labels, series: [{ label: 'Fixkosten', data: fixVar.fixed }, { label: 'Variabel', data: fixVar.variable }] },
     };
-    return { view: view(a, fixVar, stacks), charts: () => charts(container, stacks) };
+    return { view: view(a, stacks), charts: () => charts(container, stacks) };
   });
 }
 
@@ -43,18 +43,16 @@ interface Stacks {
 /** Legend entries in the same order and colors as the stacked datasets. */
 const seriesLegend = (d: StackedSeries): LegendItem[] => d.series.map((s, i) => ({ label: s.label, color: seriesColor(i) }));
 
-function view(a: Analysis, fixVar: ReturnType<typeof getFixVarTimelineData>, stacks: Stacks): TemplateResult {
+function view(a: Analysis, stacks: Stacks): TemplateResult {
   const k = getSpendingKpis(a);
-  const fixedTotal = fixVar.fixed.reduce((s, v) => s + v, 0);
-  const spendTotal = fixedTotal + fixVar.variable.reduce((s, v) => s + v, 0);
   const merchants = getTopMerchants(a, 6);
-  const recurring = getRecurringExpenses(a, 12);
+  const fixed = getFixedCosts(a);
   const outliers = getOutlierRows(a, 12);
 
   return html`
     ${kpiGrid([
       { label: 'Ausgaben', value: fmt(k.total), sub: `Ø ${fmt(k.avgPerMonth)} pro Monat`, dot: 'expense' },
-      { label: 'Fixkosten', value: fmt(fixedTotal / a.mc), sub: `pro Monat · ${fmtP(spendTotal ? (fixedTotal / spendTotal) * 100 : 0)} der Ausgaben` },
+      { label: 'Fixkosten', value: fmt(fixed.totalPerMonth), sub: `pro Monat · ${fmtP(k.avgPerMonth ? (fixed.totalPerMonth / k.avgPerMonth) * 100 : 0)} der Ausgaben` },
       { label: 'Ø pro Buchung', value: fmt(k.avgPerBooking), sub: `${fmtN(k.bookings)} Ausgaben-Buchungen` },
       { label: 'Ausreißer', value: String(k.outliers), sub: 'Buchungen > 2σ vom Schnitt', status: k.outliers ? 'warn' : 'good' },
     ])}
@@ -77,15 +75,15 @@ function view(a: Analysis, fixVar: ReturnType<typeof getFixVarTimelineData>, sta
     </div>
 
     <div class="grid">
-      ${card({ title: 'Wiederkehrende Ausgaben', sub: 'Gleicher Empfänger und Betrag in mehreren Monaten' }, recurring.rows.length
+      ${card({ title: 'Fixkosten', sub: 'Mindestens dreimal gezahlt, mit stabilem Monatsbetrag' }, fixed.rows.length
         ? html`
-          <ul class="rows">${recurring.rows.map((r) => html`
+          <ul class="rows">${fixed.rows.map((r) => html`
             <li>
-              <div class="row-main"><div class="row-title">${r.name}</div><div class="row-sub">in ${r.monthCount} Monaten · ≈ ${r.perYear} / Jahr</div></div>
-              <span class="row-value">${r.perMonth}<small>/ Monat</small></span>
+              <div class="row-main"><div class="row-title">${r.name}</div><div class="row-sub">in ${r.monthCount} Monaten · ≈ ${fmt(r.perMonth * 12)} / Jahr</div></div>
+              <span class="row-value">${fmt(r.perMonth)}<small>/ Monat</small></span>
             </li>`)}</ul>
-          <div class="card-foot"><span>Gesamt</span><span class="num"><strong>${recurring.totalPerMonth}</strong> / Monat · ≈ ${recurring.totalPerYear} / Jahr</span></div>`
-        : html`<p class="muted">Keine wiederkehrenden Zahlungen erkannt.</p>`)}
+          <div class="card-foot"><span>Gesamt</span><span class="num"><strong>${fmt(fixed.totalPerMonth)}</strong> / Monat · ≈ ${fmt(fixed.totalPerMonth * 12)} / Jahr</span></div>`
+        : html`<p class="muted">Keine Fixkosten erkannt.</p>`)}
 
       ${card({ title: 'Ausreißer', sub: `Mehr als 2σ vom Schnitt (Ø ${fmt(a.mean)}, σ ${fmt(a.std)})` }, outliers.length
         ? html`<ul class="rows">${outliers.map((o) => html`

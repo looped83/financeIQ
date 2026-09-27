@@ -7,13 +7,13 @@ export function getAvailableCategories(rows: EnrichedRow[]): string[] {
   return [...new Set(rows.map((r) => typeLabel(r._type)).filter(Boolean))].sort();
 }
 
-/** In/out mean cash movements; trades (buy/sell) are their own kind. */
+/** In/out mean real cash movements; trades are their own kind, own-account transfers only show under "all". */
 export function matchesKind(r: EnrichedRow, kind: TransactionKind): boolean {
   const trade = r._isBuy || r._isSell;
   switch (kind) {
     case 'all': return true;
-    case 'in': return !trade && r._amt > 0;
-    case 'out': return !trade && r._amt < 0;
+    case 'in': return !trade && !r._isInternal && r._amt > 0;
+    case 'out': return !trade && !r._isInternal && r._amt < 0;
     case 'invest': return trade;
     case 'div': return r._isDiv;
   }

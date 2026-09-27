@@ -55,9 +55,8 @@ describe('computeRecommendations — rich fixture (positive cashflow, strong sav
     expect(recs.some((r) => r.title === '1 Großausgaben >500€' && r.desc.includes('Elektronik Laden'))).toBe(true);
   });
 
-  it('flags 3 recurring subscriptions and that they exceed 20% of monthly expenses', () => {
-    expect(recs.some((r) => r.title.includes('3 wiederkehrende Ausgaben'))).toBe(true);
-    expect(recs.some((r) => r.title === 'Wiederkehrende Ausgaben über 20%')).toBe(true);
+  it('flags the 3 stable monthly payees as a high fixed-cost share', () => {
+    expect(recs.some((r) => r.title.startsWith('3 Fixkosten') && r.level === 'yellow')).toBe(true);
   });
 
   it('flags low portfolio diversification (only 2 dividend positions)', () => {

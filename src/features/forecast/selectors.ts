@@ -1,5 +1,6 @@
 import { linReg } from '../../domain/stats';
 import { fmt, mLabel } from '../../domain/format';
+import { addMonths } from '../../domain/period';
 import type { Analysis } from '../../domain/types';
 
 export interface ForecastChartData {
@@ -38,7 +39,7 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
 
   const histLbls = a.mKeys.map(mLabel);
   const lastI = a.mKeys.length - 1;
-  const lastDate = new Date(a.mKeys[lastI] + '-01');
+  const lastMonth = a.mKeys[lastI]!;
   const lastActual = cumAct[cumAct.length - 1] ?? 0;
 
   const fcLbls: string[] = [];
@@ -47,9 +48,7 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
   const fcL: number[] = [];
   let rc = lastActual;
   for (let i = 1; i <= months; i++) {
-    const nd = new Date(lastDate);
-    nd.setMonth(nd.getMonth() + i);
-    fcLbls.push(nd.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' }));
+    fcLbls.push(mLabel(addMonths(lastMonth, i)));
     rc += slope * (lastI + i) + intercept;
     fcD.push(rc);
     const ci = resStd * Math.sqrt(i) * 1.96;
@@ -66,8 +65,8 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
       sub: slope >= 0 ? 'Netto-Cashflow wächst' : 'Netto-Cashflow sinkt',
     },
     {
-      label: `Erwarteter Zuwachs (${months} Mon.)`, value: fmt(projEnd - a.netBal), cls: 'invest',
-      sub: `Prognosewert: ${fmt(projEnd)}`,
+      label: 'Erwarteter Zuwachs', value: fmt(projEnd - lastActual), cls: 'invest',
+      sub: `in ${months} Monaten auf ${fmt(projEnd)}`,
     },
     {
       label: 'Aktueller Saldo', value: fmt(a.netBal), cls: a.netBal >= 0 ? 'income' : 'expense',
@@ -75,30 +74,23 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
     },
   ];
 
-  const optSlope = slope + resStd * 0.5;
-  const pesSlope = slope - resStd * 0.5;
-  let optCum = lastActual;
-  let pesCum = lastActual;
-  for (let i = 1; i <= months; i++) {
-    optCum += optSlope * (lastI + i) + intercept;
-    pesCum += pesSlope * (lastI + i) + intercept;
-  }
-
+  // Scenarios are the ends of the confidence band, so text and chart always agree.
+  const upper = fcU[fcU.length - 1] ?? lastActual;
+  const lower = fcL[fcL.length - 1] ?? lastActual;
   const scenarios: ForecastScenario[] = [
     {
       color: 'green', title: 'Optimistisches Szenario',
-      desc: `Bei +0,5 σ Wachstum: ${fmt(optCum)} nach ${months} Monaten (+${fmt(optCum - a.netBal)} zum Ist).`,
+      desc: `Oberes Ende des 95-%-Bands: ${fmt(upper)} nach ${months} Monaten (${fmt(upper - lastActual)} Zuwachs).`,
     },
     {
       color: 'blue', title: 'Basisszenario (Lineartrend)',
-      desc: `Auf Basis historischer Daten: ${fmt(projEnd)} nach ${months} Monaten.`,
+      desc: `Fortgeschriebener Trend: ${fmt(projEnd)} nach ${months} Monaten.`,
     },
     {
       color: 'yellow', title: 'Pessimistisches Szenario',
-      desc: `Bei −0,5 σ: ${fmt(pesCum)} nach ${months} Monaten. Ausgaben-Puffer einplanen.`,
+      desc: `Unteres Ende des 95-%-Bands: ${fmt(lower)} nach ${months} Monaten. Ausgaben-Puffer einplanen.`,
     },
   ];
-
   return {
     chart: {
       labels: [...histLbls, ...fcLbls],

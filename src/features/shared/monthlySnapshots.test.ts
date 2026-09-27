@@ -41,12 +41,6 @@ describe('buildMonthlySnapshots', () => {
   it('produces one snapshot per month, in order', () => {
     expect(snapshots.map((s) => s.month)).toEqual(['2024-01', '2024-02', '2024-03', '2024-04']);
   });
-
-  it("each snapshot's subscriptions are always empty (a single month can't have a 2+-month pattern)", () => {
-    // Documents a real limitation of re-analyzing one month in isolation —
-    // present in the original app too, not introduced by this migration.
-    expect(snapshots.every((s) => s.analysis.subscriptions.length === 0)).toBe(true);
-  });
 });
 
 describe('computeTrends', () => {

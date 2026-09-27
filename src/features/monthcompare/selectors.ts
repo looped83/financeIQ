@@ -1,22 +1,24 @@
-import { fmt, fmtP, fmtPP, mLabel } from '../../domain/format';
+import { isSpend } from '../../domain/analyze';
+import { fmt, fmtP, fmtPP, mLabel, typeLabel } from '../../domain/format';
 import type { Analysis, MonthAgg } from '../../domain/types';
 import type { MonthCompareMetric } from '../../state/appState';
-import { getFixedCostNames } from '../shared/commonSelectors';
 
 export interface MonthKpi {
   label: string;
   vA: number;
   vB: number;
+  /** Which direction of change is good — expenses should go down. */
+  goodWhen: 'up' | 'down';
 }
 
 export function computeMonthKpis(a: MonthAgg, b: MonthAgg): MonthKpi[] {
   return [
-    { label: 'Einnahmen', vA: a.income, vB: b.income },
-    { label: 'Ausgaben', vA: Math.abs(a.expense), vB: Math.abs(b.expense) },
-    { label: 'Netto-Cashflow', vA: a.net, vB: b.net },
-    { label: 'Investiert', vA: a.invested, vB: b.invested },
-    { label: 'Dividenden', vA: a.dividend, vB: b.dividend },
-    { label: 'Sparquote', vA: a.savingsRate, vB: b.savingsRate },
+    { label: 'Einnahmen', vA: a.income, vB: b.income, goodWhen: 'up' },
+    { label: 'Ausgaben', vA: Math.abs(a.expense), vB: Math.abs(b.expense), goodWhen: 'down' },
+    { label: 'Netto', vA: a.net, vB: b.net, goodWhen: 'up' },
+    { label: 'Investiert', vA: a.invested, vB: b.invested, goodWhen: 'up' },
+    { label: 'Dividenden', vA: a.dividend, vB: b.dividend, goodWhen: 'up' },
+    { label: 'Sparquote', vA: a.savingsRate, vB: b.savingsRate, goodWhen: 'up' },
   ];
 }
 
@@ -31,9 +33,8 @@ export function getMonthCategoryComparison(analysis: Analysis, monthA: string, m
   const catB: Record<string, number> = {};
 
   for (const row of analysis.enriched) {
-    if (row._amt >= 0) continue;
-    if (row._isDiv || row._isInterest || row._isBuy || row._isSell) continue;
-    const cat = row._cat || 'Sonstiges';
+    if (!isSpend(row)) continue;
+    const cat = typeLabel(row._type);
     if (row._month === monthA) catA[cat] = (catA[cat] ?? 0) + Math.abs(row._amt);
     if (row._month === monthB) catB[cat] = (catB[cat] ?? 0) + Math.abs(row._amt);
   }
@@ -127,14 +128,15 @@ export interface MonthDeltaRow {
   vA: string;
   vB: string;
   delta: string;
-  deltaPositive: boolean;
   deltaPct: string;
-  deltaPctPositive: boolean;
+  /** Whether the change is an improvement; `null` when it is neither (no change, booking count). */
+  good: boolean | null;
 }
 
-export function getMonthDeltaTableRows(a: MonthAgg, b: MonthAgg, analysis: Analysis, monthA: string, monthB: string): MonthDeltaRow[] {
-  const kpis = computeMonthKpis(a, b);
-  const rows: MonthDeltaRow[] = kpis.map((k) => {
+export function getMonthDeltaTableRows(analysis: Analysis, monthA: string, monthB: string): MonthDeltaRow[] {
+  const a = analysis.months[monthA]!;
+  const b = analysis.months[monthB]!;
+  const rows: MonthDeltaRow[] = computeMonthKpis(a, b).map((k) => {
     const d = k.vB - k.vA;
     const isRate = k.label === 'Sparquote';
     const p = isRate ? d : (k.vA ? (d / Math.abs(k.vA)) * 100 : 0);
@@ -143,25 +145,19 @@ export function getMonthDeltaTableRows(a: MonthAgg, b: MonthAgg, analysis: Analy
       vA: isRate ? fmtP(k.vA) : fmt(k.vA),
       vB: isRate ? fmtP(k.vB) : fmt(k.vB),
       delta: isRate ? fmtPP(d).replace(' %', ' Pp.') : `${d >= 0 ? '+' : ''}${fmt(d)}`,
-      deltaPositive: d >= 0,
       deltaPct: isRate ? '—' : fmtPP(p),
-      deltaPctPositive: p >= 0,
+      good: Math.abs(d) < 0.005 ? null : (d > 0) === (k.goodWhen === 'up'),
     };
   });
-
-  const txA = analysis.enriched.filter((r) => r._month === monthA).length;
-  const txB = analysis.enriched.filter((r) => r._month === monthB).length;
-  const txDelta = txB - txA;
+  const txDelta = b.count - a.count;
   rows.push({
-    label: 'Transaktionen',
-    vA: String(txA),
-    vB: String(txB),
+    label: 'Buchungen',
+    vA: String(a.count),
+    vB: String(b.count),
     delta: `${txDelta >= 0 ? '+' : ''}${txDelta}`,
-    deltaPositive: txDelta >= 0,
     deltaPct: '—',
-    deltaPctPositive: true,
+    good: null,
   });
-
   return rows;
 }
 
@@ -182,7 +178,7 @@ export function getMerchantComparison(analysis: Analysis, monthA: string, monthB
   const mapB = new Map<string, { count: number; total: number }>();
 
   for (const r of analysis.enriched) {
-    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
+    if (!isSpend(r)) continue;
     const name = r._name || 'Sonstiges';
     if (r._month === monthA) {
       const e = mapA.get(name) ?? { count: 0, total: 0 };
@@ -224,7 +220,7 @@ export function getUniqueMerchants(analysis: Analysis, monthA: string, monthB: s
   const mapB = new Map<string, { count: number; total: number }>();
 
   for (const r of analysis.enriched) {
-    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
+    if (!isSpend(r)) continue;
     const name = r._name || 'Sonstiges';
     if (r._month === monthA) {
       const e = mapA.get(name) ?? { count: 0, total: 0 };
@@ -264,7 +260,7 @@ export interface TopExpense {
 
 export function getTopSingleExpenses(analysis: Analysis, month: string, limit = 5): TopExpense[] {
   const txs = analysis.enriched
-    .filter((r) => r._month === month && r._amt < 0 && !r._isBuy && !r._isSell)
+    .filter((r) => r._month === month && isSpend(r))
     .sort((a, b) => a._amt - b._amt)
     .slice(0, limit);
 
@@ -307,18 +303,12 @@ export interface RecurringDelta {
 }
 
 export function getRecurringExpensesDelta(analysis: Analysis, monthA: string, monthB: string): RecurringDelta[] {
-  // Identify fixed/recurring merchants: appear across several months with a stable amount.
-  const recurringNames = getFixedCostNames(analysis);
-
-  // Sum recurring expense amounts per month
   const mapA = new Map<string, number>();
   const mapB = new Map<string, number>();
   for (const r of analysis.enriched) {
-    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
-    const name = r._name || '';
-    if (!recurringNames.has(name)) continue;
-    if (r._month === monthA) mapA.set(name, (mapA.get(name) ?? 0) + Math.abs(r._amt));
-    if (r._month === monthB) mapB.set(name, (mapB.get(name) ?? 0) + Math.abs(r._amt));
+    if (!r._isFixed) continue;
+    if (r._month === monthA) mapA.set(r._name, (mapA.get(r._name) ?? 0) + Math.abs(r._amt));
+    if (r._month === monthB) mapB.set(r._name, (mapB.get(r._name) ?? 0) + Math.abs(r._amt));
   }
 
   const shared: RecurringDelta[] = [];

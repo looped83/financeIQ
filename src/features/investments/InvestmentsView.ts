@@ -2,6 +2,7 @@ import { html, type TemplateResult } from 'lit-html';
 import { mountChart } from '../../charts/chartManager';
 import { axes, INDEX_TOOLTIP } from '../../charts/chartTheme';
 import { fmt, fmtP } from '../../domain/format';
+import { TARGETS } from '../../domain/targets';
 import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
@@ -16,7 +17,6 @@ import {
   getTradeVolumeData,
 } from './selectors';
 
-const PASSIVE_TARGET = 5;
 const SECURITIES_SHOWN = 6;
 
 export function mountInvestmentsView(container: HTMLElement, store: Store<AppState>): Unsubscribe {
@@ -35,11 +35,11 @@ function view(a: Analysis, classes: [string, number][]): TemplateResult {
 
   return html`
     ${kpiGrid([
-      { label: 'Investiert', value: fmt(k.invested), sub: `Käufe · verkauft: ${fmt(k.sold)}`, dot: 'invest' },
+      { label: 'Netto investiert', value: fmt(k.invested - k.sold), sub: `Käufe ${fmt(k.invested)} · Verkäufe ${fmt(k.sold)}`, dot: 'invest' },
       { label: 'Dividenden (netto)', value: fmt(k.dividends), sub: `Ø ${fmt(k.avgDividend)} pro Monat`, dot: 'dividend' },
       {
-        label: 'Passives Einkommen', value: fmtP(k.passiveRate), sub: `der Einnahmen · Ziel ${fmtP(PASSIVE_TARGET)}`,
-        status: k.passiveRate >= PASSIVE_TARGET ? 'good' : 'warn',
+        label: 'Passives Einkommen', value: fmtP(k.passiveRate), sub: `der Einnahmen · Ziel ${fmtP(TARGETS.passiveRate)}`,
+        status: k.passiveRate >= TARGETS.passiveRate ? 'good' : 'warn',
       },
       { label: 'Gebühren', value: fmt(k.fees), sub: k.invested ? `${fmtP((k.fees / k.invested) * 100)} der Käufe` : 'keine Käufe' },
     ])}

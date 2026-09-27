@@ -10,7 +10,7 @@ import { barList, card, chartBox, getCanvas, insight, kpiGrid, segmented, status
 import { hasData, mountPage, noData } from '../../ui/page';
 import { href } from '../../shell/routes';
 import { computeRecommendations } from '../recommendations/selectors';
-import { getRecurringExpenses, getSpendBreakdown } from '../shared/commonSelectors';
+import { getFixedCosts, getSpendBreakdown } from '../shared/commonSelectors';
 import { buildMonthlySnapshots, computeTrends } from '../shared/monthlySnapshots';
 import { getCumulativeIncExpChartData, getMonthlyIncomeExpenseData } from '../timeline/selectors';
 import { computeAlerts, computeFinancialRatios, computeOverviewRates, getOverviewKpis } from './selectors';
@@ -43,7 +43,7 @@ function view(
   set: <K extends keyof typeof ui>(k: K, v: (typeof ui)[K]) => void,
 ): TemplateResult {
   const rates = computeOverviewRates(a);
-  const recurring = getRecurringExpenses(a, 6);
+  const fixed = getFixedCosts(a);
 
   return html`
     ${kpiGrid(getOverviewKpis(a, rates))}
@@ -93,19 +93,19 @@ function view(
         </ul>
       `)}
 
-      ${card({ title: 'Wiederkehrende Ausgaben', actions: html`<a class="more" href=${href('ausgaben')}>Alle</a>` },
-        recurring.rows.length === 0
-          ? html`<p class="muted">Keine wiederkehrenden Zahlungen erkannt.</p>`
+      ${card({ title: 'Fixkosten', sub: 'Wiederkehrend mit stabilem Betrag', actions: html`<a class="more" href=${href('ausgaben')}>Alle</a>` },
+        fixed.rows.length === 0
+          ? html`<p class="muted">Keine Fixkosten erkannt.</p>`
           : html`
             <ul class="rows">
-              ${recurring.rows.map((r) => html`
+              ${fixed.rows.slice(0, 6).map((r) => html`
                 <li>
                   <div class="row-main"><div class="row-title">${r.name}</div><div class="row-sub">in ${r.monthCount} Monaten</div></div>
-                  <span class="row-value">${r.perMonth}<small>/ Monat</small></span>
+                  <span class="row-value">${fmt(r.perMonth)}<small>/ Monat</small></span>
                 </li>
               `)}
             </ul>
-            <div class="card-foot"><span>Gesamt</span><span class="num"><strong>${recurring.totalPerMonth}</strong> / Monat · ≈ ${recurring.totalPerYear} / Jahr</span></div>
+            <div class="card-foot"><span>Gesamt</span><span class="num"><strong>${fmt(fixed.totalPerMonth)}</strong> / Monat · ≈ ${fmt(fixed.totalPerMonth * 12)} / Jahr</span></div>
           `)}
 
       ${hintsCard(a, rates, set)}

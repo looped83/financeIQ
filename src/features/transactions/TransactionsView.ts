@@ -34,6 +34,7 @@ const SORTS: { value: TransactionSort; label: string }[] = [
 const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v))}`;
 
 function badgeClass(r: EnrichedRow): string {
+  if (r._isInternal) return '';
   if (r._isDiv) return 'badge--div';
   if (r._isBuy || r._isSell) return 'badge--invest';
   return r._amt > 0 ? 'badge--in' : '';
@@ -119,7 +120,7 @@ function view(all: EnrichedRow[], state: AppState, actions: AppActions): Templat
 
 function row(r: EnrichedRow): TemplateResult {
   const name = r._name || r._desc || typeLabel(r._type);
-  const type = typeLabel(r._type);
+  const type = r._isInternal ? 'Umbuchung' : typeLabel(r._type);
   const detail = r._desc && r._desc !== name ? r._desc : type !== name ? type : '';
   return html`
     <li class="tx-row">

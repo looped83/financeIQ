@@ -1,5 +1,7 @@
 import { fmt, fmtP, typeLabel } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
+import { netInvested } from '../overview/selectors';
+import { getFixedCosts } from '../shared/commonSelectors';
 
 export type RecommendationLevel = 'green' | 'yellow' | 'red' | 'blue';
 
@@ -16,7 +18,7 @@ export interface Recommendation {
 export function computeRecommendations(a: Analysis): Recommendation[] {
   const recs: Recommendation[] = [];
   const sr = a.totalInc > 0 ? (a.netBal / a.totalInc) * 100 : 0;
-  const ir = a.totalInc > 0 ? (a.totalInv / a.totalInc) * 100 : 0;
+  const ir = a.totalInc > 0 ? (netInvested(a) / a.totalInc) * 100 : 0;
   const avgMonthlyExp = Math.abs(a.totalExp) / a.mc;
   const avgMonthlyInc = a.totalInc / a.mc;
 
@@ -114,22 +116,16 @@ export function computeRecommendations(a: Analysis): Recommendation[] {
     });
   }
 
-  // 8. Subscriptions
-  if (a.subscriptions.length > 0) {
-    const subSum = a.subscriptions.reduce((s, x) => s + x.amt, 0);
-    const subPct = avgMonthlyExp > 0 ? (subSum / avgMonthlyExp) * 100 : 0;
+  // 8. Fixed costs
+  const fixed = getFixedCosts(a);
+  if (fixed.rows.length > 0) {
+    const fixedPct = avgMonthlyExp > 0 ? (fixed.totalPerMonth / avgMonthlyExp) * 100 : 0;
     recs.push({
-      level: 'yellow', priority: 3, category: 'Fixkosten', title: `${a.subscriptions.length} wiederkehrende Ausgaben — ${fmt(subSum)}/Monat`,
-      desc: `Hochrechnung: ${fmt(subSum * 12)}/Jahr (${fmtP(subPct)} der Ausgaben). Top: ${a.subscriptions.slice(0, 3).map((s) => `${s.name} (${fmt(s.amt)})`).join(', ')}. Tipp: Jeden Posten auf Notwendigkeit prüfen — ungenutzte Dienste kündigen spart direkt.`,
+      level: fixedPct > 50 ? 'yellow' : 'blue', priority: 3, category: 'Fixkosten',
+      title: `${fixed.rows.length} Fixkosten — ${fmt(fixed.totalPerMonth)}/Monat`,
+      desc: `Hochrechnung: ${fmt(fixed.totalPerMonth * 12)}/Jahr (${fmtP(fixedPct)} der Ausgaben). Top: ${fixed.rows.slice(0, 3).map((f) => `${f.name} (${fmt(f.perMonth)})`).join(', ')}. Tipp: Jeden Posten auf Notwendigkeit prüfen — ungenutzte Dienste kündigen spart direkt.`,
     });
-    if (subSum > avgMonthlyExp * 0.2) {
-      recs.push({
-        level: 'yellow', priority: 2, category: 'Fixkosten', title: 'Wiederkehrende Ausgaben über 20%',
-        desc: `Fixe Zahlungen binden ${fmtP(subPct)} der monatlichen Ausgaben. Jährliche Zahlweise nutzen (oft 15–20% Rabatt). Alternativ: günstigere Anbieter oder Tarife prüfen.`,
-      });
-    }
   }
-
   // 9. Volatility
   const nets = a.mKeys.map((m) => a.months[m]?.net ?? 0);
   const nStd = Math.sqrt(nets.reduce((s, v) => s + Math.pow(v - a.avgNet, 2), 0) / nets.length);

@@ -60,9 +60,6 @@ export function computeTrends(snapshots: MonthSnapshot[]): Trend[] {
     if (divSlope > 10) trends.push({ color: 'green', title: 'Passives Einkommen wächst', desc: `Dividenden steigen um Ø ${fmt(divSlope)}/Monat. Das passive Einkommen (Ø ${fmt(avgDiv)}/Monat) wird ein zunehmend relevanter Einkommensfaktor.` });
   }
 
-  const subCounts = snapshots.map((s) => s.analysis.subscriptions.length);
-  if (subCounts[n - 1]! > subCounts[0]!) trends.push({ color: 'yellow', title: 'Mehr wiederkehrende Ausgaben', desc: `Von ${subCounts[0]} auf ${subCounts[n - 1]} erkannte wiederkehrende Zahlungen. Fixkosten regelmäßig prüfen.` });
-
   const cardRatios = snapshots.map((s) => {
     const a = s.analysis;
     const cardExp = a.exp.filter((r) => r._isCard).reduce((sum, r) => sum + Math.abs(r._amt), 0);

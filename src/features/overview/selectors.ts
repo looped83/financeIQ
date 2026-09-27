@@ -1,5 +1,7 @@
 import { fmt, fmtP, mLabel } from '../../domain/format';
+import { TARGETS } from '../../domain/targets';
 import type { Analysis } from '../../domain/types';
+import { getFixedCosts } from '../shared/commonSelectors';
 
 export interface OverviewRates {
   savingsRate: number;
@@ -7,11 +9,16 @@ export interface OverviewRates {
   investRate: number;
 }
 
+/** Buys minus sells — what actually stayed invested. */
+export function netInvested(a: Analysis): number {
+  return a.totalInv - a.totalSold;
+}
+
 export function computeOverviewRates(a: Analysis): OverviewRates {
   return {
     savingsRate: a.totalInc > 0 ? (a.netBal / a.totalInc) * 100 : 0,
     passiveRatio: a.totalInc > 0 ? (a.totalDiv / a.totalInc) * 100 : 0,
-    investRate: a.totalInc > 0 ? (a.totalInv / a.totalInc) * 100 : 0,
+    investRate: a.totalInc > 0 ? (netInvested(a) / a.totalInc) * 100 : 0,
   };
 }
 
@@ -33,7 +40,7 @@ export function getOverviewKpis(a: Analysis, rates: OverviewRates): KpiCard[] {
       label: 'Netto-Saldo',
       value: (a.netBal > 0 ? '+' : '') + fmt(a.netBal),
       sub: `Sparquote ${fmtP(rates.savingsRate)}`,
-      status: rates.savingsRate >= 15 ? 'good' : 'warn',
+      status: rates.savingsRate >= TARGETS.savingsRate ? 'good' : 'warn',
     },
     {
       label: 'Dividenden (netto)',
@@ -67,11 +74,11 @@ export function computeFinancialRatios(a: Analysis, rates: OverviewRates): Ratio
   }
 
   return [
-    { label: 'Sparquote', value: fmtP(savingsRate), good: savingsRate >= 15 },
-    { label: 'Investitionsrate', value: fmtP(investRate), good: investRate >= 15 },
-    { label: 'Passives Einkommen', value: fmtP(passiveRatio), good: passiveRatio >= 5 },
-    { label: 'Kartenzahlungsanteil', value: fmtP(cardRatio), good: cardRatio < 50 },
-    { label: 'Gebührenquote', value: a.totalInv > 0 ? fmtP(feeRatio) : '–', good: a.totalInv > 0 ? feeRatio < 0.5 : null },
+    { label: 'Sparquote', value: fmtP(savingsRate), good: savingsRate >= TARGETS.savingsRate },
+    { label: 'Investitionsrate (netto)', value: fmtP(investRate), good: investRate >= TARGETS.investRate },
+    { label: 'Passives Einkommen', value: fmtP(passiveRatio), good: passiveRatio >= TARGETS.passiveRate },
+    { label: 'Kartenzahlungsanteil', value: fmtP(cardRatio), good: cardRatio < TARGETS.cardShare },
+    { label: 'Gebührenquote', value: a.totalInv > 0 ? fmtP(feeRatio) : '–', good: a.totalInv > 0 ? feeRatio < TARGETS.feeRate : null },
     { label: 'Ø Ausgabe pro Buchung', value: fmt(avgTxSize), good: null },
     { label: 'Ø Buchungen pro Monat', value: Math.round(a.enriched.length / a.mc) + '×', good: null },
     { label: 'Bester Monat', value: `${mLabel(best.k)} (${fmt(best.v)})`, good: null },
@@ -92,14 +99,14 @@ export function computeAlerts(a: Analysis, rates: OverviewRates): Alert[] {
   if (a.netBal < 0) {
     alerts.push({ color: 'red', title: 'Negativer Saldo', desc: `Ausgaben übersteigen Einnahmen um ${fmt(Math.abs(a.netBal))}.` });
   }
-  if (savingsRate < 10 && a.netBal >= 0) {
+  if (savingsRate < TARGETS.savingsRate / 2 && a.netBal >= 0) {
     alerts.push({ color: 'yellow', title: 'Niedrige Sparquote', desc: `Nur ${fmtP(savingsRate)} des Einkommens verbleibt als Netto.` });
   }
   if (a.totalDiv > 0) {
     alerts.push({ color: 'green', title: 'Passives Einkommen', desc: `${fmt(a.totalDiv)} Dividenden aus ${Object.keys(a.byAsset).length} Positionen.` });
   }
-  if (a.totalInv > 0) {
-    alerts.push({ color: 'green', title: 'Sparplan aktiv', desc: `${fmt(a.totalInv)} in Wertpapiere investiert (Rate: ${fmtP(investRate)}).` });
+  if (netInvested(a) > 0) {
+    alerts.push({ color: 'green', title: 'Sparplan aktiv', desc: `${fmt(netInvested(a))} netto in Wertpapiere investiert (Rate: ${fmtP(investRate)}).` });
   }
   if (a.totalFee > 100) {
     alerts.push({ color: 'yellow', title: 'Handelsgebühren', desc: `${fmt(a.totalFee)} an Gebühren — Sparpläne prüfen.` });
@@ -126,20 +133,18 @@ export function computeAlerts(a: Analysis, rates: OverviewRates): Alert[] {
       alerts.push({ color: 'yellow', title: 'Sinkende Einnahmen', desc: 'Die Einnahmen sind 3 Monate in Folge gesunken.' });
     }
   }
-  if (a.subscriptions.length > 0) {
-    const subTotal = a.subscriptions.reduce((s, x) => s + x.amt, 0);
-    const subPct = Math.abs(a.totalExp) / a.mc > 0 ? (subTotal / (Math.abs(a.totalExp) / a.mc)) * 100 : 0;
-    if (subPct > 15) {
-      alerts.push({
-        color: 'yellow',
-        title: 'Hoher Fixkostenanteil',
-        desc: `${a.subscriptions.length} wiederkehrende Ausgaben kosten Ø ${fmt(subTotal)}/Monat (${fmtP(subPct)} der Ausgaben).`,
-      });
-    }
+  const fixed = getFixedCosts(a);
+  const fixedPct = a.avgExp > 0 ? (fixed.totalPerMonth / a.avgExp) * 100 : 0;
+  if (fixedPct > 50) {
+    alerts.push({
+      color: 'yellow',
+      title: 'Hoher Fixkostenanteil',
+      desc: `${fixed.rows.length} Fixkosten binden Ø ${fmt(fixed.totalPerMonth)}/Monat (${fmtP(fixedPct)} der Ausgaben).`,
+    });
   }
   const cardTotal = a.exp.filter((r) => r._isCard).reduce((s, r) => s + Math.abs(r._amt), 0);
   const cardRatio = Math.abs(a.totalExp) > 0 ? (cardTotal / Math.abs(a.totalExp)) * 100 : 0;
-  if (cardRatio > 60) {
+  if (cardRatio > TARGETS.cardShare + 10) {
     alerts.push({ color: 'blue', title: 'Kartenlastig', desc: `${fmtP(cardRatio)} aller Ausgaben über Kartenzahlungen — Budgetierung prüfen.` });
   }
   const negMonths = a.mKeys.filter((mk) => (a.months[mk]?.net ?? 0) < 0);

@@ -24,8 +24,8 @@ describe('computeOverviewRates', () => {
     expect(rates.savingsRate).toBeCloseTo((2024.5 / 2115) * 100, 3);
     // passiveRatio = totalDiv/totalInc = 70/2115 * 100
     expect(rates.passiveRatio).toBeCloseTo((70 / 2115) * 100, 3);
-    // investRate = totalInv/totalInc = 1000/2115 * 100
-    expect(rates.investRate).toBeCloseTo((1000 / 2115) * 100, 3);
+    // investRate = (buys − sells)/totalInc = (1000 − 550)/2115 * 100
+    expect(rates.investRate).toBeCloseTo((450 / 2115) * 100, 3);
   });
 });
 

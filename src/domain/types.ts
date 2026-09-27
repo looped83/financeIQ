@@ -20,6 +20,10 @@ export type EnrichedRow = RawRow & {
   _isDiv: boolean;
   _isInterest: boolean;
   _isCard: boolean;
+  /** Transfer to/from an own account — excluded from income, expenses and cashflow. */
+  _isInternal: boolean;
+  /** Expense to a payee detected as a fixed cost over the whole history. */
+  _isFixed: boolean;
 };
 
 export type OutlierRow = EnrichedRow & {
@@ -61,12 +65,6 @@ export interface ByAssetAgg {
   count: number;
 }
 
-export interface Subscription {
-  name: string;
-  amt: number;
-  months: Set<string>;
-}
-
 export interface Analysis {
   enriched: EnrichedRow[];
   cash: EnrichedRow[];
@@ -95,7 +93,6 @@ export interface Analysis {
   expCat: Record<string, number>;
   merchants: Record<string, { total: number; count: number }>;
   outliers: OutlierRow[];
-  subscriptions: Subscription[];
 
   avgInc: number;
   avgExp: number;

@@ -15,7 +15,6 @@ import {
   getYearlyKpiCards,
   getYearlyTableRows,
   isMultiYear,
-  type QuarterKey,
 } from './selectors';
 
 const YEAR_SERIES: LegendItem[] = [
@@ -38,10 +37,9 @@ export function mountYearlyView(container: HTMLElement, store: Store<AppState>):
 function singleYear(a: Analysis): TemplateResult {
   const b = computeQuarterlyBreakdown(a);
   return html`
-    ${kpiGrid((['Q1', 'Q2', 'Q3', 'Q4'] as QuarterKey[]).map((q) => {
-      const qa = b.quarters[q];
-      return { label: `${q} ${b.year}`, value: fmt(qa.net), sub: `Ein ${fmt(qa.income)} · Aus ${fmt(Math.abs(qa.expense))}` };
-    }))}
+    ${kpiGrid(b.quarters.map((qa) => ({
+      label: `${qa.quarter} ${b.year} · Netto`, value: fmt(qa.net), sub: `Ein ${fmt(qa.income)} · Aus ${fmt(Math.abs(qa.expense))}`,
+    })))}
     ${card({ title: `Quartale ${b.year}`, sub: 'Die Daten umfassen nur ein Jahr – für den Jahresvergleich eine mehrjährige CSV laden.' },
       chartBox('yr-chart', 'Kennzahlen je Quartal', 'lg', YEAR_SERIES))}
   `;

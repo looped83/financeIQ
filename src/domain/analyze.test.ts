@@ -143,3 +143,29 @@ describe('analyze() — dataset without cash transactions', () => {
     expect(a.outliers).toEqual([]);
   });
 });
+
+describe('enrich() — own-account transfers and fixed costs', () => {
+  const HEADER = 'date,type,amount,tax,name';
+  const a = analyze(parseCSV([
+    HEADER,
+    '2024-01-01,TRANSFER_INBOUND,3000,0,Employer',
+    '2024-01-02,TRANSFER_INBOUND,500,0,Lutz Brüggemann',
+    '2024-01-03,TRANSFER_OUTBOUND,-2000,0,Brueggemann Lutz',
+    '2024-01-04,TRANSFER_OUTBOUND,-900,0,Hausverwaltung',
+    '2024-02-04,TRANSFER_OUTBOUND,-900,0,Hausverwaltung',
+    '2024-03-04,TRANSFER_OUTBOUND,-900,0,Hausverwaltung',
+    '2024-03-05,CARD_TRANSACTION,-50,0,Lutz Brüggemann',
+  ].join('\n')));
+
+  it('treats a payee money flows to and from as an own account, across spelling variants', () => {
+    const internal = a.enriched.filter((r) => r._isInternal).map((r) => r._amt);
+    expect(internal).toEqual([500, -2000]); // the card payment is not a transfer
+    expect(a.totalInc).toBe(3000);
+    expect(a.totalExp).toBe(-2750);
+    expect(a.months['2024-01']!.count).toBe(4); // still counted as bookings
+  });
+
+  it('flags the stable monthly payee as a fixed cost on every one of its rows', () => {
+    expect(a.enriched.filter((r) => r._isFixed).map((r) => r._name)).toEqual(['Hausverwaltung', 'Hausverwaltung', 'Hausverwaltung']);
+  });
+});

@@ -74,7 +74,7 @@ function view(a: Analysis, monthA: string, monthB: string, metric: MonthCompareM
   const mA = a.months[monthA]!;
   const mB = a.months[monthB]!;
   const [labelA, labelB] = [mLabel(monthA), mLabel(monthB)];
-  const deltaRows = getMonthDeltaTableRows(mA, mB, a, monthA, monthB);
+  const deltaRows = getMonthDeltaTableRows(a, monthA, monthB);
   const insights = computeMonthInsights(mA, mB, labelA, labelB, a, monthA, monthB);
   const merchants = getMerchantComparison(a, monthA, monthB);
   const unique = getUniqueMerchants(a, monthA, monthB);
@@ -100,7 +100,7 @@ function view(a: Analysis, monthA: string, monthB: string, metric: MonthCompareM
           <tbody>${deltaRows.map((r) => html`
             <tr>
               <td>${r.label}</td><td>${r.vA}</td><td>${r.vB}</td>
-              <td class=${r.deltaPositive ? 'pos' : 'neg'}>${r.delta}</td>
+              <td class=${r.good === null ? '' : r.good ? 'pos' : 'neg'}>${r.delta}</td>
               <td>${r.deltaPct}</td>
             </tr>`)}</tbody>
         </table>
@@ -122,7 +122,7 @@ function view(a: Analysis, monthA: string, monthB: string, metric: MonthCompareM
     }, chartBox('mc-timeline', 'Kennzahl über alle Monate', 'sm', ab))}
 
     <div class="grid">
-      ${card({ title: 'Ausgaben nach Kategorie' }, chartBox('mc-cat', 'Ausgaben je Kategorie in beiden Monaten', 'lg', ab))}
+      ${card({ title: 'Ausgaben nach Typ' }, chartBox('mc-cat', 'Ausgaben je Buchungstyp in beiden Monaten', '', ab))}
       ${card({ title: 'Händler im Vergleich', sub: 'Größte Ausgaben, Differenz = zweiter minus erster Monat' }, merchants.length
         ? html`<ul class="rows">${merchants.map((m) => html`
             <li>

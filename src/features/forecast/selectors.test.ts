@@ -54,8 +54,24 @@ describe('computeForecast', () => {
   it('base-case scenario matches the KPI-projected value', () => {
     const result = computeForecast(a, 3);
     const baseScenario = result.scenarios.find((s) => s.title === 'Basisszenario (Lineartrend)')!;
-    const projValueStr = result.kpis[1]!.sub.replace('Prognosewert: ', '');
+    const projValueStr = result.kpis[1]!.sub.replace('in 3 Monaten auf ', '');
     expect(baseScenario.desc).toContain(projValueStr);
+  });
+
+  it('labels forecast months like every other chart', () => {
+    expect(computeForecast(a, 3).chart.labels.slice(-3)).toEqual(['Mai 24', 'Jun 24', 'Jul 24']);
+  });
+
+  it('optimistic and pessimistic scenarios are the ends of the confidence band', () => {
+    const b = analyze(parseCSV(miniCsv([
+      { date: '2024-01-05', type: 'TRANSFER_INBOUND', amount: 500 },
+      { date: '2024-02-05', type: 'TRANSFER_INBOUND', amount: 100 },
+      { date: '2024-03-05', type: 'TRANSFER_INBOUND', amount: 700 },
+    ])));
+    const r = computeForecast(b, 3);
+    const fmtEnd = (xs: (number | null)[]) => new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(xs[xs.length - 1]!);
+    expect(r.scenarios[0]!.desc).toContain(fmtEnd(r.chart.ciUpper));
+    expect(r.scenarios[2]!.desc).toContain(fmtEnd(r.chart.ciLower));
   });
 
   it('returns exactly 3 scenarios in a fixed order', () => {

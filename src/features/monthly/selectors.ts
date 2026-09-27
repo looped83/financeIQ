@@ -1,4 +1,5 @@
 import { fmt, fmtP, mLabel } from '../../domain/format';
+import { TARGETS } from '../../domain/targets';
 import type { Analysis } from '../../domain/types';
 
 export interface MonthlySavingsRateChartData {
@@ -58,7 +59,7 @@ export function getMonthlyDetailRows(a: Analysis): MonthDetailRow[] {
       net: fmt(m.net),
       netPositive: m.net >= 0,
       savingsRate: fmtP(m.savingsRate),
-      savingsRateLevel: m.savingsRate >= 20 ? 'good' : m.savingsRate >= 10 ? 'ok' : 'bad',
+      savingsRateLevel: m.savingsRate >= TARGETS.savingsRate ? 'good' : m.savingsRate >= TARGETS.savingsRate / 2 ? 'ok' : 'bad',
       dividend: fmt(m.dividend),
       invested: fmt(m.invested),
       cardCount: m.cardCount,
