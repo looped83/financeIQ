@@ -79,7 +79,6 @@ export interface OutlierRow {
   type: string;
   name: string;
   amount: string;
-  positive: boolean;
   zScore: string;
   level: 'Kritisch' | 'Erhöht' | 'Auffällig';
 }
@@ -91,7 +90,6 @@ export function getOutlierRows(a: Analysis, limit = 25): OutlierRow[] {
     type: typeLabel(r._type),
     name: r._name || r._desc || '—',
     amount: fmt(r._amt),
-    positive: r._amt >= 0,
     zScore: `${r._z.toFixed(1).replace('.', ',')} σ`,
     level: r._z > 4 ? 'Kritisch' : r._z > 3 ? 'Erhöht' : 'Auffällig',
   }));

@@ -158,11 +158,14 @@ svg { flex-shrink: 0; }
 .file-card .btn { margin-top: var(--s-3); height: 36px; }
 
 .main { min-width: 0; margin-left: var(--sidebar-w); padding: 28px var(--s-8) 48px; display: flex; flex-direction: column; gap: var(--s-6); }
+/* Wide screens: content stops growing and stays centred instead of stretching lines and charts. */
+.main > * { width: 100%; max-width: 1440px; margin-inline: auto; }
 .page-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: var(--s-4) var(--s-6); }
 .page-title { font-size: var(--fs-2xl); font-weight: var(--fw-bold); letter-spacing: -0.015em; line-height: 1.2; }
 .page-meta { margin-top: 6px; color: var(--text-3); font-size: var(--fs-sm); }
 .page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .page-sub { margin-top: var(--s-3); }
+.month-pick { display: flex; align-items: center; gap: var(--s-2); }
 .period { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--surface); overflow: hidden; }
 .period .btn { border: 0; border-radius: 0; background: transparent; width: var(--control-h); padding: 0; color: var(--text-2); }
 .period-label {

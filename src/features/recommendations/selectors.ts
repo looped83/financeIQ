@@ -1,7 +1,7 @@
 import { fmt, fmtP, typeLabel } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import { cardShare, netInvested } from '../overview/selectors';
-import { getFixedCosts } from '../shared/commonSelectors';
+import { getFixedCosts, getSpendBreakdown } from '../shared/commonSelectors';
 
 export type RecommendationLevel = 'green' | 'yellow' | 'red' | 'blue';
 
@@ -13,8 +13,7 @@ export interface Recommendation {
   desc: string;
 }
 
-/** 1:1 port of the original's `renderRecommendations(a)` — 15 recommendation rules, each
- *  pushed conditionally, then sorted ascending by priority (lower = more urgent). */
+/** Recommendation rules, each pushed conditionally, then sorted by priority (lower = more urgent). */
 export function computeRecommendations(a: Analysis): Recommendation[] {
   const recs: Recommendation[] = [];
   const sr = a.totalInc > 0 ? (a.netBal / a.totalInc) * 100 : 0;
@@ -24,7 +23,7 @@ export function computeRecommendations(a: Analysis): Recommendation[] {
 
   // 1. Cashflow status
   if (a.netBal < 0) {
-    const top3 = Object.entries(a.expCat).sort((x, y) => y[1] - x[1]).slice(0, 3);
+    const top3 = getSpendBreakdown(a, 'type').entries.slice(0, 3);
     recs.push({
       level: 'red', priority: 1, category: 'Cashflow', title: 'Negativer Cashflow — sofort handeln',
       desc: `Ausgaben (${fmt(Math.abs(a.totalExp))}) übersteigen Einnahmen (${fmt(a.totalInc)}) um ${fmt(Math.abs(a.netBal))}. Größte Posten: ${top3.map(([k, v]) => `${k}: ${fmt(v)}`).join(', ')}. Sofort: Top-3-Kategorien um 10% reduzieren spart ${fmt(top3.reduce((s, [, v]) => s + v * 0.1, 0))}.`,
@@ -198,7 +197,7 @@ export function computeRecommendations(a: Analysis): Recommendation[] {
     const top3Pct = Math.abs(a.totalExp) > 0 ? (top3Total / Math.abs(a.totalExp)) * 100 : 0;
     if (top3Pct > 30) {
       recs.push({
-        level: 'blue', priority: 4, category: 'Ausgaben', title: `Top-3-Händler: ${fmtP(top3Pct)} der Ausgaben`,
+        level: 'blue', priority: 4, category: 'Ausgaben', title: `Top-3-Empfänger: ${fmtP(top3Pct)} der Ausgaben`,
         desc: `${topMerch.slice(0, 3).map(([nm, v]) => `${nm}: ${fmt(v.total)}`).join(', ')}. Bei hoher Konzentration: Preise vergleichen, Cashback-Optionen prüfen, Alternativen evaluieren.`,
       });
     }

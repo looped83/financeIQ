@@ -74,15 +74,6 @@ describe('analyze() — dividends, corrections, buy/sell, tax optimization', () 
     expect(a.totalFee).toBeCloseTo(2.0, 3);
   });
 
-  it('expense-by-category excludes dividends even when net-negative', () => {
-    expect(a.expCat['Dividenden']).toBeUndefined();
-  });
-
-  it('expense-by-category still includes the card payment and tax debit', () => {
-    expect(a.expCat['Kartenzahlungen']).toBeCloseTo(45.5, 3);
-    expect(a.expCat['Steuerkorrektur']).toBeCloseTo(30.0, 3);
-  });
-
   it('outlier detection does not divide by zero / crash on tiny datasets', () => {
     expect(Array.isArray(a.outliers)).toBe(true);
   });

@@ -1,5 +1,5 @@
 import { html, type TemplateResult } from 'lit-html';
-import { mountChart } from '../../charts/chartManager';
+import { mountChart, mountDonut } from '../../charts/chartManager';
 import { axes, INDEX_TOOLTIP } from '../../charts/chartTheme';
 import { fmt, fmtP } from '../../domain/format';
 import { TARGETS } from '../../domain/targets';
@@ -7,7 +7,7 @@ import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, SERIES, seriesColor } from '../../theme/palette';
-import { barList, card, chartBox, getCanvas, kpiGrid } from '../../ui/components';
+import { barList, card, chartBox, donut, emptyNote, getCanvas, kpiGrid } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import {
   getAssetClassBreakdown,
@@ -55,19 +55,10 @@ function view(a: Analysis, classes: [string, number][]): TemplateResult {
 
     <div class="grid grid--wide-right">
       ${card({ title: 'Käufe nach Anlageklasse' }, classes.length
-        ? html`
-          <div class="donut-wrap">
-            <div class="donut">
-              <canvas data-chart="in-classes" role="img" aria-label="Ringdiagramm der Käufe nach Anlageklasse"></canvas>
-              <div class="donut-center"><span>Gesamt</span><strong>${fmt(classTotal, 0)}</strong></div>
-            </div>
-            ${barList(classes.map(([label, v], i) => ({
-              label, value: fmt(v), share: fmtP(classTotal ? (v / classTotal) * 100 : 0), color: seriesColor(i),
-            })))}
-          </div>`
-        : html`<p class="muted">Keine Käufe im Zeitraum.</p>`)}
+        ? donut('in-classes', 'Ringdiagramm der Käufe nach Anlageklasse', classes, classTotal, seriesColor)
+        : emptyNote('Keine Käufe im Zeitraum.'))}
       ${card({ title: 'Dividenden nach Wertpapier', sub: securities.length ? `${securities.length} Wertpapiere · sortiert nach Betrag` : '' },
-        securities.length ? securityList(securities) : html`<p class="muted">Keine Dividenden im Zeitraum.</p>`)}
+        securities.length ? securityList(securities) : emptyNote('Keine Dividenden im Zeitraum.'))}
     </div>
   `;
 }
@@ -108,18 +99,5 @@ function charts(root: HTMLElement, a: Analysis, classes: [string, number][]): vo
     options: { ...INDEX_TOOLTIP, scales: axes(), datasets: { bar: { categoryPercentage: 0.7, barPercentage: 0.92 } } },
   });
 
-  const total = classes.reduce((s, [, v]) => s + v, 0);
-  mountChart(getCanvas(root, 'in-classes'), {
-    type: 'doughnut',
-    data: {
-      labels: classes.map(([l]) => l),
-      datasets: [{ data: classes.map(([, v]) => v), backgroundColor: classes.map((_, i) => seriesColor(i)) }],
-    },
-    options: {
-      cutout: '72%',
-      plugins: {
-        tooltip: { callbacks: { label: (c) => ` ${fmt(Number(c.parsed))} · ${fmtP(total ? (Number(c.parsed) / total) * 100 : 0)}` } },
-      },
-    },
-  });
+  mountDonut(getCanvas(root, 'in-classes'), classes, classes.reduce((s, [, v]) => s + v, 0));
 }

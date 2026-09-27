@@ -6,9 +6,10 @@ import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, seriesColor } from '../../theme/palette';
-import { card, chartBox, getCanvas, kpiGrid, type LegendItem } from '../../ui/components';
+import { card, chartBox, emptyNote, getCanvas, kpiGrid, rowList, type LegendItem } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import { getFixedCosts, getTopMerchants } from '../shared/commonSelectors';
+import { fixedCostsList } from '../shared/fixedCostsList';
 import {
   getFixVarTimelineData,
   getMerchantTimelineData,
@@ -59,39 +60,25 @@ function view(a: Analysis, stacks: Stacks): TemplateResult {
 
     <div class="grid grid--charts">
       ${card({ title: 'Ausgaben nach Typ', sub: 'Pro Monat, gestapelt' }, chartBox('sp-types', 'Ausgaben nach Buchungstyp je Monat', '', seriesLegend(stacks.types)))}
-      ${card({ title: 'Fixkosten vs. variabel', sub: 'Fix: stabile, mindestens dreimal wiederkehrende Empfänger' },
+      ${card({ title: 'Fixkosten vs. variabel', sub: 'Fix: Empfänger mit stabilem Monatsbetrag' },
         chartBox('sp-fixvar', 'Fixkosten und variable Ausgaben je Monat', '', seriesLegend(stacks.fixVar)))}
     </div>
 
     <div class="grid grid--wide-left">
       ${card({ title: 'Top-Empfänger im Zeitverlauf' }, chartBox('sp-merchants', 'Ausgaben der größten Empfänger je Monat', 'lg', seriesLegend(stacks.merchants)))}
-      ${card({ title: 'Top-Händler', sub: 'Kartenzahlungen' }, merchants.length
-        ? html`<ul class="rows">${merchants.map((m) => html`
-            <li>
-              <div class="row-main"><div class="row-title">${m.name}</div><div class="row-sub">${m.count} Zahlungen · Ø ${m.avg}</div></div>
-              <span class="row-value">${m.total}</span>
-            </li>`)}</ul>`
-        : html`<p class="muted">Keine Kartenzahlungen im Zeitraum.</p>`)}
+      ${card({ title: 'Kartenzahlungen', sub: 'Größte Empfänger' }, merchants.length
+        ? rowList(merchants.map((m) => ({ title: m.name, sub: `${m.count} Zahlungen · Ø ${m.avg}`, value: m.total })))
+        : emptyNote('Keine Kartenzahlungen im Zeitraum.'))}
     </div>
 
     <div class="grid">
-      ${card({ title: 'Fixkosten', sub: 'Mindestens dreimal gezahlt, mit stabilem Monatsbetrag' }, fixed.rows.length
-        ? html`
-          <ul class="rows">${fixed.rows.map((r) => html`
-            <li>
-              <div class="row-main"><div class="row-title">${r.name}</div><div class="row-sub">in ${r.monthCount} Monaten · ≈ ${fmt(r.perMonth * 12)} / Jahr</div></div>
-              <span class="row-value">${fmt(r.perMonth)}<small>/ Monat</small></span>
-            </li>`)}</ul>
-          <div class="card-foot"><span>Gesamt</span><span class="num"><strong>${fmt(fixed.totalPerMonth)}</strong> / Monat · ≈ ${fmt(fixed.totalPerMonth * 12)} / Jahr</span></div>`
-        : html`<p class="muted">Keine Fixkosten erkannt.</p>`)}
-
+      ${card({ title: 'Fixkosten', sub: 'Mindestens dreimal gezahlt, mit stabilem Monatsbetrag' }, fixedCostsList(fixed))}
       ${card({ title: 'Ausreißer', sub: `Mehr als 2σ vom Schnitt (Ø ${fmt(a.mean)}, σ ${fmt(a.std)})` }, outliers.length
-        ? html`<ul class="rows">${outliers.map((o) => html`
-            <li>
-              <div class="row-main"><div class="row-title">${o.name}</div><div class="row-sub">${o.date} · ${o.type} · ${o.zScore}</div></div>
-              <span class="row-value">${o.amount}<span class="badge ${LEVEL_BADGE[o.level]}">${o.level}</span></span>
-            </li>`)}</ul>`
-        : html`<p class="muted">Keine auffälligen Ausgaben im Zeitraum.</p>`)}
+        ? rowList(outliers.map((o) => ({
+            title: o.name, sub: `${o.date} · ${o.type} · ${o.zScore}`, value: o.amount,
+            after: html`<span class="badge ${LEVEL_BADGE[o.level]}">${o.level}</span>`,
+          })))
+        : emptyNote('Keine auffälligen Ausgaben im Zeitraum.'))}
     </div>
   `;
 }

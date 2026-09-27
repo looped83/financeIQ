@@ -1,13 +1,13 @@
 import { html, type TemplateResult } from 'lit-html';
 import { mountChart } from '../../charts/chartManager';
 import { axes, INDEX_TOOLTIP, xScale, yScale } from '../../charts/chartTheme';
-import { fmt, fmtD, mLabel } from '../../domain/format';
+import { fmt, fmtD, fmtSigned, mLabel } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppActions } from '../../state/appStore';
 import type { AppState, TimelineView as Mode } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { alpha, COLORS, SERIES } from '../../theme/palette';
-import { barList, card, chartBox, getCanvas, segmented } from '../../ui/components';
+import { barList, card, chartBox, emptyNote, getCanvas, segmented } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import { computeMainChartData, getIncomeSources, getMonthlyNetChartData } from './selectors';
 
@@ -46,7 +46,7 @@ function view(a: Analysis, mode: Mode, actions: AppActions): TemplateResult {
   return html`
     ${card({
       title: 'Kumulierter Cashflow',
-      sub: 'Nur Barumsätze',
+      sub: 'Ohne Wertpapierhandel und Umbuchungen',
       actions: segmented('Auflösung', MODES, mode, (m) => actions.setTimelineView(m)),
     }, chartBox('tl-main', 'Kumulierter Cashflow im Zeitverlauf', 'lg', [
       { label: 'Kumuliert', color: SERIES[0], mark: 'line' },
@@ -54,15 +54,15 @@ function view(a: Analysis, mode: Mode, actions: AppActions): TemplateResult {
     ]))}
 
     <div class="grid grid--wide-left">
-      ${card({ title: 'Netto-Cashflow pro Monat', sub: `Ø ${a.avgNet >= 0 ? '+' : ''}${fmt(a.avgNet)} pro Monat` },
-        chartBox('tl-net', 'Netto-Cashflow je Monat', '', [
+      ${card({ title: 'Netto pro Monat', sub: `Ø ${fmtSigned(a.avgNet)} pro Monat` },
+        chartBox('tl-net', 'Netto je Monat', '', [
           { label: 'Überschuss', color: COLORS.income },
           { label: 'Defizit', color: COLORS.expense },
         ]))}
       ${card({ title: 'Einnahmenquellen', sub: `${fmt(a.totalInc)} gesamt` },
         sources.length
           ? barList(sources.map((s) => ({ label: s.label, sub: `${s.count}×`, value: s.total, share: s.pctLabel, pct: s.pct, barColor: COLORS.income })))
-          : html`<p class="muted">Keine Einnahmen im Zeitraum.</p>`)}
+          : emptyNote('Keine Einnahmen im Zeitraum.'))}
     </div>
   `;
 }

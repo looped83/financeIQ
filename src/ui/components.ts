@@ -1,4 +1,7 @@
 import { html, nothing, type TemplateResult } from 'lit-html';
+import { fmt, fmtP } from '../domain/format';
+import type { Hint, Tone } from '../domain/types';
+import type { Direction } from '../domain/stats';
 import { icon, type IconName } from './icons';
 
 /** Small, stateless lit-html building blocks shared by every page. */
@@ -134,16 +137,14 @@ export function barList(rows: BarRow[]): TemplateResult {
   `;
 }
 
-export type InsightColor = 'green' | 'yellow' | 'red' | 'blue';
-
-const TONE: Record<InsightColor, { cls: string; icon: IconName; label: string }> = {
+const TONE: Record<Tone, { cls: string; icon: IconName; label: string }> = {
   green: { cls: 'tone-good', icon: 'check', label: 'Positiv' },
   yellow: { cls: 'tone-warn', icon: 'alert', label: 'Hinweis' },
   red: { cls: 'tone-bad', icon: 'alertTriangle', label: 'Warnung' },
   blue: { cls: 'tone-info', icon: 'info', label: 'Info' },
 };
 
-export function insight(color: InsightColor, title: string, desc: string): TemplateResult {
+export function insight({ color, title, desc }: Hint): TemplateResult {
   const t = TONE[color];
   return html`
     <div class="insight ${t.cls}">
@@ -156,12 +157,59 @@ export function insight(color: InsightColor, title: string, desc: string): Templ
   `;
 }
 
+/** Page-level "nothing here", e.g. no bookings in the period. */
 export function emptyState(title: string, text = ''): TemplateResult {
   return html`<div class="empty"><strong>${title}</strong>${text}</div>`;
 }
 
+/** "Nothing here" inside a card. */
+export function emptyNote(text: string): TemplateResult {
+  return html`<p class="muted">${text}</p>`;
+}
+
+export interface RowItem {
+  title: string;
+  sub?: Content;
+  value: Content;
+  /** Small muted unit after the value, e.g. "/ Monat". */
+  unit?: string;
+  /** Markup after the value: a badge or a ▲/▼ mark. */
+  after?: Content;
+  /** Markup before the value: a ✓/⚠ status icon. */
+  before?: Content;
+  valueClass?: string;
+}
+
+/** The one list row every card uses: title with optional sub line, value on the right. */
+export function rowList(items: RowItem[]): TemplateResult {
+  return html`
+    <ul class="rows">${items.map((i) => html`
+      <li>
+        <div class="row-main">
+          <div class="row-title" title=${i.title}>${i.title}</div>
+          ${i.sub ? html`<div class="row-sub">${i.sub}</div>` : nothing}
+        </div>
+        <span class="row-value ${i.valueClass ?? ''}">${i.before ?? nothing}${i.value}${i.unit ? html`<small>${i.unit}</small>` : nothing}${i.after ?? nothing}</span>
+      </li>`)}
+    </ul>
+  `;
+}
+
+/** Ring chart with the total in its centre and a color-keyed list of the (folded) entries. */
+export function donut(key: string, label: string, entries: [string, number][], total: number, color: (i: number) => string): TemplateResult {
+  return html`
+    <div class="donut-wrap">
+      <div class="donut">
+        <canvas data-chart=${key} role="img" aria-label=${label}></canvas>
+        <div class="donut-center"><span>Gesamt</span><strong>${fmt(total, 0)}</strong></div>
+      </div>
+      ${barList(entries.map(([name, v], i) => ({ label: name, value: fmt(v), share: fmtP(total ? (v / total) * 100 : 0), color: color(i) })))}
+    </div>
+  `;
+}
+
 /** ▲/▼ after a value; `goodWhen` decides whether the direction is good (green) or bad (red). */
-export function deltaMark(dir: 'up' | 'down' | null, goodWhen: 'up' | 'down' = 'up'): TemplateResult | typeof nothing {
+export function deltaMark(dir: Direction, goodWhen: 'up' | 'down' = 'up'): TemplateResult | typeof nothing {
   if (!dir) return nothing;
   const good = dir === goodWhen;
   return html`<span class="delta ${good ? 'delta--good' : 'delta--bad'}" aria-label=${dir === 'up' ? 'gestiegen' : 'gesunken'}

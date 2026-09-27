@@ -1,5 +1,6 @@
-import { fmt, fmtP, fmtPP } from '../../domain/format';
+import { fmt, fmtP, fmtSignedP } from '../../domain/format';
 import { TARGETS } from '../../domain/targets';
+import { changeDir, type Direction } from '../../domain/stats';
 import type { Analysis } from '../../domain/types';
 
 export function isMultiYear(a: Analysis): boolean {
@@ -63,8 +64,6 @@ export interface YearlyKpiCard {
   year: string;
   net: string;
   income: string;
-  expense: string;
-  netPositive: boolean;
   yoyIncomeChange: string | null;
   yoyIncomeUp: boolean;
 }
@@ -79,9 +78,7 @@ export function getYearlyKpiCards(a: Analysis): YearlyKpiCard[] {
       year: y,
       net: fmt(yr.net),
       income: fmt(yr.income),
-      expense: fmt(Math.abs(yr.expense)),
-      netPositive: yr.net >= 0,
-      yoyIncomeChange: yoyChange !== null ? fmtPP(yoyChange) : null,
+      yoyIncomeChange: yoyChange !== null ? fmtSignedP(yoyChange) : null,
       yoyIncomeUp: yoyChange !== null && yoyChange >= 0,
     };
   });
@@ -108,10 +105,10 @@ export function getYearlyChartData(a: Analysis): YearlyChartData {
 export interface YearlyTableRow {
   year: string;
   income: string;
-  incomeDelta: 'up' | 'down' | null;
+  incomeDelta: Direction;
   expense: string;
   /** 'up' = spending rose (bad), 'down' = it fell (good). */
-  expenseDelta: 'up' | 'down' | null;
+  expenseDelta: Direction;
   net: string;
   netPositive: boolean;
   invested: string;
@@ -121,13 +118,6 @@ export interface YearlyTableRow {
   savingsRateCls: 'pos' | 'warn' | 'neg';
   isBest: boolean;
   isWorst: boolean;
-}
-
-function deltaDir(curr: number, prev: number | null): 'up' | 'down' | null {
-  if (prev === null) return null;
-  const d = curr - prev;
-  if (Math.abs(d) < 1) return null;
-  return d > 0 ? 'up' : 'down';
 }
 
 export function getYearlyTableRows(a: Analysis): YearlyTableRow[] {
@@ -142,9 +132,9 @@ export function getYearlyTableRows(a: Analysis): YearlyTableRow[] {
     return {
       year: y,
       income: fmt(yr.income),
-      incomeDelta: deltaDir(yr.income, prev?.income ?? null),
+      incomeDelta: changeDir(yr.income, prev?.income),
       expense: fmt(Math.abs(yr.expense)),
-      expenseDelta: deltaDir(Math.abs(yr.expense), prev ? Math.abs(prev.expense) : null),
+      expenseDelta: changeDir(Math.abs(yr.expense), prev && Math.abs(prev.expense)),
       net: fmt(yr.net),
       netPositive: yr.net >= 0,
       invested: fmt(yr.invested),

@@ -9,12 +9,6 @@ export interface Store<T> {
 }
 
 /**
- * Minimal framework-agnostic reactive store: get/set state, subscribe to
- * every change. No selectors, no middleware, no external dependency —
- * intentionally small, since Phase 3 is where UI components decide how
- * they want to consume it (direct subscribe, a thin selector helper, etc.).
- */
-/**
  * Subscribes `listener` to `store`, invoking it once immediately and then only
  * when one of the dependencies returned by `select` changes (reference
  * equality — state updates are immutable, so unchanged slices keep their
@@ -23,8 +17,7 @@ export interface Store<T> {
  * change only concerns another tab.
  *
  * The subscription is registered BEFORE the initial run: a listener may
- * synchronously dispatch an action during its first render (DeepDiveView's
- * default-month selection does), and must be re-notified of the resulting
+ * synchronously dispatch an action during its first render, and must be re-notified of the resulting
  * state change.
  */
 export function subscribeSelected<T>(
@@ -44,6 +37,7 @@ export function subscribeSelected<T>(
   return unsubscribe;
 }
 
+/** Minimal reactive store: get/set state, subscribe to every change — no dependency. */
 export function createStore<T>(initialState: T): Store<T> {
   let state = initialState;
   const listeners = new Set<Listener<T>>();

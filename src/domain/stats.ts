@@ -29,3 +29,13 @@ export function movingAverage(values: number[], window: number): number[] {
     return sum / Math.min(i + 1, window);
   });
 }
+
+export type Direction = 'up' | 'down' | null;
+
+/** ▲/▼ direction vs. the previous value; none without a (non-zero) previous value or for changes under 1. */
+export function changeDir(curr: number, prev: number | null | undefined): Direction {
+  if (!prev) return null;
+  const d = curr - prev;
+  if (Math.abs(d) < 1) return null;
+  return d > 0 ? 'up' : 'down';
+}

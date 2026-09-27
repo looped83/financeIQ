@@ -67,7 +67,7 @@ describe('getOutlierRows', () => {
       row('2024-02-01', 'CARD_TRANSACTION', -5000, 'Big One'),
     ].join('\n')));
     const hit = getOutlierRows(big).find((r) => r.name === 'Big One');
-    expect(hit).toMatchObject({ positive: false, level: 'Kritisch' });
+    expect(hit).toMatchObject({ level: 'Kritisch' });
   });
 
   it('is empty when nothing varies', () => {

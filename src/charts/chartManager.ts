@@ -14,7 +14,8 @@ import {
   type ChartConfiguration,
   type ChartType,
 } from 'chart.js';
-import { COLORS } from '../theme/palette';
+import { fmt, fmtP } from '../domain/format';
+import { COLORS, seriesColor } from '../theme/palette';
 import { track, tracked, untrack } from './registry';
 
 // Register only what the app draws (bar, line, doughnut) instead of every
@@ -73,4 +74,21 @@ export function mountChart<T extends ChartType>(canvas: HTMLCanvasElement | null
   }
   untrack(canvas);
   track(canvas, new Chart(canvas, config));
+}
+
+/** The ring chart of `donut()` (ui/components): series colors in entry order, amount and share in the tooltip. */
+export function mountDonut(canvas: HTMLCanvasElement | null, entries: [string, number][], total: number): void {
+  mountChart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(([l]) => l),
+      datasets: [{ data: entries.map(([, v]) => v), backgroundColor: entries.map((_, i) => seriesColor(i)) }],
+    },
+    options: {
+      cutout: '72%',
+      plugins: {
+        tooltip: { callbacks: { label: (c) => ` ${fmt(Number(c.parsed))} · ${fmtP(total ? (Number(c.parsed) / total) * 100 : 0)}` } },
+      },
+    },
+  });
 }

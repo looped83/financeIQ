@@ -1,9 +1,7 @@
 import { findCol } from './csv';
-import { typeLabel } from './format';
 import type {
   Analysis,
   ByAssetAgg,
-  ByTypeAgg,
   EnrichedRow,
   MonthAgg,
   OutlierRow,
@@ -207,7 +205,7 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
     if (!r._month) continue;
     const m = (months[r._month] ??= {
       income: 0, expense: 0, invested: 0, sold: 0, dividend: 0, count: 0, cardCount: 0, cardExpense: 0,
-      net: 0, cumBal: 0, savingsRate: 0,
+      net: 0, savingsRate: 0,
     });
     m.count++;
     if (r._isCard) m.cardCount++;
@@ -220,12 +218,9 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
     if (r._isCard && r._amt < 0) m.cardExpense -= r._amt;
   }
   const mKeys = Object.keys(months).sort();
-  let cum = 0;
   for (const mk of mKeys) {
     const m = months[mk]!;
     m.net = m.income + m.expense;
-    cum += m.net;
-    m.cumBal = cum;
     m.savingsRate = m.income > 0 ? (m.net / m.income) * 100 : 0;
   }
 
@@ -253,16 +248,6 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
   }
   const yKeys = Object.keys(years).sort();
 
-  // By type
-  const byType: Record<string, ByTypeAgg> = {};
-  for (const r of enriched) {
-    const t = r._type || 'Unbekannt';
-    const bt = (byType[t] ??= { income: 0, expense: 0, count: 0 });
-    if (r._amt > 0) bt.income += r._amt;
-    else bt.expense += r._amt;
-    bt.count++;
-  }
-
   // By asset (dividends)
   const byAsset: Record<string, ByAssetAgg> = {};
   for (const r of divs) {
@@ -277,15 +262,6 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
   for (const r of buys) {
     const ac = r._asset || 'Unbekannt';
     byAssetClass[ac] = (byAssetClass[ac] ?? 0) + Math.abs(r._amt);
-  }
-
-  // Expense by category (Dividenden/Zinsen ausgeschlossen: vereinzelte Korrekturbuchungen
-  // können netto negativ ausfallen, sind aber keine Ausgabenkategorie, sondern Ertragskorrekturen)
-  const expCat: Record<string, number> = {};
-  for (const r of exp) {
-    if (r._isDiv || r._isInterest) continue;
-    const t = typeLabel(r._type);
-    expCat[t] = (expCat[t] ?? 0) + Math.abs(r._amt);
   }
 
   // Top merchants (card)
@@ -318,7 +294,7 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
   return {
     enriched, cash, inc, exp, buys, sells, divs,
     totalInc, totalExp, totalInv, totalSold, totalDiv, netBal, totalFee,
-    months, mKeys, years, yKeys, byType, byAsset, byAssetClass, expCat, merchants, outliers,
+    months, mKeys, years, yKeys, byAsset, byAssetClass, merchants, outliers,
     avgInc, avgExp, avgNet, mean, std, mc,
   };
 }

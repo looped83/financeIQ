@@ -41,7 +41,6 @@ export interface MonthAgg {
   /** Spent by card (absolute). */
   cardExpense: number;
   net: number;
-  cumBal: number;
   savingsRate: number;
 }
 
@@ -54,12 +53,6 @@ export interface YearAgg {
   fees: number;
   net: number;
   months: number;
-}
-
-export interface ByTypeAgg {
-  income: number;
-  expense: number;
-  count: number;
 }
 
 export interface ByAssetAgg {
@@ -89,10 +82,8 @@ export interface Analysis {
   years: Record<string, YearAgg>;
   yKeys: string[];
 
-  byType: Record<string, ByTypeAgg>;
   byAsset: Record<string, ByAssetAgg>;
   byAssetClass: Record<string, number>;
-  expCat: Record<string, number>;
   merchants: Record<string, { total: number; count: number }>;
   outliers: OutlierRow[];
 
@@ -102,4 +93,14 @@ export interface Analysis {
   mean: number;
   std: number;
   mc: number;
+}
+
+/** How a hint is judged: good, worth a look, a problem, or neutral information. */
+export type Tone = 'green' | 'yellow' | 'red' | 'blue';
+
+/** One insight row (hints, recommendations, scenarios). */
+export interface Hint {
+  color: Tone;
+  title: string;
+  desc: string;
 }

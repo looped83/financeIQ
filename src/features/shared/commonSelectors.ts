@@ -56,7 +56,7 @@ export interface SpendBreakdown {
 
 /**
  * Where the money went, by payee or by transaction type. Dividend/interest
- * corrections are excluded, like in `expCat`. A payee without a name falls
+ * corrections are excluded (they are not spending). A payee without a name falls
  * back to its type label so nameless card payments don't vanish.
  */
 export function getSpendBreakdown(a: Analysis, by: 'payee' | 'type'): SpendBreakdown {

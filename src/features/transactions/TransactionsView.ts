@@ -1,10 +1,11 @@
 import { html, nothing, type TemplateResult } from 'lit-html';
-import { fmt, fmtN, typeLabel } from '../../domain/format';
+import { fmt, fmtN, fmtSigned, typeLabel } from '../../domain/format';
 import type { EnrichedRow } from '../../domain/types';
 import type { AppActions } from '../../state/appStore';
 import type { AppState, TransactionKind, TransactionSort } from '../../state/appState';
 import { TRANSACTIONS_PER_PAGE } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
+import { emptyState } from '../../ui/components';
 import { icon } from '../../ui/icons';
 import { hasData, mountPage, noData } from '../../ui/page';
 import {
@@ -35,8 +36,6 @@ const SORTS: { value: TransactionSort; label: string }[] = [
 const SEARCH_DELAY = 150;
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
-const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v))}`;
-
 function badgeClass(r: EnrichedRow): string {
   if (r._isInternal) return '';
   if (r._isDiv) return 'badge--div';
@@ -66,7 +65,7 @@ function view(all: EnrichedRow[], state: AppState, actions: AppActions): Templat
       <div class="tx-toolbar">
         <label class="search">
           ${icon('search', 16)}
-          <input type="search" placeholder="Händler, Beschreibung oder Typ suchen" aria-label="Buchungen durchsuchen"
+          <input type="search" placeholder="Empfänger, Beschreibung oder Typ suchen" aria-label="Buchungen durchsuchen"
             .value=${f.search} @input=${(e: Event) => {
               const search = value(e);
               clearTimeout(searchTimer);
@@ -88,7 +87,7 @@ function view(all: EnrichedRow[], state: AppState, actions: AppActions): Templat
             ${SORTS.map((s) => html`<option value=${s.value} ?selected=${s.value === sort}>${s.label}</option>`)}
           </select>
           <span class="tx-summary">
-            ${fmtN(filtered.length)} Buchungen · <span class="pos">+${fmt(inflow)}</span> rein · ${signed(outflow)} raus
+            ${fmtN(filtered.length)} Buchungen · <span class="pos">${fmtSigned(inflow)}</span> rein · ${fmt(outflow)} raus
           </span>
         </div>
       </div>
@@ -96,11 +95,11 @@ function view(all: EnrichedRow[], state: AppState, actions: AppActions): Templat
       <div class="tx-head" aria-hidden="true"><span></span><span>Name / Beschreibung</span><span>Typ</span><span>Betrag</span></div>
 
       ${filtered.length === 0
-        ? html`<div class="empty"><strong>Keine Treffer</strong>Filter oder Suche anpassen.</div>`
+        ? emptyState('Keine Treffer', 'Filter oder Suche anpassen.')
         : byDate
           ? groupByDay(pageRows, filtered).map((g) => html`
               <section aria-label=${g.label}>
-                <h3 class="tx-day"><span>${g.label}</span><span class=${g.sum > 0 ? 'pos' : ''}>${signed(g.sum)}</span></h3>
+                <h3 class="tx-day"><span>${g.label}</span><span class=${g.sum > 0 ? 'pos' : ''}>${fmtSigned(g.sum)}</span></h3>
                 <ul>${g.rows.map(row)}</ul>
               </section>
             `)
@@ -139,7 +138,7 @@ function row(r: EnrichedRow): TemplateResult {
       </div>
       <span class="tx-type"><span class="badge ${badgeClass(r)}">${type}</span></span>
       <div class="tx-amount ${r._amt > 0 ? 'pos' : ''}">
-        ${signed(r._amt)}
+        ${fmtSigned(r._amt)}
         ${r._fee ? html`<small>Gebühr ${fmt(Math.abs(r._fee))}</small>` : nothing}
       </div>
     </li>

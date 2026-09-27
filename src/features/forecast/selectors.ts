@@ -1,7 +1,7 @@
 import { linReg } from '../../domain/stats';
 import { fmt, mLabel } from '../../domain/format';
 import { addMonths } from '../../domain/period';
-import type { Analysis } from '../../domain/types';
+import type { Analysis, Hint } from '../../domain/types';
 
 export interface ForecastChartData {
   labels: string[];
@@ -18,16 +18,10 @@ export interface ForecastKpi {
   sub: string;
 }
 
-export interface ForecastScenario {
-  color: 'green' | 'blue' | 'yellow';
-  title: string;
-  desc: string;
-}
-
 export interface ForecastResult {
   chart: ForecastChartData;
   kpis: ForecastKpi[];
-  scenarios: ForecastScenario[];
+  scenarios: Hint[];
 }
 
 /** Linear-trend cashflow forecast with a 95% confidence band, `months` ahead. */
@@ -62,7 +56,7 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
   const kpis: ForecastKpi[] = [
     {
       label: 'Monatlicher Trend', value: fmt(slope), cls: slope >= 0 ? 'income' : 'expense',
-      sub: slope >= 0 ? 'Netto-Cashflow wächst' : 'Netto-Cashflow sinkt',
+      sub: slope >= 0 ? 'Netto pro Monat wächst' : 'Netto pro Monat sinkt',
     },
     {
       label: 'Erwarteter Zuwachs', value: fmt(projEnd - lastActual), cls: 'invest',
@@ -77,7 +71,7 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
   // Scenarios are the ends of the confidence band, so text and chart always agree.
   const upper = fcU[fcU.length - 1] ?? lastActual;
   const lower = fcL[fcL.length - 1] ?? lastActual;
-  const scenarios: ForecastScenario[] = [
+  const scenarios: Hint[] = [
     {
       color: 'green', title: 'Optimistisches Szenario',
       desc: `Oberes Ende des 95-%-Bands: ${fmt(upper)} nach ${months} Monaten (${fmt(upper - lastActual)} Zuwachs).`,

@@ -32,7 +32,7 @@ describe('computeOverviewRates', () => {
 describe('getOverviewKpis', () => {
   it('returns the 4 headline tiles with the totals from the fixture', () => {
     const kpis = getOverviewKpis(a, computeOverviewRates(a));
-    expect(kpis.map((k) => k.label)).toEqual(['Einnahmen', 'Ausgaben', 'Netto-Saldo', 'Dividenden (netto)']);
+    expect(kpis.map((k) => k.label)).toEqual(['Einnahmen', 'Ausgaben', 'Netto', 'Dividenden (netto)']);
     expect(kpis[0]?.value).toBe('2.115,00 €');
     expect(kpis[2]?.value).toBe('+2.024,50 €');
   });

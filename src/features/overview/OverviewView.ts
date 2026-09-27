@@ -1,16 +1,17 @@
 import { html, nothing, type TemplateResult } from 'lit-html';
-import { mountChart } from '../../charts/chartManager';
+import { mountChart, mountDonut } from '../../charts/chartManager';
 import { axes, INDEX_TOOLTIP } from '../../charts/chartTheme';
-import { fmt, fmtP } from '../../domain/format';
+import { fmtSigned } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, seriesColor } from '../../theme/palette';
-import { barList, card, chartBox, getCanvas, insight, kpiGrid, segmented, statusIcon } from '../../ui/components';
+import { card, chartBox, donut, emptyNote, getCanvas, insight, kpiGrid, rowList, segmented, statusIcon } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import { href } from '../../shell/routes';
 import { computeRecommendations } from '../recommendations/selectors';
 import { getFixedCosts, getSpendBreakdown } from '../shared/commonSelectors';
+import { fixedCostsList } from '../shared/fixedCostsList';
 import { getCumulativeIncExpChartData, getMonthlyIncomeExpenseData } from '../timeline/selectors';
 import { computeAlerts, computeFinancialRatios, computeOverviewRates, computeTrends, getOverviewKpis } from './selectors';
 
@@ -42,7 +43,6 @@ function view(
   set: <K extends keyof typeof ui>(k: K, v: (typeof ui)[K]) => void,
 ): TemplateResult {
   const rates = computeOverviewRates(a);
-  const fixed = getFixedCosts(a);
 
   return html`
     ${kpiGrid(getOverviewKpis(a, rates))}
@@ -50,7 +50,7 @@ function view(
     <div class="grid">
       ${card({
         title: 'Einnahmen vs. Ausgaben',
-        sub: `Ø Netto ${a.avgNet >= 0 ? '+' : ''}${fmt(a.avgNet)} pro Monat`,
+        sub: `Ø Netto ${fmtSigned(a.avgNet)} pro Monat`,
         actions: segmented('Darstellung', [
           { value: 'monthly', label: 'Monatlich' },
           { value: 'cumulative', label: 'Kumuliert' },
@@ -67,45 +67,16 @@ function view(
           { value: 'payee', label: 'Empfänger' },
           { value: 'type', label: 'Typ' },
         ], ui.spendBy, (v) => set('spendBy', v)),
-      }, html`
-        <div class="donut-wrap">
-          <div class="donut">
-            <canvas data-chart="ov-donut" role="img" aria-label="Ringdiagramm der Ausgaben"></canvas>
-            <div class="donut-center"><span>Gesamt</span><strong>${fmt(spend.total, 0)}</strong></div>
-          </div>
-          ${barList(spend.entries.map(([label, v], i) => ({
-            label, value: fmt(v), share: fmtP(spend.total ? (v / spend.total) * 100 : 0), color: seriesColor(i),
-          })))}
-        </div>
-      `)}
+      }, donut('ov-donut', 'Ringdiagramm der Ausgaben', spend.entries, spend.total, seriesColor))}
     </div>
 
     <div class="grid grid--3">
-      ${card({ title: 'Finanz-Kennzahlen' }, html`
-        <ul class="rows">
-          ${computeFinancialRatios(a, rates).map((r) => html`
-            <li>
-              <span class="row-label">${r.label}</span>
-              <span class="row-value">${r.good === null ? nothing : statusIcon(r.good ? 'good' : 'warn')}${r.value}</span>
-            </li>
-          `)}
-        </ul>
-      `)}
+      ${card({ title: 'Finanz-Kennzahlen' }, rowList(computeFinancialRatios(a, rates).map((r) => ({
+        title: r.label, value: r.value, before: r.good === null ? nothing : statusIcon(r.good ? 'good' : 'warn'),
+      }))))}
 
       ${card({ title: 'Fixkosten', sub: 'Wiederkehrend mit stabilem Betrag', actions: html`<a class="more" href=${href('ausgaben')}>Alle</a>` },
-        fixed.rows.length === 0
-          ? html`<p class="muted">Keine Fixkosten erkannt.</p>`
-          : html`
-            <ul class="rows">
-              ${fixed.rows.slice(0, 6).map((r) => html`
-                <li>
-                  <div class="row-main"><div class="row-title">${r.name}</div><div class="row-sub">in ${r.monthCount} Monaten</div></div>
-                  <span class="row-value">${fmt(r.perMonth)}<small>/ Monat</small></span>
-                </li>
-              `)}
-            </ul>
-            <div class="card-foot"><span>Gesamt</span><span class="num"><strong>${fmt(fixed.totalPerMonth)}</strong> / Monat · ≈ ${fmt(fixed.totalPerMonth * 12)} / Jahr</span></div>
-          `)}
+        fixedCostsList(getFixedCosts(a), 6))}
 
       ${hintsCard(a, rates, set)}
     </div>
@@ -133,7 +104,7 @@ function hintsCard(
     ], ui.hints, (v) => set('hints', v)),
   }, html`
     <div class="insights">
-      ${shown.length ? shown.map((i) => insight(i.color, i.title, i.desc)) : html`<p class="muted">Keine besonderen Auffälligkeiten.</p>`}
+      ${shown.length ? shown.map(insight) : emptyNote('Keine besonderen Auffälligkeiten.')}
     </div>
     ${items.length > HINTS_SHOWN
       ? html`<button type="button" class="more" @click=${() => set('allHints', !ui.allHints)}>
@@ -171,17 +142,5 @@ function charts(root: HTMLElement, a: Analysis, spend: ReturnType<typeof getSpen
     });
   }
 
-  mountChart(getCanvas(root, 'ov-donut'), {
-    type: 'doughnut',
-    data: {
-      labels: spend.entries.map(([l]) => l),
-      datasets: [{ data: spend.entries.map(([, v]) => v), backgroundColor: spend.entries.map((_, i) => seriesColor(i)) }],
-    },
-    options: {
-      cutout: '72%',
-      plugins: {
-        tooltip: { callbacks: { label: (c) => ` ${fmt(Number(c.parsed))} · ${fmtP(spend.total ? (Number(c.parsed) / spend.total) * 100 : 0)}` } },
-      },
-    },
-  });
+  mountDonut(getCanvas(root, 'ov-donut'), spend.entries, spend.total);
 }

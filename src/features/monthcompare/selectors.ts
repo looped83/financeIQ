@@ -1,7 +1,7 @@
 import { isSpend } from '../../domain/analyze';
-import { fmt, fmtP, fmtPP, mLabel, typeLabel } from '../../domain/format';
+import { fmt, fmtP, fmtPts, fmtSigned, fmtSignedP, mLabel, typeLabel } from '../../domain/format';
 import { memoize } from '../../domain/memo';
-import type { Analysis, MonthAgg } from '../../domain/types';
+import type { Analysis, Hint, MonthAgg } from '../../domain/types';
 import type { MonthCompareMetric } from '../../state/appState';
 
 export interface MonthKpi {
@@ -53,24 +53,18 @@ export function getMonthCategoryComparison(analysis: Analysis, monthA: string, m
   };
 }
 
-export interface MonthCompareInsight {
-  color: 'green' | 'red' | 'yellow' | 'blue';
-  title: string;
-  desc: string;
-}
-
 export function computeMonthInsights(
   a: MonthAgg, b: MonthAgg, labelA: string, labelB: string,
   analysis: Analysis, monthA: string, monthB: string,
-): MonthCompareInsight[] {
-  const ins: MonthCompareInsight[] = [];
+): Hint[] {
+  const ins: Hint[] = [];
 
   if (a.income > 0) {
     const incChg = ((b.income - a.income) / a.income) * 100;
     ins.push({
       color: incChg >= 0 ? 'green' : 'red',
       title: `Einnahmen ${incChg >= 0 ? 'gestiegen' : 'gesunken'}`,
-      desc: `${labelB}: ${fmt(b.income)} vs. ${labelA}: ${fmt(a.income)} — ${fmtPP(incChg)}.`,
+      desc: `${labelB}: ${fmt(b.income)} vs. ${labelA}: ${fmt(a.income)} — ${fmtSignedP(incChg)}.`,
     });
   }
 
@@ -81,7 +75,7 @@ export function computeMonthInsights(
     ins.push({
       color: expChg <= 0 ? 'green' : 'red',
       title: `Ausgaben ${expChg >= 0 ? 'gestiegen' : 'gesunken'}`,
-      desc: `${labelB}: ${fmt(absExpB)} vs. ${labelA}: ${fmt(absExpA)} — ${fmtPP(expChg)}.`,
+      desc: `${labelB}: ${fmt(absExpB)} vs. ${labelA}: ${fmt(absExpA)} — ${fmtSignedP(expChg)}.`,
     });
   }
 
@@ -97,7 +91,7 @@ export function computeMonthInsights(
     ins.push({
       color: srDelta >= 0 ? 'green' : 'yellow',
       title: `Sparquote ${srDelta >= 0 ? 'verbessert' : 'gesunken'}`,
-      desc: `${labelB}: ${fmtP(b.savingsRate)} vs. ${labelA}: ${fmtP(a.savingsRate)} — ${fmtPP(srDelta).replace(' %', '')} Prozentpunkte.`,
+      desc: `${labelB}: ${fmtP(b.savingsRate)} vs. ${labelA}: ${fmtP(a.savingsRate)} — ${fmtPts(srDelta)}.`,
     });
   }
 
@@ -117,7 +111,7 @@ export function computeMonthInsights(
     ins.push({
       color: 'blue',
       title: `${txB} Transaktionen in ${labelB}`,
-      desc: `${labelA} hatte ${txA} Transaktionen — ${fmtPP(txChg)} Veränderung.`,
+      desc: `${labelA} hatte ${txA} Transaktionen — ${fmtSignedP(txChg)} Veränderung.`,
     });
   }
 
@@ -145,8 +139,8 @@ export function getMonthDeltaTableRows(analysis: Analysis, monthA: string, month
       label: k.label,
       vA: isRate ? fmtP(k.vA) : fmt(k.vA),
       vB: isRate ? fmtP(k.vB) : fmt(k.vB),
-      delta: isRate ? fmtPP(d).replace(' %', ' Pp.') : `${d >= 0 ? '+' : ''}${fmt(d)}`,
-      deltaPct: isRate ? '—' : fmtPP(p),
+      delta: isRate ? fmtPts(d) : fmtSigned(d),
+      deltaPct: isRate ? '—' : fmtSignedP(p),
       good: Math.abs(d) < 0.005 ? null : (d > 0) === (k.goodWhen === 'up'),
     };
   });
@@ -171,7 +165,6 @@ export interface MerchantCompareRow {
   totalA: number;
   totalB: number;
   delta: number;
-  deltaPositive: boolean;
 }
 
 interface PayeeSpend {
@@ -206,7 +199,7 @@ export function getMerchantComparison(analysis: Analysis, monthA: string, monthB
     const a = mapA.get(name) ?? NONE;
     const b = mapB.get(name) ?? NONE;
     const delta = b.total - a.total;
-    rows.push({ name, countA: a.count, countB: b.count, totalA: a.total, totalB: b.total, delta, deltaPositive: delta >= 0 });
+    rows.push({ name, countA: a.count, countB: b.count, totalA: a.total, totalB: b.total, delta });
   }
   rows.sort((a, b) => (b.totalA + b.totalB) - (a.totalA + a.totalB));
   return rows.slice(0, limit);

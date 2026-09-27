@@ -40,7 +40,7 @@ export const AREAS: Area[] = [
       { id: 'jahre', label: 'Jahre', usesPeriod: false },
     ],
   },
-  { id: 'transaktionen', label: 'Transaktionen', short: 'Transaktionen', icon: 'list', mobile: true, usesPeriod: true },
+  { id: 'transaktionen', label: 'Buchungen', short: 'Buchungen', icon: 'list', mobile: true, usesPeriod: true },
 ];
 
 export interface Route {

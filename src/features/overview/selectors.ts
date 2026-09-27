@@ -1,7 +1,7 @@
-import { fmt, fmtP, mLabel } from '../../domain/format';
+import { fmt, fmtP, fmtPts, fmtSigned, mLabel } from '../../domain/format';
 import { TARGETS } from '../../domain/targets';
 import { linReg } from '../../domain/stats';
-import type { Analysis } from '../../domain/types';
+import type { Analysis, Hint } from '../../domain/types';
 import { getFixedCosts } from '../shared/commonSelectors';
 
 export interface OverviewRates {
@@ -44,8 +44,8 @@ export function getOverviewKpis(a: Analysis, rates: OverviewRates): KpiCard[] {
     { label: 'Einnahmen', value: fmt(a.totalInc), sub: `Ø ${fmt(a.avgInc)} pro Monat`, dot: 'income' },
     { label: 'Ausgaben', value: fmt(Math.abs(a.totalExp)), sub: `Ø ${fmt(a.avgExp)} pro Monat`, dot: 'expense' },
     {
-      label: 'Netto-Saldo',
-      value: (a.netBal > 0 ? '+' : '') + fmt(a.netBal),
+      label: 'Netto',
+      value: fmtSigned(a.netBal),
       sub: `Sparquote ${fmtP(rates.savingsRate)}`,
       status: rates.savingsRate >= TARGETS.savingsRate ? 'good' : 'warn',
     },
@@ -92,15 +92,9 @@ export function computeFinancialRatios(a: Analysis, rates: OverviewRates): Ratio
   ];
 }
 
-export interface Alert {
-  color: 'red' | 'yellow' | 'green' | 'blue';
-  title: string;
-  desc: string;
-}
-
-export function computeAlerts(a: Analysis, rates: OverviewRates): Alert[] {
+export function computeAlerts(a: Analysis, rates: OverviewRates): Hint[] {
   const { savingsRate, investRate } = rates;
-  const alerts: Alert[] = [];
+  const alerts: Hint[] = [];
 
   if (a.netBal < 0) {
     alerts.push({ color: 'red', title: 'Negativer Saldo', desc: `Ausgaben übersteigen Einnahmen um ${fmt(Math.abs(a.netBal))}.` });
@@ -165,8 +159,8 @@ export function computeAlerts(a: Analysis, rates: OverviewRates): Alert[] {
 }
 
 /** Direction of the monthly series (linear regression over the months), as hints. */
-export function computeTrends(a: Analysis): Alert[] {
-  const trends: Alert[] = [];
+export function computeTrends(a: Analysis): Hint[] {
+  const trends: Hint[] = [];
   const months = a.mKeys.map((mk) => a.months[mk]!);
   const n = months.length;
 
@@ -183,8 +177,8 @@ export function computeTrends(a: Analysis): Alert[] {
 
   const srs = months.map((m) => m.savingsRate);
   const { slope: srSlope } = linReg(srs);
-  if (srSlope > 1) trends.push({ color: 'green', title: 'Sparquote verbessert sich', desc: `Die Sparquote steigt um Ø ${fmtP(srSlope).replace(' %', '')} Prozentpunkte pro Monat. Von ${fmtP(srs[0]!)} auf ${fmtP(srs[n - 1]!)}.` });
-  else if (srSlope < -1) trends.push({ color: 'yellow', title: 'Sparquote sinkt', desc: `Die Sparquote fällt um Ø ${fmtP(Math.abs(srSlope)).replace(' %', '')} Prozentpunkte pro Monat. Von ${fmtP(srs[0]!)} auf ${fmtP(srs[n - 1]!)}.` });
+  if (srSlope > 1) trends.push({ color: 'green', title: 'Sparquote verbessert sich', desc: `Die Sparquote steigt um Ø ${fmtPts(srSlope, false)} pro Monat. Von ${fmtP(srs[0]!)} auf ${fmtP(srs[n - 1]!)}.` });
+  else if (srSlope < -1) trends.push({ color: 'yellow', title: 'Sparquote sinkt', desc: `Die Sparquote fällt um Ø ${fmtPts(Math.abs(srSlope), false)} pro Monat. Von ${fmtP(srs[0]!)} auf ${fmtP(srs[n - 1]!)}.` });
 
   const divs = months.map((m) => m.dividend);
   const avgDiv = divs.reduce((s, v) => s + v, 0) / n;

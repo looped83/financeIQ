@@ -1,13 +1,13 @@
 import { html, nothing, type TemplateResult } from 'lit-html';
 import { mountChart } from '../../charts/chartManager';
 import { axes, horizontalAxes, INDEX_TOOLTIP, xScale, yScale } from '../../charts/chartTheme';
-import { fmt, mLabel } from '../../domain/format';
+import { fmt, fmtSigned, mLabel } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppActions } from '../../state/appStore';
 import type { AppState, MonthCompareMetric } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { alpha, COLORS, SERIES } from '../../theme/palette';
-import { card, chartBox, deltaMark, emptyState, getCanvas, insight, segmented } from '../../ui/components';
+import { card, chartBox, deltaMark, emptyNote, emptyState, getCanvas, insight, rowList, segmented } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import {
   computeMonthInsights,
@@ -30,10 +30,12 @@ const METRICS: { value: MonthCompareMetric; label: string }[] = [
   { value: 'invested', label: 'Investiert' },
   { value: 'dividend', label: 'Dividenden' },
 ];
-/** Month A and month B keep these two colors on every chart of the page. */
-const [COLOR_A, COLOR_B] = [SERIES[0], SERIES[1]];
-
-const signed = (v: number) => `${v >= 0 ? '+' : ''}${fmt(v)}`;
+/**
+ * Month A and month B keep these two colors on every chart of the page: the
+ * earlier month neutral, the later one blue — neither is a data color with its
+ * own meaning elsewhere (gold = dividends).
+ */
+const [COLOR_A, COLOR_B] = [COLORS.textSecondary, SERIES[0]];
 
 /** Compares two months of the whole history, independent of the global period. */
 export function mountMonthCompareView(container: HTMLElement, store: Store<AppState>, actions: AppActions): Unsubscribe {
@@ -63,13 +65,9 @@ function monthSelect(a: Analysis, label: string, value: string, pick: (m: string
 }
 
 function expenseList(items: { name: string; total?: number; amount?: number; count?: number; date?: string }[], emptyText: string): TemplateResult {
-  if (!items.length) return html`<p class="muted">${emptyText}</p>`;
-  return html`<ul class="rows">${items.map((i) => html`
-    <li>
-      <div class="row-main"><div class="row-title">${i.name}</div>
-        <div class="row-sub">${i.date ?? `${i.count}×`}</div></div>
-      <span class="row-value">${fmt(i.total ?? i.amount ?? 0)}</span>
-    </li>`)}</ul>`;
+  return items.length
+    ? rowList(items.map((i) => ({ title: i.name, sub: i.date ?? `${i.count}×`, value: fmt(i.total ?? i.amount ?? 0) })))
+    : emptyNote(emptyText);
 }
 
 function view(
@@ -88,15 +86,14 @@ function view(
   const abLines = ab.map((i) => ({ ...i, mark: 'line' as const }));
 
   return html`
-    <section class="card">
-      <div class="card-head">
-        <h2 class="card-title">${labelA} vs. ${labelB}</h2>
-        <div class="page-actions">
-          ${monthSelect(a, 'Erster Monat', monthA, (m) => actions.setMonthCompareA(m))}
-          <span class="muted">vs.</span>
-          ${monthSelect(a, 'Zweiter Monat', monthB, (m) => actions.setMonthCompareB(m))}
-        </div>
-      </div>
+    ${card({
+      title: `${labelA} vs. ${labelB}`,
+      actions: html`<div class="month-pick">
+        ${monthSelect(a, 'Erster Monat', monthA, (m) => actions.setMonthCompareA(m))}
+        <span class="muted">vs.</span>
+        ${monthSelect(a, 'Zweiter Monat', monthB, (m) => actions.setMonthCompareB(m))}
+      </div>`,
+    }, html`
       <div class="table-wrap">
         <table class="table">
           <thead><tr><th scope="col">Kennzahl</th><th scope="col">${labelA}</th><th scope="col">${labelB}</th><th scope="col">Differenz</th><th scope="col">in %</th></tr></thead>
@@ -108,10 +105,10 @@ function view(
             </tr>`)}</tbody>
         </table>
       </div>
-    </section>
+    `)}
 
     <div class="grid">
-      ${card({ title: 'Erkenntnisse' }, html`<div class="insights">${insights.map((i) => insight(i.color, i.title, i.desc))}</div>`)}
+      ${card({ title: 'Erkenntnisse' }, html`<div class="insights">${insights.map(insight)}</div>`)}
       ${card({
         title: 'Cashflow im Monatsverlauf',
         sub: html`Laufende Summe je Tag · Ende ${labelA}: <span class="num">${fmt(intra.endA)}</span> · ${labelB}: <span class="num">${fmt(intra.endB)}</span>`,
@@ -126,19 +123,20 @@ function view(
 
     <div class="grid">
       ${card({ title: 'Ausgaben nach Typ' }, chartBox('mc-cat', 'Ausgaben je Buchungstyp in beiden Monaten', '', ab))}
-      ${card({ title: 'Händler im Vergleich', sub: 'Größte Ausgaben, Differenz = zweiter minus erster Monat' }, merchants.length
-        ? html`<ul class="rows">${merchants.map((m) => html`
-            <li>
-              <div class="row-main"><div class="row-title">${m.name}</div>
-                <div class="row-sub num">${labelA}: ${m.countA}× ${fmt(m.totalA)} · ${labelB}: ${m.countB}× ${fmt(m.totalB)}</div></div>
-              <span class="row-value ${m.delta <= 0 ? 'pos' : 'neg'}">${signed(m.delta)}${deltaMark(m.delta > 0 ? 'up' : m.delta < 0 ? 'down' : null, 'down')}</span>
-            </li>`)}</ul>`
-        : html`<p class="muted">Keine Händler-Ausgaben in diesen Monaten.</p>`)}
+      ${card({ title: 'Empfänger im Vergleich', sub: 'Größte Ausgaben, Differenz = zweiter minus erster Monat' }, merchants.length
+        ? rowList(merchants.map((m) => ({
+            title: m.name,
+            sub: html`<span class="num">${labelA}: ${m.countA}× ${fmt(m.totalA)} · ${labelB}: ${m.countB}× ${fmt(m.totalB)}</span>`,
+            value: fmtSigned(m.delta),
+            valueClass: m.delta <= 0 ? 'pos' : 'neg',
+            after: deltaMark(m.delta > 0 ? 'up' : m.delta < 0 ? 'down' : null, 'down'),
+          })))
+        : emptyNote('Keine Ausgaben in diesen Monaten.'))}
     </div>
 
     <div class="grid">
-      ${card({ title: `Nur in ${labelA}` }, expenseList(unique.onlyA, 'Keine exklusiven Händler.'))}
-      ${card({ title: `Nur in ${labelB}` }, expenseList(unique.onlyB, 'Keine exklusiven Händler.'))}
+      ${card({ title: `Nur in ${labelA}` }, expenseList(unique.onlyA, 'Keine Empfänger nur in diesem Monat.'))}
+      ${card({ title: `Nur in ${labelB}` }, expenseList(unique.onlyB, 'Keine Empfänger nur in diesem Monat.'))}
     </div>
 
     <div class="grid">
@@ -148,12 +146,12 @@ function view(
 
     <div class="grid">
       ${recurring.length
-        ? card({ title: 'Wiederkehrende Ausgaben' }, html`
+        ? card({ title: 'Fixkosten' }, html`
             <div class="table-wrap"><table class="table">
-              <thead><tr><th scope="col">Ausgabe</th><th scope="col">${labelA}</th><th scope="col">${labelB}</th><th scope="col">Differenz</th></tr></thead>
+              <thead><tr><th scope="col">Empfänger</th><th scope="col">${labelA}</th><th scope="col">${labelB}</th><th scope="col">Differenz</th></tr></thead>
               <tbody>${recurring.map((r) => html`
                 <tr><td>${r.name}</td><td>${fmt(r.amountA)}</td><td>${fmt(r.amountB)}</td>
-                  <td class=${r.deltaPositive ? 'pos' : 'neg'}>${signed(r.delta)}</td></tr>`)}</tbody>
+                  <td class=${r.deltaPositive ? 'pos' : 'neg'}>${fmtSigned(r.delta)}</td></tr>`)}</tbody>
             </table></div>`)
         : nothing}
       ${divs.countA || divs.countB
@@ -162,7 +160,7 @@ function view(
               <li><span class="row-label">Ausschüttungen</span><span class="row-value">${divs.countA} → ${divs.countB}</span></li>
               <li><span class="row-label">Summe netto</span><span class="row-value">${fmt(divs.totalA)} → ${fmt(divs.totalB)}</span></li>
               <li><span class="row-label">Differenz</span>
-                <span class="row-value ${divs.totalB >= divs.totalA ? 'pos' : 'neg'}">${signed(divs.totalB - divs.totalA)}</span></li>
+                <span class="row-value ${divs.totalB >= divs.totalA ? 'pos' : 'neg'}">${fmtSigned(divs.totalB - divs.totalA)}</span></li>
             </ul>`)
         : nothing}
     </div>

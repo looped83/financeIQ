@@ -73,7 +73,7 @@ describe('computeRecommendations — rich fixture (positive cashflow, strong sav
   });
 
   it('flags merchant concentration (top-3 card merchants > 30% of expenses)', () => {
-    expect(recs.some((r) => r.title.startsWith('Top-3-Händler'))).toBe(true);
+    expect(recs.some((r) => r.title.startsWith('Top-3-Empfänger'))).toBe(true);
   });
 
   it('sorts recommendations ascending by priority', () => {
