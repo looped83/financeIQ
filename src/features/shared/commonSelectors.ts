@@ -1,4 +1,5 @@
 import { fmt, typeLabel } from '../../domain/format';
+import { memoize } from '../../domain/memo';
 import type { Analysis } from '../../domain/types';
 import { foldToSeries } from '../../theme/palette';
 
@@ -32,7 +33,7 @@ export interface FixedCosts {
 }
 
 /** Fixed costs (see `markFixedCosts` in domain/analyze) paid within `a`, one row per payee. */
-export function getFixedCosts(a: Analysis): FixedCosts {
+export const getFixedCosts = memoize((a: Analysis): FixedCosts => {
   const byName = new Map<string, { total: number; months: Set<string> }>();
   for (const r of a.enriched) {
     if (!r._isFixed) continue;
@@ -45,7 +46,7 @@ export function getFixedCosts(a: Analysis): FixedCosts {
     .map(([name, e]) => ({ name, monthCount: e.months.size, perMonth: e.total / e.months.size }))
     .sort((x, y) => y.perMonth - x.perMonth);
   return { rows, totalPerMonth: rows.reduce((s, r) => s + r.perMonth, 0) };
-}
+});
 
 export interface SpendBreakdown {
   /** Largest first, folded to the series palette plus a trailing "Sonstige". */

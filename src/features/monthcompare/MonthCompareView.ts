@@ -20,6 +20,7 @@ import {
   getRecurringExpensesDelta,
   getTopSingleExpenses,
   getUniqueMerchants,
+  type IntraMonthCashflowData,
 } from './selectors';
 
 const METRICS: { value: MonthCompareMetric; label: string }[] = [
@@ -45,9 +46,10 @@ export function mountMonthCompareView(container: HTMLElement, store: Store<AppSt
     const monthA = state.monthCompare.monthA && a.months[state.monthCompare.monthA] ? state.monthCompare.monthA : keys[keys.length - 2]!;
     const monthB = state.monthCompare.monthB && a.months[state.monthCompare.monthB] ? state.monthCompare.monthB : keys[keys.length - 1]!;
     const metric = state.monthCompare.metric;
+    const intra = getIntraMonthCashflowData(a, monthA, monthB);
     return {
-      view: view(a, monthA, monthB, metric, actions),
-      charts: () => charts(container, a, monthA, monthB, metric),
+      view: view(a, monthA, monthB, metric, intra, actions),
+      charts: () => charts(container, a, monthA, monthB, metric, intra),
     };
   });
 }
@@ -70,7 +72,9 @@ function expenseList(items: { name: string; total?: number; amount?: number; cou
     </li>`)}</ul>`;
 }
 
-function view(a: Analysis, monthA: string, monthB: string, metric: MonthCompareMetric, actions: AppActions): TemplateResult {
+function view(
+  a: Analysis, monthA: string, monthB: string, metric: MonthCompareMetric, intra: IntraMonthCashflowData, actions: AppActions,
+): TemplateResult {
   const mA = a.months[monthA]!;
   const mB = a.months[monthB]!;
   const [labelA, labelB] = [mLabel(monthA), mLabel(monthB)];
@@ -80,7 +84,6 @@ function view(a: Analysis, monthA: string, monthB: string, metric: MonthCompareM
   const unique = getUniqueMerchants(a, monthA, monthB);
   const divs = getDividendComparison(a, monthA, monthB);
   const recurring = getRecurringExpensesDelta(a, monthA, monthB);
-  const intra = getIntraMonthCashflowData(a, monthA, monthB);
   const ab = [{ label: labelA, color: COLOR_A }, { label: labelB, color: COLOR_B }];
   const abLines = ab.map((i) => ({ ...i, mark: 'line' as const }));
 
@@ -166,8 +169,9 @@ function view(a: Analysis, monthA: string, monthB: string, metric: MonthCompareM
   `;
 }
 
-function charts(root: HTMLElement, a: Analysis, monthA: string, monthB: string, metric: MonthCompareMetric): void {
-  const intra = getIntraMonthCashflowData(a, monthA, monthB);
+function charts(
+  root: HTMLElement, a: Analysis, monthA: string, monthB: string, metric: MonthCompareMetric, intra: IntraMonthCashflowData,
+): void {
   mountChart(getCanvas(root, 'mc-intra'), {
     type: 'line',
     data: {

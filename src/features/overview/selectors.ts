@@ -1,5 +1,6 @@
 import { fmt, fmtP, mLabel } from '../../domain/format';
 import { TARGETS } from '../../domain/targets';
+import { linReg } from '../../domain/stats';
 import type { Analysis } from '../../domain/types';
 import { getFixedCosts } from '../shared/commonSelectors';
 
@@ -7,6 +8,12 @@ export interface OverviewRates {
   savingsRate: number;
   passiveRatio: number;
   investRate: number;
+}
+
+/** Share of spending paid by card, in %. */
+export function cardShare(a: Analysis): number {
+  const card = a.mKeys.reduce((s, mk) => s + a.months[mk]!.cardExpense, 0);
+  return a.totalExp < 0 ? (card / Math.abs(a.totalExp)) * 100 : 0;
 }
 
 /** Buys minus sells — what actually stayed invested. */
@@ -60,8 +67,7 @@ export interface RatioRow {
 
 export function computeFinancialRatios(a: Analysis, rates: OverviewRates): RatioRow[] {
   const { savingsRate, passiveRatio, investRate } = rates;
-  const cardTotal = a.exp.filter((r) => r._isCard).reduce((s, r) => s + Math.abs(r._amt), 0);
-  const cardRatio = Math.abs(a.totalExp) > 0 ? (cardTotal / Math.abs(a.totalExp)) * 100 : 0;
+  const cardRatio = cardShare(a);
   const avgTxSize = a.exp.length > 0 ? Math.abs(a.totalExp) / a.exp.length : 0;
   const feeRatio = a.totalInv > 0 ? (a.totalFee / a.totalInv) * 100 : 0;
 
@@ -142,8 +148,7 @@ export function computeAlerts(a: Analysis, rates: OverviewRates): Alert[] {
       desc: `${fixed.rows.length} Fixkosten binden Ø ${fmt(fixed.totalPerMonth)}/Monat (${fmtP(fixedPct)} der Ausgaben).`,
     });
   }
-  const cardTotal = a.exp.filter((r) => r._isCard).reduce((s, r) => s + Math.abs(r._amt), 0);
-  const cardRatio = Math.abs(a.totalExp) > 0 ? (cardTotal / Math.abs(a.totalExp)) * 100 : 0;
+  const cardRatio = cardShare(a);
   if (cardRatio > TARGETS.cardShare + 10) {
     alerts.push({ color: 'blue', title: 'Kartenlastig', desc: `${fmtP(cardRatio)} aller Ausgaben über Kartenzahlungen — Budgetierung prüfen.` });
   }
@@ -157,4 +162,40 @@ export function computeAlerts(a: Analysis, rates: OverviewRates): Alert[] {
   }
 
   return alerts;
+}
+
+/** Direction of the monthly series (linear regression over the months), as hints. */
+export function computeTrends(a: Analysis): Alert[] {
+  const trends: Alert[] = [];
+  const months = a.mKeys.map((mk) => a.months[mk]!);
+  const n = months.length;
+
+  const incomes = months.map((m) => m.income);
+  const { slope: incSlope } = linReg(incomes);
+  if (incSlope > 50) trends.push({ color: 'green', title: 'Einnahmen steigend', desc: `Die monatlichen Einnahmen steigen um durchschnittlich ${fmt(incSlope)} pro Monat. Positiver Langzeittrend.` });
+  else if (incSlope < -50) trends.push({ color: 'red', title: 'Einnahmen rückläufig', desc: `Die monatlichen Einnahmen sinken um Ø ${fmt(Math.abs(incSlope))}/Monat. Ursache prüfen.` });
+  else trends.push({ color: 'blue', title: 'Einnahmen stabil', desc: `Die Einnahmen bewegen sich konstant um Ø ${fmt(incomes.reduce((s, v) => s + v, 0) / n)}/Monat.` });
+
+  const expenses = months.map((m) => Math.abs(m.expense));
+  const { slope: expSlope } = linReg(expenses);
+  if (expSlope > 50) trends.push({ color: 'yellow', title: 'Ausgaben steigend', desc: `Die monatlichen Ausgaben wachsen um Ø ${fmt(expSlope)}/Monat. Kostenkontrolle empfohlen.` });
+  else if (expSlope < -50) trends.push({ color: 'green', title: 'Ausgaben sinkend', desc: `Die Ausgaben sinken um Ø ${fmt(Math.abs(expSlope))}/Monat. Gute Disziplin.` });
+
+  const srs = months.map((m) => m.savingsRate);
+  const { slope: srSlope } = linReg(srs);
+  if (srSlope > 1) trends.push({ color: 'green', title: 'Sparquote verbessert sich', desc: `Die Sparquote steigt um Ø ${fmtP(srSlope).replace(' %', '')} Prozentpunkte pro Monat. Von ${fmtP(srs[0]!)} auf ${fmtP(srs[n - 1]!)}.` });
+  else if (srSlope < -1) trends.push({ color: 'yellow', title: 'Sparquote sinkt', desc: `Die Sparquote fällt um Ø ${fmtP(Math.abs(srSlope)).replace(' %', '')} Prozentpunkte pro Monat. Von ${fmtP(srs[0]!)} auf ${fmtP(srs[n - 1]!)}.` });
+
+  const divs = months.map((m) => m.dividend);
+  const avgDiv = divs.reduce((s, v) => s + v, 0) / n;
+  if (avgDiv > 50) {
+    const { slope: divSlope } = linReg(divs);
+    if (divSlope > 10) trends.push({ color: 'green', title: 'Passives Einkommen wächst', desc: `Dividenden steigen um Ø ${fmt(divSlope)}/Monat. Das passive Einkommen (Ø ${fmt(avgDiv)}/Monat) wird ein zunehmend relevanter Einkommensfaktor.` });
+  }
+
+  const cardRatios = months.map((m) => (m.expense < 0 ? (m.cardExpense / Math.abs(m.expense)) * 100 : 0));
+  const avgCardRatio = cardRatios.reduce((s, v) => s + v, 0) / n;
+  if (avgCardRatio > 30) trends.push({ color: 'blue', title: `Ø ${Math.round(avgCardRatio)} % per Karte`, desc: `Durchschnittlich ${fmtP(avgCardRatio)} der Ausgaben über Kartenzahlungen. Bandbreite: ${fmtP(Math.min(...cardRatios))} bis ${fmtP(Math.max(...cardRatios))}.` });
+
+  return trends;
 }

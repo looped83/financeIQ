@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseCSV } from '../../domain/csv';
 import { analyze } from '../../domain/analyze';
-import { computeAlerts, computeFinancialRatios, computeOverviewRates, getOverviewKpis } from './selectors';
+import { cardShare, computeAlerts, computeFinancialRatios, computeOverviewRates, computeTrends, getOverviewKpis } from './selectors';
 
 function fixture(name: string) {
   return readFileSync(fileURLToPath(new URL(`../../../test/fixtures/${name}`, import.meta.url)), 'utf8');
@@ -107,5 +107,49 @@ describe('computeAlerts', () => {
       { date: '2024-01-10', type: 'TRANSFER_DIRECT_DEBIT_INBOUND', amount: -100 },
     ])));
     expect(computeAlerts(rows, computeOverviewRates(rows))).toEqual([]);
+  });
+});
+
+describe('computeTrends', () => {
+  const HEADER = 'date,type,amount,tax,name,category';
+  const row = (date: string, type: string, amount: number, name = '', category = '') => `${date},${type},${amount},0,${name},${category}`;
+  // 4 months; April has a sharp income drop.
+  const CSV = [
+    HEADER,
+    row('2024-01-05', 'TRANSFER_INBOUND', 3000, 'Employer'),
+    row('2024-01-10', 'CARD_TRANSACTION', -1500, 'Supermarket', 'Lebensmittel'),
+    row('2024-01-15', 'CARD_TRANSACTION', -500, 'Restaurant', 'Essen'),
+  
+    row('2024-02-05', 'TRANSFER_INBOUND', 3000, 'Employer'),
+    row('2024-02-10', 'CARD_TRANSACTION', -1700, 'Supermarket', 'Lebensmittel'),
+    row('2024-02-15', 'CARD_TRANSACTION', -500, 'Restaurant', 'Essen'),
+    row('2024-02-20', 'DIVIDEND', 50, 'StockA'),
+  
+    row('2024-03-05', 'TRANSFER_INBOUND', 3200, 'Employer'),
+    row('2024-03-10', 'CARD_TRANSACTION', -1500, 'Supermarket', 'Lebensmittel'),
+    row('2024-03-15', 'CARD_TRANSACTION', -500, 'Restaurant', 'Essen'),
+    row('2024-03-20', 'DIVIDEND', 60, 'StockA'),
+  
+    row('2024-04-05', 'TRANSFER_INBOUND', 1000, 'Employer'),
+    row('2024-04-10', 'CARD_TRANSACTION', -1500, 'Supermarket', 'Lebensmittel'),
+    row('2024-04-12', 'CARD_TRANSACTION', -300, 'NewShop', 'Elektronik'),
+    row('2024-04-15', 'CARD_TRANSACTION', -300, 'NewShop2', 'Elektronik'),
+    row('2024-04-18', 'CARD_TRANSACTION', -500, 'Restaurant', 'Essen'),
+    row('2024-04-20', 'DIVIDEND', 70, 'StockA'),
+  ].join('\n');
+  const a = analyze(parseCSV(CSV));
+  const trends = computeTrends(a);
+
+  it('keeps the dividend trend below its >50 €/month gate', () => {
+    expect(trends.some((t) => t.title === 'Passives Einkommen wächst')).toBe(false); // avg 45 €
+  });
+
+  it('reports the income direction', () => {
+    expect(trends.some((t) => t.title === 'Einnahmen stabil' || t.title === 'Einnahmen rückläufig')).toBe(true);
+  });
+
+  it('reads the card share from the monthly aggregates (all spending here is by card)', () => {
+    expect(cardShare(a)).toBeCloseTo(100, 6);
+    expect(trends.some((t) => t.title === 'Ø 100 % per Karte')).toBe(true);
   });
 });

@@ -13,8 +13,10 @@ export interface Drawn {
 
 /**
  * The lifecycle every page shares: re-draw when the selected slices change
- * (or when the page's own UI state changes via `redraw`), release the previous
- * charts first, and clean up subscriptions and charts on unmount.
+ * (or when the page's own UI state changes via `redraw`), and clean up
+ * subscriptions and charts on unmount. lit-html keeps unchanged canvases in
+ * place, so `charts` updates their Chart.js instances; only charts whose canvas
+ * left the DOM are released.
  */
 export function mountPage(
   container: HTMLElement,
@@ -23,9 +25,9 @@ export function mountPage(
   draw: (state: AppState, redraw: () => void) => Drawn,
 ): Unsubscribe {
   const run = (state: AppState) => {
-    releaseCharts(container);
     const { view, charts } = draw(state, redraw);
     render(view, container);
+    releaseCharts();
     charts?.();
   };
   const redraw = () => run(store.getState());

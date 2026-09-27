@@ -206,7 +206,7 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
   for (const r of enriched) {
     if (!r._month) continue;
     const m = (months[r._month] ??= {
-      income: 0, expense: 0, invested: 0, sold: 0, dividend: 0, count: 0, cardCount: 0,
+      income: 0, expense: 0, invested: 0, sold: 0, dividend: 0, count: 0, cardCount: 0, cardExpense: 0,
       net: 0, cumBal: 0, savingsRate: 0,
     });
     m.count++;
@@ -217,6 +217,7 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
     else if (r._amt > 0) m.income += r._amt;
     else m.expense += r._amt;
     if (r._isDiv) m.dividend += r._amt;
+    if (r._isCard && r._amt < 0) m.cardExpense -= r._amt;
   }
   const mKeys = Object.keys(months).sort();
   let cum = 0;

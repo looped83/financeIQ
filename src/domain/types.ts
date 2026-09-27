@@ -38,6 +38,8 @@ export interface MonthAgg {
   dividend: number;
   count: number;
   cardCount: number;
+  /** Spent by card (absolute). */
+  cardExpense: number;
   net: number;
   cumBal: number;
   savingsRate: number;

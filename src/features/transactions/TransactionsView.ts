@@ -31,6 +31,10 @@ const SORTS: { value: TransactionSort; label: string }[] = [
   { value: 'amount-asc', label: 'Kleinste Beträge' },
 ];
 
+/** Filtering waits until typing pauses, so a fast typist doesn't trigger a re-filter per key. */
+const SEARCH_DELAY = 150;
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
 const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v))}`;
 
 function badgeClass(r: EnrichedRow): string {
@@ -63,7 +67,11 @@ function view(all: EnrichedRow[], state: AppState, actions: AppActions): Templat
         <label class="search">
           ${icon('search', 16)}
           <input type="search" placeholder="Händler, Beschreibung oder Typ suchen" aria-label="Buchungen durchsuchen"
-            .value=${f.search} @input=${(e: Event) => actions.setTransactionFilters({ search: value(e) })}>
+            .value=${f.search} @input=${(e: Event) => {
+              const search = value(e);
+              clearTimeout(searchTimer);
+              searchTimer = setTimeout(() => actions.setTransactionFilters({ search }), SEARCH_DELAY);
+            }}>
         </label>
         <div class="tx-filters">
           <div class="chips" role="group" aria-label="Buchungsart">

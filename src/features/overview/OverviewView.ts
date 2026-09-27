@@ -11,9 +11,8 @@ import { hasData, mountPage, noData } from '../../ui/page';
 import { href } from '../../shell/routes';
 import { computeRecommendations } from '../recommendations/selectors';
 import { getFixedCosts, getSpendBreakdown } from '../shared/commonSelectors';
-import { buildMonthlySnapshots, computeTrends } from '../shared/monthlySnapshots';
 import { getCumulativeIncExpChartData, getMonthlyIncomeExpenseData } from '../timeline/selectors';
-import { computeAlerts, computeFinancialRatios, computeOverviewRates, getOverviewKpis } from './selectors';
+import { computeAlerts, computeFinancialRatios, computeOverviewRates, computeTrends, getOverviewKpis } from './selectors';
 
 type TrendMode = 'monthly' | 'cumulative';
 type SpendBy = 'payee' | 'type';
@@ -121,7 +120,7 @@ function hintsCard(
   const items = ui.hints === 'hints'
     ? [
         ...computeAlerts(a, rates),
-        ...(a.mKeys.length >= 2 ? computeTrends(buildMonthlySnapshots(a)) : []),
+        ...(a.mKeys.length >= 2 ? computeTrends(a) : []),
       ]
     : computeRecommendations(a).map((r) => ({ color: r.level, title: r.title, desc: r.desc }));
   const shown = ui.allHints ? items : items.slice(0, HINTS_SHOWN);

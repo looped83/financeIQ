@@ -1,8 +1,7 @@
 import { html, type TemplateResult } from 'lit-html';
-import { de } from 'date-fns/locale/de';
 import { mountChart } from '../../charts/chartManager';
 import { axes, INDEX_TOOLTIP, xScale, yScale } from '../../charts/chartTheme';
-import { fmt } from '../../domain/format';
+import { fmt, fmtD, mLabel } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppActions } from '../../state/appStore';
 import type { AppState, TimelineView as Mode } from '../../state/appState';
@@ -18,6 +17,21 @@ const MODES: { value: Mode; label: string }[] = [
   { value: 'quarterly', label: 'Quartal' },
 ];
 const MA_NOTE: Record<Mode, string> = { daily: '30-Tage-Schnitt', monthly: '3-Monats-Schnitt', quarterly: '2-Quartals-Schnitt' };
+
+/** Linear day axis (UTC ms) with exactly one tick per month, labelled like every other chart. */
+function dayAxis(points: { x: number }[], monthTicks: number[]) {
+  const monthKey = (ms: number) => new Date(ms).toISOString().slice(0, 7);
+  return {
+    ...xScale(),
+    type: 'linear' as const,
+    min: points[0]?.x,
+    max: points[points.length - 1]?.x,
+    afterBuildTicks: (axis: { ticks: { value: number }[]; min: number; max: number }) => {
+      axis.ticks = monthTicks.filter((t) => t >= axis.min && t <= axis.max).map((value) => ({ value }));
+    },
+    ticks: { ...xScale().ticks, callback: (v: number | string) => mLabel(monthKey(Number(v))) },
+  };
+}
 
 export function mountTimelineView(container: HTMLElement, store: Store<AppState>, actions: AppActions): Unsubscribe {
   return mountPage(container, store, (s) => [s.analysis, s.timelineView], (state) => {
@@ -58,25 +72,28 @@ function charts(root: HTMLElement, a: Analysis, mode: Mode): void {
   mountChart(getCanvas(root, 'tl-main'), {
     type: 'line',
     data: {
-      labels: main.labels,
+      labels: main.isDate ? undefined : main.labels,
       datasets: [
         {
-          label: 'Kumuliert', data: main.cumData as number[], borderColor: SERIES[0], backgroundColor: SERIES[0],
+          label: 'Kumuliert', data: main.cumData, borderColor: SERIES[0], backgroundColor: SERIES[0],
           fill: { target: 'origin', above: alpha(SERIES[0], 0.12), below: alpha(COLORS.expense, 0.14) },
         },
         {
-          label: 'Gleitender Schnitt', data: main.maData as number[], borderColor: COLORS.textMuted,
+          label: MA_NOTE[mode], data: main.maData, borderColor: COLORS.textMuted,
           backgroundColor: COLORS.textMuted, borderWidth: 1.5, borderDash: [5, 4],
         },
       ],
     },
     options: {
       ...INDEX_TOOLTIP,
-      scales: {
-        x: main.isDate
-          ? { ...xScale(), type: 'time', adapters: { date: { locale: de } }, time: { unit: 'month', tooltipFormat: 'dd.MM.yyyy', displayFormats: { month: 'MMM yy' } } }
-          : xScale(),
-        y: yScale(),
+      scales: { x: main.isDate ? dayAxis(main.cumData, main.monthTicks) : xScale(), y: yScale() },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            ...INDEX_TOOLTIP.plugins.tooltip.callbacks,
+            title: (items) => (main.isDate ? fmtD(new Date(items[0]?.parsed.x ?? 0)) : items[0]?.label ?? ''),
+          },
+        },
       },
     },
   });

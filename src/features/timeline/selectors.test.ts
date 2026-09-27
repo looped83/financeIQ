@@ -29,6 +29,7 @@ const a = analyze(parseCSV([
 
 describe('computeMainChartData — monthly view', () => {
   const data = computeMainChartData(a, 'monthly');
+  if (data.isDate) throw new Error('expected a category series');
 
   it('is not date-scaled and uses month labels', () => {
     expect(data.isDate).toBe(false);
@@ -42,7 +43,7 @@ describe('computeMainChartData — monthly view', () => {
 
   it('computes a trailing 3-month moving average of the cumulative series', () => {
     // i=0: avg([2000])=2000; i=1: avg([2000,3850])=2925; i=2: avg([2000,3850,6050])=3966.67
-    const ma = data.maData as number[];
+    const ma = data.maData;
     expect(ma[0]).toBeCloseTo(2000);
     expect(ma[1]).toBeCloseTo(2925);
     expect(ma[2]).toBeCloseTo(3966.6667, 3);
@@ -52,7 +53,8 @@ describe('computeMainChartData — monthly view', () => {
 describe('computeMainChartData — quarterly view', () => {
   it('groups all 3 months into a single Q1 bucket', () => {
     const data = computeMainChartData(a, 'quarterly');
-    expect(data.labels).toEqual(['2024-Q1']);
+    if (data.isDate) throw new Error('expected a category series');
+    expect(data.labels).toEqual(['Q1 24']);
     expect(data.cumData).toEqual([6050]);
   });
 });
@@ -60,9 +62,9 @@ describe('computeMainChartData — quarterly view', () => {
 describe('computeMainChartData — daily view', () => {
   it('returns date-keyed {x,y} points accumulating cash-only transactions', () => {
     const data = computeMainChartData(a, 'daily');
-    expect(data.isDate).toBe(true);
-    expect(data.labels).toBeUndefined();
-    const cum = data.cumData as { x: string; y: number }[];
+    if (!data.isDate) throw new Error('expected dated points');
+    expect(data.monthTicks).toEqual(a.mKeys.map((mk) => Date.parse(`${mk}-01`)));
+    const cum = data.cumData;
     // BUY/SELL are excluded from `cash`; last point accumulates all cash amounts.
     const lastPoint = cum[cum.length - 1]!;
     expect(lastPoint.y).toBe(2000 + 1850 + 2200); // same cash-only net totals as monthly view

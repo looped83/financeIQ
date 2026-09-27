@@ -1,6 +1,6 @@
 import { fmt, fmtP, typeLabel } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
-import { netInvested } from '../overview/selectors';
+import { cardShare, netInvested } from '../overview/selectors';
 import { getFixedCosts } from '../shared/commonSelectors';
 
 export type RecommendationLevel = 'green' | 'yellow' | 'red' | 'blue';
@@ -151,8 +151,8 @@ export function computeRecommendations(a: Analysis): Recommendation[] {
   }
 
   // 11. Card spending analysis
-  const cardTotal = a.exp.filter((r) => r._isCard).reduce((s, r) => s + Math.abs(r._amt), 0);
-  const cardRatio = Math.abs(a.totalExp) > 0 ? (cardTotal / Math.abs(a.totalExp)) * 100 : 0;
+  const cardRatio = cardShare(a);
+  const cardTotal = (cardRatio / 100) * Math.abs(a.totalExp);
   if (cardRatio > 60) {
     recs.push({
       level: 'blue', priority: 4, category: 'Verhalten', title: `${fmtP(cardRatio)} Kartenzahlungen — bewusst ausgeben`,

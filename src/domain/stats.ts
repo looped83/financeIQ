@@ -19,3 +19,13 @@ export function linReg(ys: number[]): LinRegResult {
   );
   return { slope, intercept, resStd };
 }
+
+/** Trailing moving average over `window` values (fewer at the start), one running sum. */
+export function movingAverage(values: number[], window: number): number[] {
+  let sum = 0;
+  return values.map((v, i) => {
+    sum += v;
+    if (i >= window) sum -= values[i - window]!;
+    return sum / Math.min(i + 1, window);
+  });
+}

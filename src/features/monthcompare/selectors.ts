@@ -1,5 +1,6 @@
 import { isSpend } from '../../domain/analyze';
 import { fmt, fmtP, fmtPP, mLabel, typeLabel } from '../../domain/format';
+import { memoize } from '../../domain/memo';
 import type { Analysis, MonthAgg } from '../../domain/types';
 import type { MonthCompareMetric } from '../../state/appState';
 
@@ -109,8 +110,8 @@ export function computeMonthInsights(
     });
   }
 
-  const txA = analysis.enriched.filter((r) => r._month === monthA).length;
-  const txB = analysis.enriched.filter((r) => r._month === monthB).length;
+  const txA = analysis.months[monthA]?.count ?? 0;
+  const txB = analysis.months[monthB]?.count ?? 0;
   if (txA > 0) {
     const txChg = ((txB - txA) / txA) * 100;
     ins.push({
@@ -173,36 +174,40 @@ export interface MerchantCompareRow {
   deltaPositive: boolean;
 }
 
-export function getMerchantComparison(analysis: Analysis, monthA: string, monthB: string, limit = 10): MerchantCompareRow[] {
-  const mapA = new Map<string, { count: number; total: number }>();
-  const mapB = new Map<string, { count: number; total: number }>();
+interface PayeeSpend {
+  count: number;
+  total: number;
+}
 
+/** Spend per payee for every month, in one pass — any pair of months is then a lookup. */
+const payeeSpendByMonth = memoize((analysis: Analysis): Map<string, Map<string, PayeeSpend>> => {
+  const byMonth = new Map<string, Map<string, PayeeSpend>>();
   for (const r of analysis.enriched) {
     if (!isSpend(r)) continue;
+    let payees = byMonth.get(r._month);
+    if (!payees) byMonth.set(r._month, (payees = new Map()));
     const name = r._name || 'Sonstiges';
-    if (r._month === monthA) {
-      const e = mapA.get(name) ?? { count: 0, total: 0 };
-      e.count++;
-      e.total += Math.abs(r._amt);
-      mapA.set(name, e);
-    }
-    if (r._month === monthB) {
-      const e = mapB.get(name) ?? { count: 0, total: 0 };
-      e.count++;
-      e.total += Math.abs(r._amt);
-      mapB.set(name, e);
-    }
+    const e = payees.get(name) ?? { count: 0, total: 0 };
+    e.count++;
+    e.total += Math.abs(r._amt);
+    payees.set(name, e);
   }
+  return byMonth;
+});
 
-  const allNames = new Set([...mapA.keys(), ...mapB.keys()]);
+const NONE: PayeeSpend = { count: 0, total: 0 };
+const payeesIn = (analysis: Analysis, month: string) => payeeSpendByMonth(analysis).get(month) ?? new Map<string, PayeeSpend>();
+
+export function getMerchantComparison(analysis: Analysis, monthA: string, monthB: string, limit = 10): MerchantCompareRow[] {
+  const mapA = payeesIn(analysis, monthA);
+  const mapB = payeesIn(analysis, monthB);
   const rows: MerchantCompareRow[] = [];
-  for (const name of allNames) {
-    const a = mapA.get(name) ?? { count: 0, total: 0 };
-    const b = mapB.get(name) ?? { count: 0, total: 0 };
+  for (const name of new Set([...mapA.keys(), ...mapB.keys()])) {
+    const a = mapA.get(name) ?? NONE;
+    const b = mapB.get(name) ?? NONE;
     const delta = b.total - a.total;
     rows.push({ name, countA: a.count, countB: b.count, totalA: a.total, totalB: b.total, delta, deltaPositive: delta >= 0 });
   }
-
   rows.sort((a, b) => (b.totalA + b.totalB) - (a.totalA + a.totalB));
   return rows.slice(0, limit);
 }
@@ -216,38 +221,14 @@ export interface UniqueExpense {
 }
 
 export function getUniqueMerchants(analysis: Analysis, monthA: string, monthB: string): { onlyA: UniqueExpense[]; onlyB: UniqueExpense[] } {
-  const mapA = new Map<string, { count: number; total: number }>();
-  const mapB = new Map<string, { count: number; total: number }>();
-
-  for (const r of analysis.enriched) {
-    if (!isSpend(r)) continue;
-    const name = r._name || 'Sonstiges';
-    if (r._month === monthA) {
-      const e = mapA.get(name) ?? { count: 0, total: 0 };
-      e.count++;
-      e.total += Math.abs(r._amt);
-      mapA.set(name, e);
-    }
-    if (r._month === monthB) {
-      const e = mapB.get(name) ?? { count: 0, total: 0 };
-      e.count++;
-      e.total += Math.abs(r._amt);
-      mapB.set(name, e);
-    }
-  }
-
-  const onlyA: UniqueExpense[] = [];
-  const onlyB: UniqueExpense[] = [];
-  for (const [name, v] of mapA) {
-    if (!mapB.has(name)) onlyA.push({ name, total: v.total, count: v.count });
-  }
-  for (const [name, v] of mapB) {
-    if (!mapA.has(name)) onlyB.push({ name, total: v.total, count: v.count });
-  }
-  onlyA.sort((a, b) => b.total - a.total);
-  onlyB.sort((a, b) => b.total - a.total);
-
-  return { onlyA: onlyA.slice(0, 8), onlyB: onlyB.slice(0, 8) };
+  const mapA = payeesIn(analysis, monthA);
+  const mapB = payeesIn(analysis, monthB);
+  const only = (from: Map<string, PayeeSpend>, other: Map<string, PayeeSpend>): UniqueExpense[] =>
+    [...from].filter(([name]) => !other.has(name))
+      .map(([name, v]) => ({ name, total: v.total, count: v.count }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  return { onlyA: only(mapA, mapB), onlyB: only(mapB, mapA) };
 }
 
 // ── 3. Top-Einzelausgaben ──

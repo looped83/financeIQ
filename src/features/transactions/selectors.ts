@@ -1,11 +1,15 @@
 import { monthName, typeLabel } from '../../domain/format';
+import { memoize } from '../../domain/memo';
 import type { EnrichedRow } from '../../domain/types';
 import type { TransactionFilters, TransactionKind, TransactionSort } from '../../state/appState';
 
 /** Distinct display categories (typeLabel'd) present in the data, alphabetical. */
-export function getAvailableCategories(rows: EnrichedRow[]): string[] {
-  return [...new Set(rows.map((r) => typeLabel(r._type)).filter(Boolean))].sort();
-}
+export const getAvailableCategories = memoize((rows: EnrichedRow[]): string[] =>
+  [...new Set(rows.map((r) => typeLabel(r._type)).filter(Boolean))].sort());
+
+/** Lower-cased search text of a row, built once per row instead of on every keystroke. */
+const haystack = memoize((r: EnrichedRow): string =>
+  [r._name, r._desc, r._type, typeLabel(r._type), r._cat, r._asset].join(' ').toLowerCase());
 
 /** In/out mean real cash movements; trades are their own kind, own-account transfers only show under "all". */
 export function matchesKind(r: EnrichedRow, kind: TransactionKind): boolean {
@@ -25,12 +29,7 @@ export function filterTransactions(rows: EnrichedRow[], filters: TransactionFilt
   return rows.filter((r) => {
     if (!matchesKind(r, filters.kind)) return false;
     if (filters.category && typeLabel(r._type) !== filters.category) return false;
-    if (search) {
-      const haystack = [r._name, r._desc, r._type, typeLabel(r._type), r._cat, r._asset]
-        .join(' ')
-        .toLowerCase();
-      if (!haystack.includes(search)) return false;
-    }
+    if (search && !haystack(r).includes(search)) return false;
     return true;
   });
 }

@@ -3,7 +3,7 @@ import { fmtD, fmtN, mLabel } from '../domain/format';
 import { boundsOf, buildPresets, periodLabel, periodLabelShort, samePeriod, shiftPeriod } from '../domain/period';
 import type { AppActions } from '../state/appStore';
 import type { AppState } from '../state/appState';
-import type { Store } from '../state/store';
+import { subscribeSelected, type Store } from '../state/store';
 import { icon } from '../ui/icons';
 import { AREAS, href, type Area, type AreaId, type Route } from './routes';
 
@@ -42,7 +42,8 @@ export function createShell(el: ShellElements, store: Store<AppState>, actions: 
     document.title = `${route.sub ? `${route.area.label} · ${route.sub.label}` : route.area.label} · FinanceIQ`;
   }
 
-  store.subscribe(draw);
+  // Only what the shell shows — typing in the transaction search must not redraw the navigation.
+  subscribeSelected(store, (s) => [s.fullAnalysis, s.analysis, s.period, s.fileName], draw);
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && sheetOpen) setSheet(false);
   });
