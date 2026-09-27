@@ -182,7 +182,6 @@ CSV-Upload-Fehler sichtbar gemacht: Falls `parseCSV()`/`analyze()` eine Exceptio
 
 - **Wording:** "Wiederkehrende Ausgaben" statt "Abos/Abonnements" — bewusste Entscheidung
 - **CSV-Kompatibilität:** Trade Republic, Sparkasse, DKB und weitere (automatische Spalten-Erkennung über `findCol()`)
-- **`data/`-Verzeichnis:** Enthält monatliche CSV-Snapshots (Legacy) — nicht mehr aktiv genutzt
 - **Bekannte Schwäche (unverändert übernommen):** `analyze().subscriptions` erkennt „wiederkehrend“ an gleichem Namen + gerundetem Betrag in ≥ 2 Monaten. Bei vielen Kartenzahlungen entstehen Zufallstreffer (z. B. zweimal 45 € bei REWE) — die Summe „Wiederkehrende Ausgaben“ ist dann zu hoch. Die CV-basierte Fixkosten-Erkennung (`getFixedCostNames`) ist robuster.
 
 ## PR-Historie (chronologisch)
