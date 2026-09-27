@@ -3,12 +3,14 @@ import { mountChart } from '../../charts/chartManager';
 import { axes, INDEX_TOOLTIP } from '../../charts/chartTheme';
 import { fmt, fmtN, fmtP } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
+import type { AppActions } from '../../state/appStore';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, seriesColor } from '../../theme/palette';
 import { card, chartBox, emptyNote, foldable, getCanvas, kpiGrid, LIST_LIMIT, rowList, type LegendItem } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import { getFixedCosts, getTopMerchants } from '../shared/commonSelectors';
+import { showBookings } from '../shared/drilldown';
 import { fixedCostsList } from '../shared/fixedCostsList';
 import {
   getFixVarTimelineData,
@@ -21,7 +23,7 @@ import {
 
 const LEVEL_BADGE = { Kritisch: 'badge--bad', Erhöht: 'badge--warn', Auffällig: '' } as const;
 
-export function mountSpendingView(container: HTMLElement, store: Store<AppState>): Unsubscribe {
+export function mountSpendingView(container: HTMLElement, store: Store<AppState>, actions: AppActions): Unsubscribe {
   return mountPage(container, store, (s) => [s.analysis], (state) => {
     const a = state.analysis;
     if (!hasData(a)) return { view: noData() };
@@ -31,7 +33,7 @@ export function mountSpendingView(container: HTMLElement, store: Store<AppState>
       merchants: getMerchantTimelineData(a),
       fixVar: { labels: fixVar.labels, series: [{ label: 'Fixkosten', data: fixVar.fixed }, { label: 'Variabel', data: fixVar.variable }] },
     };
-    return { view: view(a, stacks), charts: () => charts(container, stacks) };
+    return { view: view(a, stacks, actions), charts: () => charts(container, stacks) };
   });
 }
 
@@ -44,7 +46,7 @@ interface Stacks {
 /** Legend entries in the same order and colors as the stacked datasets. */
 const seriesLegend = (d: StackedSeries): LegendItem[] => d.series.map((s, i) => ({ label: s.label, color: seriesColor(i) }));
 
-function view(a: Analysis, stacks: Stacks): TemplateResult {
+function view(a: Analysis, stacks: Stacks, actions: AppActions): TemplateResult {
   const k = getSpendingKpis(a);
   const merchants = getTopMerchants(a, 15);
   const fixed = getFixedCosts(a);
@@ -67,15 +69,17 @@ function view(a: Analysis, stacks: Stacks): TemplateResult {
     <div class="grid grid--wide-left">
       ${card({ title: 'Top-Empfänger im Zeitverlauf' }, chartBox('sp-merchants', 'Ausgaben der größten Empfänger je Monat', 'lg', seriesLegend(stacks.merchants)))}
       ${card({ title: 'Kartenzahlungen', sub: 'Größte Empfänger' }, merchants.length
-        ? foldable(merchants, LIST_LIMIT, (ms) => rowList(ms.map((m) => ({ title: m.name, sub: `${m.count} Zahlungen · Ø ${m.avg}`, value: m.total }))))
+        ? foldable(merchants, LIST_LIMIT, (ms) => rowList(ms.map((m) => ({
+            title: m.name, sub: `${m.count} Zahlungen · Ø ${m.avg}`, value: m.total, link: showBookings(actions, { search: m.name, kind: 'out' }),
+          }))))
         : emptyNote('Keine Kartenzahlungen im Zeitraum.'))}
     </div>
 
     <div class="grid">
-      ${card({ title: 'Fixkosten', sub: 'Mindestens dreimal gezahlt, mit stabilem Monatsbetrag' }, fixedCostsList(fixed))}
+      ${card({ title: 'Fixkosten', sub: 'Mindestens dreimal gezahlt, mit stabilem Monatsbetrag' }, fixedCostsList(fixed, actions))}
       ${card({ title: 'Ausreißer', sub: `Mehr als 2σ vom Schnitt (Ø ${fmt(a.mean)}, σ ${fmt(a.std)})` }, outliers.length
         ? foldable(outliers, LIST_LIMIT, (os) => rowList(os.map((o) => ({
-            title: o.name, sub: `${o.date} · ${o.type} · ${o.zScore}`, value: o.amount,
+            title: o.name, sub: `${o.date} · ${o.type} · ${o.zScore}`, value: o.amount, link: showBookings(actions, { search: o.name }),
             after: html`<span class="badge ${LEVEL_BADGE[o.level]}">${o.level}</span>`,
           }))))
         : emptyNote('Keine auffälligen Ausgaben im Zeitraum.'))}

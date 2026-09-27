@@ -116,6 +116,15 @@ export interface BarRow {
   /** Bar color when there is no swatch color. */
   barColor?: string;
   sub?: string;
+  /** Makes the label a link to the matching bookings. */
+  link?: () => void;
+}
+
+/** Where drill-down links lead; the click handler sets the filters before the page changes. */
+const BOOKINGS_HREF = '#/transaktionen';
+
+function rowTitle(label: string, link: (() => void) | undefined): TemplateResult | string {
+  return link ? html`<a class="row-link" href=${BOOKINGS_HREF} @click=${link}>${label}</a>` : label;
 }
 
 export function barList(rows: BarRow[]): TemplateResult {
@@ -125,7 +134,7 @@ export function barList(rows: BarRow[]): TemplateResult {
       ${rows.map((r) => html`
         <li>
           ${r.color ? html`<span class="swatch" style="--c:${r.color}"></span>` : nothing}
-          <span class="row-title" title=${r.label}>${r.label}${r.sub ? html` <span class="muted">${r.sub}</span>` : nothing}</span>
+          <span class="row-title" title=${r.label}>${rowTitle(r.label, r.link)}${r.sub ? html` <span class="muted">${r.sub}</span>` : nothing}</span>
           <span class="row-value">${r.value}</span>
           <span class="share">${r.share}</span>
           ${r.pct !== undefined
@@ -201,6 +210,8 @@ export interface RowItem {
   /** Markup before the value: a ✓/⚠ status icon. */
   before?: Content;
   valueClass?: string;
+  /** Makes the title a link to the matching bookings. */
+  link?: () => void;
 }
 
 /** The one list row every card uses: title with optional sub line, value on the right. */
@@ -209,7 +220,7 @@ export function rowList(items: RowItem[]): TemplateResult {
     <ul class="rows">${items.map((i) => html`
       <li>
         <div class="row-main">
-          <div class="row-title" title=${i.title}>${i.title}</div>
+          <div class="row-title" title=${i.title}>${rowTitle(i.title, i.link)}</div>
           ${i.sub ? html`<div class="row-sub">${i.sub}</div>` : nothing}
         </div>
         <span class="row-value ${i.valueClass ?? ''}">${i.before ?? nothing}${i.value}${i.unit ? html`<small>${i.unit}</small>` : nothing}${i.after ?? nothing}</span>
@@ -219,14 +230,19 @@ export function rowList(items: RowItem[]): TemplateResult {
 }
 
 /** Ring chart with the total in its centre and a color-keyed list of the (folded) entries. */
-export function donut(key: string, label: string, entries: [string, number][], total: number, color: (i: number) => string): TemplateResult {
+export function donut(
+  key: string, label: string, entries: [string, number][], total: number, color: (i: number) => string,
+  linkFor?: (name: string, i: number) => (() => void) | undefined,
+): TemplateResult {
   return html`
     <div class="donut-wrap">
       <div class="donut">
         <canvas data-chart=${key} role="img" aria-label=${label}></canvas>
         <div class="donut-center"><span>Gesamt</span><strong>${fmt(total, 0)}</strong></div>
       </div>
-      ${barList(entries.map(([name, v], i) => ({ label: name, value: fmt(v), share: fmtP(total ? (v / total) * 100 : 0), color: color(i) })))}
+      ${barList(entries.map(([name, v], i) => ({
+        label: name, value: fmt(v), share: fmtP(total ? (v / total) * 100 : 0), color: color(i), link: linkFor?.(name, i),
+      })))}
     </div>
   `;
 }

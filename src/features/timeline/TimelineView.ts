@@ -9,6 +9,7 @@ import type { Store, Unsubscribe } from '../../state/store';
 import { alpha, COLORS, SERIES } from '../../theme/palette';
 import { barList, card, chartBox, emptyNote, foldable, getCanvas, LIST_LIMIT, segmented } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
+import { showBookings } from '../shared/drilldown';
 import { computeMainChartData, getIncomeSources, getMonthlyNetChartData } from './selectors';
 
 const MODES: { value: Mode; label: string }[] = [
@@ -61,7 +62,10 @@ function view(a: Analysis, mode: Mode, actions: AppActions): TemplateResult {
         ]))}
       ${card({ title: 'Einnahmenquellen', sub: `${fmt(a.totalInc)} gesamt` },
         sources.length
-          ? foldable(sources.map((s) => ({ label: s.label, sub: `${s.count}×`, value: s.total, share: s.pctLabel, pct: s.pct, barColor: COLORS.income })), LIST_LIMIT, barList)
+          ? foldable(sources.map((s) => ({
+            label: s.label, sub: `${s.count}×`, value: s.total, share: s.pctLabel, pct: s.pct, barColor: COLORS.income,
+            link: showBookings(actions, { category: s.label, kind: 'in' }),
+          })), LIST_LIMIT, barList)
           : emptyNote('Keine Einnahmen im Zeitraum.'))}
     </div>
   `;

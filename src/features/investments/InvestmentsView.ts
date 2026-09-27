@@ -4,11 +4,13 @@ import { axes, INDEX_TOOLTIP } from '../../charts/chartTheme';
 import { fmt, fmtP } from '../../domain/format';
 import { TARGETS } from '../../domain/targets';
 import type { Analysis } from '../../domain/types';
+import type { AppActions } from '../../state/appStore';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, SERIES, seriesColor } from '../../theme/palette';
 import { barList, card, chartBox, donut, emptyNote, foldable, getCanvas, kpiGrid } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
+import { showBookings } from '../shared/drilldown';
 import {
   getAssetClassBreakdown,
   getDividendChartData,
@@ -19,16 +21,16 @@ import {
 
 const SECURITIES_SHOWN = 6;
 
-export function mountInvestmentsView(container: HTMLElement, store: Store<AppState>): Unsubscribe {
+export function mountInvestmentsView(container: HTMLElement, store: Store<AppState>, actions: AppActions): Unsubscribe {
   return mountPage(container, store, (s) => [s.analysis], (state) => {
     const a = state.analysis;
     if (!hasData(a)) return { view: noData() };
     const classes = getAssetClassBreakdown(a);
-    return { view: view(a, classes), charts: () => charts(container, a, classes) };
+    return { view: view(a, classes, actions), charts: () => charts(container, a, classes) };
   });
 }
 
-function view(a: Analysis, classes: [string, number][]): TemplateResult {
+function view(a: Analysis, classes: [string, number][], actions: AppActions): TemplateResult {
   const k = getInvestmentKpis(a);
   const securities = getDividendsBySecurity(a);
   const classTotal = classes.reduce((s, [, v]) => s + v, 0);
@@ -58,15 +60,16 @@ function view(a: Analysis, classes: [string, number][]): TemplateResult {
         ? donut('in-classes', 'Ringdiagramm der Käufe nach Anlageklasse', classes, classTotal, seriesColor)
         : emptyNote('Keine Käufe im Zeitraum.'))}
       ${card({ title: 'Dividenden nach Wertpapier', sub: securities.length ? `${securities.length} Wertpapiere · sortiert nach Betrag` : '' },
-        securities.length ? securityList(securities) : emptyNote('Keine Dividenden im Zeitraum.'))}
+        securities.length ? securityList(securities, actions) : emptyNote('Keine Dividenden im Zeitraum.'))}
     </div>
   `;
 }
 
 /** Top positions always visible; the long tail folds away so the card keeps the height of its neighbour. */
-function securityList(securities: ReturnType<typeof getDividendsBySecurity>): TemplateResult {
+function securityList(securities: ReturnType<typeof getDividendsBySecurity>, actions: AppActions): TemplateResult {
   const rows = securities.map((s) => ({
     label: s.name, sub: `${s.count}×`, value: s.amount, share: s.pctLabel, pct: s.pct, barColor: COLORS.dividend,
+    link: showBookings(actions, { search: s.name, kind: 'div' }),
   }));
   return foldable(rows, SECURITIES_SHOWN, barList);
 }

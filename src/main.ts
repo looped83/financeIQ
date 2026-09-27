@@ -43,7 +43,9 @@ const uploadScreen = $('upload-screen');
 const app = $('app');
 const pagesRoot = $('pages');
 const fileInput = $<HTMLInputElement>('file-input');
+const filePick = $<HTMLInputElement>('file-pick');
 const uploadZone = $('upload-zone');
+const toast = $('toast');
 
 const pages = new Map<string, MountedPage>();
 
@@ -51,8 +53,18 @@ const shell = createShell(
   { sidebar: $('sidebar'), header: $('page-header'), bottomNav: $('bottom-nav'), sheet: $('sheet') },
   store,
   actions,
-  resetAll,
+  { pickFile: () => filePick.click(), removeFile },
 );
+
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** A short message at the bottom of the screen, gone after a few seconds. */
+function notify(message: string): void {
+  toast.textContent = message;
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.hidden = true), 6000);
+}
 
 function showPage(route: Route): void {
   shell.update(route);
@@ -97,20 +109,22 @@ function showApp(): void {
   showPage(resolveRoute(location.hash));
 }
 
+/** Replaces the session only once the new file parsed — a bad or cancelled pick keeps the current data. */
 function loadPrimaryFile(text: string, fileName: string): void {
   let analysis: ReturnType<typeof analyze>;
   try {
     const rows = parseCSV(text);
-    if (!rows.length) {
-      alert('Keine Daten gefunden.');
+    analysis = analyze(rows);
+    if (!analysis.enriched.length) {
+      notify(`${fileName}: keine auswertbaren Buchungen gefunden.`);
       return;
     }
-    analysis = analyze(rows);
   } catch (err) {
     console.error('Fehler beim Verarbeiten der CSV:', err);
-    alert(`Fehler beim Verarbeiten der CSV-Datei: ${err instanceof Error ? err.message : String(err)}`);
+    notify(`${fileName} konnte nicht gelesen werden: ${err instanceof Error ? err.message : String(err)}`);
     return;
   }
+  unmountAll();
   actions.loadFile(analysis, fileName);
   void persistPrimaryFile(kv, fileName, text);
   history.replaceState(null, '', href('uebersicht'));
@@ -118,22 +132,28 @@ function loadPrimaryFile(text: string, fileName: string): void {
 }
 
 function readAndLoad(file: File): void {
-  file.text().then((text) => loadPrimaryFile(text, file.name));
+  file.text()
+    .then((text) => loadPrimaryFile(text, file.name))
+    .catch(() => notify(`${file.name} konnte nicht gelesen werden.`));
 }
 
-function resetAll(): void {
+/** Forgets the file on this device (memory and IndexedDB) and returns to the upload screen. */
+function removeFile(): void {
+  if (!confirm('Geladene Datei und gespeicherte Sitzung von diesem Gerät entfernen?')) return;
   unmountAll();
   actions.resetAll();
   void clearPersistedSession(kv);
-  fileInput.value = '';
   app.hidden = true;
   uploadScreen.hidden = false;
 }
 
-fileInput.addEventListener('change', () => {
-  const file = fileInput.files?.[0];
-  if (file) readAndLoad(file);
-});
+for (const input of [fileInput, filePick]) {
+  input.addEventListener('change', () => {
+    const file = input.files?.[0];
+    input.value = ''; // picking the same file again must fire "change" again
+    if (file) readAndLoad(file);
+  });
+}
 uploadZone.addEventListener('dragover', (e) => {
   e.preventDefault();
   uploadZone.classList.add('is-drag');

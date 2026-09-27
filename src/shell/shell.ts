@@ -22,23 +22,33 @@ export interface Shell {
   update(route: Route): void;
 }
 
+export interface FileActions {
+  /** Opens the file picker; the current data stays until the new file has loaded. */
+  pickFile(): void;
+  /** Forgets the file on this device. */
+  removeFile(): void;
+}
+
 /** Renders everything around the pages: navigation, page header with the global period, mobile sheet. */
-export function createShell(el: ShellElements, store: Store<AppState>, actions: AppActions, onReset: () => void): Shell {
+export function createShell(el: ShellElements, store: Store<AppState>, actions: AppActions, files: FileActions): Shell {
   let route: Route | null = null;
   let sheetOpen = false;
 
   const setSheet = (open: boolean) => {
     sheetOpen = open;
     draw();
+    // Focus moves into the dialog and back to its button, so keyboard and screen-reader users keep their place.
+    if (open) el.sheet.querySelector<HTMLElement>('a, button')?.focus();
+    else el.bottomNav.querySelector<HTMLElement>('[aria-controls="more-sheet"]')?.focus();
   };
 
   function draw(): void {
     if (!route) return;
     const s = store.getState();
-    render(sidebar(s, route, onReset), el.sidebar);
+    render(sidebar(s, route, files), el.sidebar);
     render(header(s, route, actions), el.header);
     render(bottomNav(route, sheetOpen, () => setSheet(!sheetOpen)), el.bottomNav);
-    render(sheetOpen ? sheet(s, route, () => setSheet(false), onReset) : nothing, el.sheet);
+    render(sheetOpen ? sheet(s, route, () => setSheet(false), files) : nothing, el.sheet);
     document.title = `${route.sub ? `${route.area.label} · ${route.sub.label}` : route.area.label} · FinanceIQ`;
   }
 
@@ -73,24 +83,25 @@ function fileInfo(s: AppState): string {
 }
 
 /** The loaded file and how to replace it — sidebar on desktop, "Mehr" sheet on phones. */
-function fileCard(s: AppState, onReset: () => void): TemplateResult {
+function fileCard(s: AppState, files: FileActions): TemplateResult {
   return html`
     <div class="file-card">
       <span>Aktuelle Datei</span>
       <span class="file-name">${s.fileName}</span>
       <span>${fileInfo(s)}</span>
-      <button type="button" class="btn btn--ghost" @click=${onReset}>${icon('upload', 16)}Neue Datei laden</button>
+      <button type="button" class="btn btn--ghost" @click=${files.pickFile}>${icon('upload', 16)}Neue Datei laden</button>
+      <button type="button" class="link-btn" @click=${files.removeFile}>Datei vom Gerät entfernen</button>
     </div>
   `;
 }
 
-function sidebar(s: AppState, route: Route, onReset: () => void): TemplateResult {
+function sidebar(s: AppState, route: Route, files: FileActions): TemplateResult {
   return html`
     <div class="brand"><span class="brand-mark">${icon('logo', 18)}</span>FinanceIQ</div>
     <nav aria-label="Hauptnavigation"><ul class="nav">
       ${AREAS.map((a) => html`<li>${navLink(a, route)}</li>`)}
     </ul></nav>
-    ${fileCard(s, onReset)}
+    ${fileCard(s, files)}
   `;
 }
 
@@ -166,7 +177,7 @@ function bottomNav(route: Route, sheetOpen: boolean, toggleSheet: () => void): T
   `;
 }
 
-function sheet(s: AppState, route: Route, close: () => void, onReset: () => void): TemplateResult {
+function sheet(s: AppState, route: Route, close: () => void, files: FileActions): TemplateResult {
   return html`
     <div class="sheet-backdrop" @click=${close}></div>
     <div class="sheet" id="more-sheet" role="dialog" aria-modal="true" aria-label="Weitere Bereiche">
@@ -174,7 +185,7 @@ function sheet(s: AppState, route: Route, close: () => void, onReset: () => void
       <ul class="nav">
         ${MORE.map((a) => html`<li>${navLink(a, route)}</li>`)}
       </ul>
-      ${fileCard(s, onReset)}
+      ${fileCard(s, files)}
     </div>
   `;
 }
