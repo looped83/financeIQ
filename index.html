@@ -43,6 +43,10 @@
   <div id="sheet"></div>
 </div>
 
+<!-- Picks a replacement file from inside the app; the session is only replaced once it loaded. -->
+<input type="file" id="file-pick" class="sr-only" accept=".csv,text/csv" tabindex="-1" aria-hidden="true">
+<div id="toast" class="toast" role="alert" hidden></div>
+
 <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

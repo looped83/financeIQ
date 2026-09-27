@@ -19,3 +19,23 @@ export function linReg(ys: number[]): LinRegResult {
   );
   return { slope, intercept, resStd };
 }
+
+/** Trailing moving average over `window` values (fewer at the start), one running sum. */
+export function movingAverage(values: number[], window: number): number[] {
+  let sum = 0;
+  return values.map((v, i) => {
+    sum += v;
+    if (i >= window) sum -= values[i - window]!;
+    return sum / Math.min(i + 1, window);
+  });
+}
+
+export type Direction = 'up' | 'down' | null;
+
+/** ▲/▼ direction vs. the previous value; none without a (non-zero) previous value or for changes under 1. */
+export function changeDir(curr: number, prev: number | null | undefined): Direction {
+  if (!prev) return null;
+  const d = curr - prev;
+  if (Math.abs(d) < 1) return null;
+  return d > 0 ? 'up' : 'down';
+}

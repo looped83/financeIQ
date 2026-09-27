@@ -2,6 +2,7 @@ import { html, type TemplateResult } from 'lit-html';
 import { mountChart } from '../../charts/chartManager';
 import { xScale, yScale } from '../../charts/chartTheme';
 import { fmtP } from '../../domain/format';
+import { TARGETS } from '../../domain/targets';
 import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
@@ -10,7 +11,6 @@ import { card, chartBox, deltaMark, getCanvas } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import { getMonthlyDetailRows, getMonthlySavingsRateChartData } from './selectors';
 
-const TARGET_RATE = 20;
 
 export function mountMonthlyView(container: HTMLElement, store: Store<AppState>): Unsubscribe {
   return mountPage(container, store, (s) => [s.analysis], (state) => {
@@ -26,7 +26,7 @@ function view(a: Analysis): TemplateResult {
     ${card({ title: 'Sparquote pro Monat', sub: 'Netto in Prozent der Einnahmen' },
       chartBox('mo-savings', 'Sparquote je Monat', '', [
         { label: 'Sparquote', color: SERIES[0], mark: 'line' },
-        { label: `Ziel ${fmtP(TARGET_RATE)}`, color: COLORS.textMuted, mark: 'dash' },
+        { label: `Ziel ${fmtP(TARGETS.savingsRate)}`, color: COLORS.textMuted, mark: 'dash' },
       ]))}
 
     ${card({ title: 'Monatliche Detailübersicht', sub: 'Hervorgehoben: bester und schwächster Monat nach Netto' }, html`
@@ -68,7 +68,7 @@ function charts(root: HTMLElement, a: Analysis): void {
           fill: { target: 'origin', above: alpha(SERIES[0], 0.12), below: alpha(COLORS.expense, 0.14) },
         },
         {
-          label: `Ziel ${TARGET_RATE} %`, data: d.labels.map(() => TARGET_RATE), borderColor: COLORS.textMuted,
+          label: `Ziel ${TARGETS.savingsRate} %`, data: d.labels.map(() => TARGETS.savingsRate), borderColor: COLORS.textMuted,
           backgroundColor: COLORS.textMuted, borderWidth: 1.5, borderDash: [5, 4], pointHoverRadius: 0,
         },
       ],

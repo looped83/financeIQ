@@ -33,14 +33,14 @@ describe('single-year (quarterly) view', () => {
     const { year, quarters } = computeQuarterlyBreakdown(a);
     expect(year).toBe('2024');
     // Feb -> Q1, Mar -> Q1 as well (both within months 1-3)
-    expect(quarters.Q1.income).toBeCloseTo(2085 + 30, 3); // Feb (2000+85) + Mar (30 refund)
-    expect(quarters.Q2.income).toBe(0);
+    expect(quarters.map((q) => q.quarter)).toEqual(['Q1']); // quarters without data are left out
+    expect(quarters[0]!.income).toBeCloseTo(2085 + 30, 3); // Feb (2000+85) + Mar (30 refund)
   });
 
   it('getQuarterlyChartData mirrors the breakdown in chart-ready arrays', () => {
     const breakdown = computeQuarterlyBreakdown(a);
     const chart = getQuarterlyChartData(breakdown);
-    expect(chart.labels).toEqual(['Q1', 'Q2', 'Q3', 'Q4']);
+    expect(chart.labels).toEqual(['Q1']);
     expect(chart.income[0]).toBeCloseTo(2115, 3); // all fixture income falls in Q1
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fmt, fmtN, fmtP, fmtPP, fmtD, mLabel, monthName, typeLabel } from './format';
+import { fmt, fmtN, fmtP, fmtPts, fmtSigned, fmtSignedP, fmtD, mLabel, monthName, typeLabel } from './format';
 
 describe('fmt', () => {
   it('formats with German thousands/decimal separators and a euro sign', () => {
@@ -19,15 +19,23 @@ describe('fmtN', () => {
   });
 });
 
-describe('fmtP / fmtPP', () => {
+describe('fmtP / fmtSignedP / fmtSigned / fmtPts', () => {
   it('fmtP never adds a sign', () => {
     expect(fmtP(12.34)).toBe('12,3 %');
     expect(fmtP(-5)).toBe('-5,0 %');
   });
-  it('fmtPP adds a leading + for non-negative values', () => {
-    expect(fmtPP(12.34)).toBe('+12,3 %');
-    expect(fmtPP(-5)).toBe('-5,0 %');
-    expect(fmtPP(0)).toBe('+0,0 %');
+  it('fmtSignedP adds a leading + for non-negative values', () => {
+    expect(fmtSignedP(12.34)).toBe('+12,3 %');
+    expect(fmtSignedP(-5)).toBe('-5,0 %');
+    expect(fmtSignedP(0)).toBe('+0,0 %');
+  });
+
+  it('fmtSigned and fmtPts carry the sign the same way', () => {
+    expect(fmtSigned(1234.5)).toBe('+1.234,50 €');
+    expect(fmtSigned(-56, 0)).toBe('-56 €');
+    expect(fmtPts(1.25)).toBe('+1,3 Pp.');
+    expect(fmtPts(-2)).toBe('-2,0 Pp.');
+    expect(fmtPts(2, false)).toBe('2,0 Pp.');
   });
 });
 

@@ -1,77 +1,55 @@
 import { fmt, fmtP, mLabel, typeLabel } from '../../domain/format';
+import { movingAverage } from '../../domain/stats';
 import type { Analysis } from '../../domain/types';
 import type { TimelineView } from '../../state/appState';
 
 export interface DatedPoint {
-  x: string;
+  /** Day as UTC milliseconds (bookings are dated at UTC midnight). */
+  x: number;
   y: number;
 }
 
-export interface MainChartData {
-  isDate: boolean;
-  labels: string[] | undefined;
-  cumData: number[] | DatedPoint[];
-  maData: number[] | DatedPoint[];
+export type MainChartData =
+  | { isDate: true; cumData: DatedPoint[]; maData: DatedPoint[]; /** First day of every month in range. */ monthTicks: number[] }
+  | { isDate: false; labels: string[]; cumData: number[]; maData: number[] };
+
+function cumulate(values: number[]): number[] {
+  let cum = 0;
+  return values.map((v) => (cum += v));
 }
 
-/** 1:1 port of the original's `buildTLChart(a, view)`. For the daily view, both the
- *  cumulative series and its moving average are `{x, y}` points keyed by ISO date (fed
- *  to a Chart.js time-scale); for monthly/quarterly they're plain numbers against
- *  category labels. The moving average is deliberately computed over the *cumulative*
- *  series itself (not over daily/monthly deltas) — a smoothed cumulative curve, matching
- *  the original exactly. */
+/**
+ * Cumulative cashflow plus a moving average of that cumulative curve (30 days,
+ * 3 months or 2 quarters). The daily view returns {x, y} points on a linear time
+ * axis with one tick per month; monthly/quarterly are plain category series.
+ */
 export function computeMainChartData(a: Analysis, view: TimelineView): MainChartData {
   if (view === 'daily') {
-    const daily: Record<string, number> = {};
-    for (const r of a.cash) {
-      const dk = r._date.toISOString().substring(0, 10);
-      daily[dk] = (daily[dk] ?? 0) + r._amt;
-    }
-    const dKeys = Object.keys(daily).sort();
-    let cum = 0;
-    const cumData: DatedPoint[] = dKeys.map((dk) => {
-      cum += daily[dk]!;
-      return { x: dk, y: cum };
-    });
-    const maData: DatedPoint[] = cumData.map((p, i) => {
-      const w = cumData.slice(Math.max(0, i - 29), i + 1).map((x) => x.y);
-      return { x: p.x, y: w.reduce((s, v) => s + v, 0) / w.length };
-    });
-    return { isDate: true, labels: undefined, cumData, maData };
+    const daily = new Map<number, number>();
+    for (const r of a.cash) daily.set(r._date.getTime(), (daily.get(r._date.getTime()) ?? 0) + r._amt);
+    const days = [...daily.keys()].sort((x, y) => x - y);
+    const cum = cumulate(days.map((d) => daily.get(d)!));
+    const ma = movingAverage(cum, 30);
+    return {
+      isDate: true,
+      cumData: days.map((x, i) => ({ x, y: cum[i]! })),
+      maData: days.map((x, i) => ({ x, y: ma[i]! })),
+      monthTicks: a.mKeys.map((mk) => Date.UTC(Number(mk.slice(0, 4)), Number(mk.slice(5, 7)) - 1, 1)),
+    };
   }
-
   if (view === 'monthly') {
-    const labels = a.mKeys.map(mLabel);
-    let cum = 0;
-    const cumData = a.mKeys.map((m) => {
-      cum += a.months[m]?.net ?? 0;
-      return cum;
-    });
-    const maData = cumData.map((_v, i) => {
-      const w = cumData.slice(Math.max(0, i - 2), i + 1);
-      return w.reduce((s, x) => s + x, 0) / w.length;
-    });
-    return { isDate: false, labels, cumData, maData };
+    const cumData = cumulate(a.mKeys.map((m) => a.months[m]?.net ?? 0));
+    return { isDate: false, labels: a.mKeys.map(mLabel), cumData, maData: movingAverage(cumData, 3) };
   }
-
-  // quarterly
-  const qMap: Record<string, number> = {};
+  const qMap = new Map<string, number>();
   for (const mk of a.mKeys) {
-    const [y, m] = mk.split('-');
-    const q = `${y}-Q${Math.ceil(parseInt(m!, 10) / 3)}`;
-    qMap[q] = (qMap[q] ?? 0) + (a.months[mk]?.net ?? 0);
+    const q = `${mk.slice(0, 4)}-Q${Math.ceil(parseInt(mk.slice(5, 7), 10) / 3)}`;
+    qMap.set(q, (qMap.get(q) ?? 0) + (a.months[mk]?.net ?? 0));
   }
-  const qKeys = Object.keys(qMap).sort();
-  let cum = 0;
-  const cumData = qKeys.map((q) => {
-    cum += qMap[q]!;
-    return cum;
-  });
-  const maData = cumData.map((_v, i) => {
-    const w = cumData.slice(Math.max(0, i - 1), i + 1);
-    return w.reduce((s, x) => s + x, 0) / w.length;
-  });
-  return { isDate: false, labels: qKeys, cumData, maData };
+  const keys = [...qMap.keys()].sort();
+  const cumData = cumulate(keys.map((q) => qMap.get(q)!));
+  const labels = keys.map((q) => `${q.slice(5)} ${q.slice(2, 4)}`); // "2024-Q1" → "Q1 24"
+  return { isDate: false, labels, cumData, maData: movingAverage(cumData, 2) };
 }
 
 export interface SingleSeriesChartData {

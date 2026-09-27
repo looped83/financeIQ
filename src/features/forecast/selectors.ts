@@ -1,6 +1,7 @@
 import { linReg } from '../../domain/stats';
-import { fmt, mLabel } from '../../domain/format';
-import type { Analysis } from '../../domain/types';
+import { fmt, fmtSigned, mLabel } from '../../domain/format';
+import { addMonths } from '../../domain/period';
+import type { Analysis, Hint } from '../../domain/types';
 
 export interface ForecastChartData {
   labels: string[];
@@ -17,16 +18,10 @@ export interface ForecastKpi {
   sub: string;
 }
 
-export interface ForecastScenario {
-  color: 'green' | 'blue' | 'yellow';
-  title: string;
-  desc: string;
-}
-
 export interface ForecastResult {
   chart: ForecastChartData;
   kpis: ForecastKpi[];
-  scenarios: ForecastScenario[];
+  scenarios: Hint[];
 }
 
 /** Linear-trend cashflow forecast with a 95% confidence band, `months` ahead. */
@@ -38,7 +33,7 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
 
   const histLbls = a.mKeys.map(mLabel);
   const lastI = a.mKeys.length - 1;
-  const lastDate = new Date(a.mKeys[lastI] + '-01');
+  const lastMonth = a.mKeys[lastI]!;
   const lastActual = cumAct[cumAct.length - 1] ?? 0;
 
   const fcLbls: string[] = [];
@@ -47,9 +42,7 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
   const fcL: number[] = [];
   let rc = lastActual;
   for (let i = 1; i <= months; i++) {
-    const nd = new Date(lastDate);
-    nd.setMonth(nd.getMonth() + i);
-    fcLbls.push(nd.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' }));
+    fcLbls.push(mLabel(addMonths(lastMonth, i)));
     rc += slope * (lastI + i) + intercept;
     fcD.push(rc);
     const ci = resStd * Math.sqrt(i) * 1.96;
@@ -62,43 +55,36 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
 
   const kpis: ForecastKpi[] = [
     {
-      label: 'Monatlicher Trend', value: fmt(slope), cls: slope >= 0 ? 'income' : 'expense',
-      sub: slope >= 0 ? 'Netto-Cashflow wächst' : 'Netto-Cashflow sinkt',
+      label: 'Monatlicher Trend', value: fmtSigned(slope, 0), cls: slope >= 0 ? 'income' : 'expense',
+      sub: slope >= 0 ? 'Netto pro Monat wächst' : 'Netto pro Monat sinkt',
     },
     {
-      label: `Erwarteter Zuwachs (${months} Mon.)`, value: fmt(projEnd - a.netBal), cls: 'invest',
-      sub: `Prognosewert: ${fmt(projEnd)}`,
+      label: 'Erwarteter Zuwachs', value: fmtSigned(projEnd - lastActual, 0), cls: 'invest',
+      sub: `in ${months} Monaten auf ${fmt(projEnd, 0)}`,
     },
     {
-      label: 'Aktueller Saldo', value: fmt(a.netBal), cls: a.netBal >= 0 ? 'income' : 'expense',
+      label: 'Aktueller Saldo', value: fmt(a.netBal, 0), cls: a.netBal >= 0 ? 'income' : 'expense',
       sub: `Basis: ${a.mc} Monate Daten`,
     },
   ];
 
-  const optSlope = slope + resStd * 0.5;
-  const pesSlope = slope - resStd * 0.5;
-  let optCum = lastActual;
-  let pesCum = lastActual;
-  for (let i = 1; i <= months; i++) {
-    optCum += optSlope * (lastI + i) + intercept;
-    pesCum += pesSlope * (lastI + i) + intercept;
-  }
-
-  const scenarios: ForecastScenario[] = [
+  // Scenarios are the ends of the confidence band, so text and chart always agree.
+  const upper = fcU[fcU.length - 1] ?? lastActual;
+  const lower = fcL[fcL.length - 1] ?? lastActual;
+  const scenarios: Hint[] = [
     {
       color: 'green', title: 'Optimistisches Szenario',
-      desc: `Bei +0,5 σ Wachstum: ${fmt(optCum)} nach ${months} Monaten (+${fmt(optCum - a.netBal)} zum Ist).`,
+      desc: `Oberes Ende des 95-%-Bands: ${fmt(upper)} nach ${months} Monaten (${fmt(upper - lastActual)} Zuwachs).`,
     },
     {
       color: 'blue', title: 'Basisszenario (Lineartrend)',
-      desc: `Auf Basis historischer Daten: ${fmt(projEnd)} nach ${months} Monaten.`,
+      desc: `Fortgeschriebener Trend: ${fmt(projEnd)} nach ${months} Monaten.`,
     },
     {
       color: 'yellow', title: 'Pessimistisches Szenario',
-      desc: `Bei −0,5 σ: ${fmt(pesCum)} nach ${months} Monaten. Ausgaben-Puffer einplanen.`,
+      desc: `Unteres Ende des 95-%-Bands: ${fmt(lower)} nach ${months} Monaten. Ausgaben-Puffer einplanen.`,
     },
   ];
-
   return {
     chart: {
       labels: [...histLbls, ...fcLbls],

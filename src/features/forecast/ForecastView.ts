@@ -10,7 +10,9 @@ import { hasData, mountPage, noData } from '../../ui/page';
 import { computeForecast, type ForecastKpi, type ForecastResult } from './selectors';
 
 const HORIZONS = [3, 6, 12].map((m) => ({ value: String(m), label: `${m} Monate` }));
-const [IST, PROGNOSE] = [SERIES[0], SERIES[1]];
+/** One color for actual and forecast — the dash marks the projection. */
+const IST = SERIES[0];
+const PROGNOSE = IST;
 const DOT: Record<ForecastKpi['cls'], Kpi['dot']> = { income: 'income', expense: 'expense', invest: 'invest' };
 
 /** Always forecasts from the whole history — a trend needs every month it can get. */
@@ -27,7 +29,7 @@ function view(r: ForecastResult, months: number, actions: AppActions): TemplateR
   return html`
     ${card({
       title: 'Cashflow-Prognose',
-      sub: 'Kumulierter Netto-Cashflow · linearer Trend mit 95-%-Konfidenzband',
+      sub: 'Kumuliertes Netto · linearer Trend mit 95-%-Konfidenzband',
       actions: segmented('Horizont', HORIZONS, String(months), (m) => actions.setForecastMonths(Number(m))),
     }, chartBox('fc-main', 'Kumulierter Cashflow mit Prognose', 'lg', [
       { label: 'Ist-Verlauf', color: IST, mark: 'line' },
@@ -38,7 +40,7 @@ function view(r: ForecastResult, months: number, actions: AppActions): TemplateR
     ${kpiGrid(r.kpis.map((k) => ({ label: k.label, value: k.value, sub: k.sub, dot: DOT[k.cls] })))}
 
     ${card({ title: 'Szenarien' }, html`
-      <div class="insights">${r.scenarios.map((s) => insight(s.color, s.title, s.desc))}</div>
+      <div class="insights">${r.scenarios.map(insight)}</div>
     `)}
   `;
 }

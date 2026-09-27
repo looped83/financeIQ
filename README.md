@@ -10,12 +10,12 @@ A modern analytics dashboard for visualizing and analyzing personal finance data
 
 FinanceIQ organizes the analysis into 6 areas (sidebar on desktop, bottom bar on phones), all filtered by one global period picker (last month, last 3/12 months, calendar years — step back and forth):
 
-* Übersicht — headline KPIs, income vs. expenses, where the money goes, ratios, recurring costs, hints & recommendations
+* Übersicht — headline KPIs, income vs. expenses, where the money goes, ratios, fixed costs, one prioritized hint list
 * Cashflow — cumulative trend, monthly net and income sources · month table with savings rate · forecast
-* Ausgaben — spending by type and payee over time, fixed vs. variable, top merchants, recurring costs, outliers
+* Ausgaben — spending by type and payee over time, fixed vs. variable, card payments, fixed costs, outliers
 * Investment — dividends per month and per security, buy/sell volume, asset classes
 * Vergleich — two months side by side · year over year
-* Transaktionen — grouped by day, quick filters, search
+* Buchungen — grouped by day, quick filters, search; names elsewhere link here (drill-down)
 
 ⸻
 
@@ -41,7 +41,7 @@ Built-in intelligent analysis includes:
 
 * Automated financial insights
 * Statistical outlier detection (>2σ)
-* Recurring payments & subscription detection
+* Fixed-cost detection (stable monthly amount) and own-account transfers kept out of income/spending
 * Cashflow forecasting with confidence intervals
 * Financial milestones & scenario analysis
 
@@ -60,7 +60,7 @@ Built-in intelligent analysis includes:
 
 * TypeScript + Vite
 * lit-html (~5 kB, no virtual DOM)
-* Chart.js (only bar/line/doughnut registered, loaded lazily per page)
+* Chart.js (only bar/line/doughnut registered, loaded lazily per page, no animations, charts updated in place)
 * Plain CSS with design tokens (`src/styles/tokens.css`), system font — no CSS framework, no web font
 * Vitest
 

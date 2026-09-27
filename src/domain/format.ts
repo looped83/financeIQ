@@ -40,8 +40,21 @@ export function fmtP(v: number): string {
   return numFmt(1).format(v) + ' %';
 }
 
-export function fmtPP(v: number): string {
-  return (v >= 0 ? '+' : '') + fmtP(v);
+const sign = (v: number) => (v >= 0 ? '+' : '');
+
+/** Euro amount with an explicit sign: "+1.234,00 €" / "-56,00 €". */
+export function fmtSigned(v: number, decimals = 2): string {
+  return sign(v) + fmt(v, decimals);
+}
+
+/** Percentage with an explicit sign: "+12,3 %". */
+export function fmtSignedP(v: number): string {
+  return sign(v) + fmtP(v);
+}
+
+/** Percentage points: "+1,2 Pp." — or "1,2 Pp." with `signed = false` for running text. */
+export function fmtPts(v: number, signed = true): string {
+  return (signed ? sign(v) : '') + numFmt(1).format(v) + ' Pp.';
 }
 
 export function fmtD(d: Date | null): string {

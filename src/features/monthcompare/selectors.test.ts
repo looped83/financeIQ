@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { parseCSV } from '../../domain/csv';
 import { analyze } from '../../domain/analyze';
 import {
-  computeMonthInsights,
   computeMonthKpis,
   getMonthCategoryComparison,
   getMonthDeltaTableRows,
@@ -57,38 +56,21 @@ describe('getMonthCategoryComparison', () => {
   });
 });
 
-describe('computeMonthInsights', () => {
-  it('generates insights for two months', () => {
-    const insights = computeMonthInsights(mA, mB, 'Feb 24', 'Mär 24', a, '2024-02', '2024-03');
-    expect(insights.length).toBeGreaterThanOrEqual(3);
-    const titles = insights.map((i) => i.title);
-    expect(titles.some((t) => t.includes('Einnahmen'))).toBe(true);
-    expect(titles.some((t) => t.includes('Netto-Cashflow'))).toBe(true);
-  });
-
-  it('includes transaction count insight', () => {
-    const insights = computeMonthInsights(mA, mB, 'Feb 24', 'Mär 24', a, '2024-02', '2024-03');
-    const txInsight = insights.find((i) => i.title.includes('Transaktionen'));
-    expect(txInsight).toBeDefined();
-  });
-});
-
 describe('getMonthDeltaTableRows', () => {
-  it('returns formatted delta rows including transactions', () => {
-    const rows = getMonthDeltaTableRows(mA, mB, a, '2024-02', '2024-03');
+  const rows = getMonthDeltaTableRows(a, '2024-02', '2024-03');
+
+  it('returns formatted delta rows including the booking count', () => {
     expect(rows.length).toBe(7);
-    const txRow = rows.find((r) => r.label === 'Transaktionen')!;
-    expect(txRow).toBeDefined();
-    expect(Number(txRow.vA)).toBeGreaterThan(0);
+    const txRow = rows.find((r) => r.label === 'Buchungen')!;
+    expect(Number(txRow.vA)).toBe(mA.count);
+    expect(txRow.good).toBeNull();
   });
 
-  it('marks positive deltas correctly', () => {
-    const rows = getMonthDeltaTableRows(mA, mB, a, '2024-02', '2024-03');
-    for (const row of rows) {
-      if (row.deltaPct !== '—') {
-        expect(typeof row.deltaPctPositive).toBe('boolean');
-      }
-    }
+  it('judges a change by its effect: less spending is good, less income is not', () => {
+    const exp = rows.find((r) => r.label === 'Ausgaben')!;
+    const inc = rows.find((r) => r.label === 'Einnahmen')!;
+    expect(exp.good).toBe(Math.abs(mB.expense) < Math.abs(mA.expense));
+    expect(inc.good).toBe(mB.income > mA.income);
   });
 });
 

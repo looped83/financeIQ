@@ -1,14 +1,11 @@
 import { findCol } from './csv';
-import { typeLabel } from './format';
 import type {
   Analysis,
   ByAssetAgg,
-  ByTypeAgg,
   EnrichedRow,
   MonthAgg,
   OutlierRow,
   RawRow,
-  Subscription,
   YearAgg,
 } from './types';
 
@@ -91,12 +88,94 @@ export function enrich(rows: RawRow[]): EnrichedRow[] {
       _amt: amt, _fee: fee, _tax: tax, _date: date, _month: month, _year: year,
       _type: type, _cat: cat, _name: name, _asset: asset, _desc: desc,
       _isBuy: isBuy, _isSell: isSell, _isDiv: isDiv, _isInterest: isInterest, _isCard: isCard,
+      _isInternal: false, _isFixed: false,
     };
   });
 
-  return withDate
+  const enriched = withDate
     .filter((r): r is EnrichedRow => r._date !== null && r._date >= MIN_DATE)
     .sort((a, b) => a._date.getTime() - b._date.getTime());
+  markInternalTransfers(enriched);
+  markFixedCosts(enriched);
+  return enriched;
+}
+
+/** Money that really came in or went out: no trades, no transfers between own accounts. */
+export function isCashflow(r: EnrichedRow): boolean {
+  return !r._isBuy && !r._isSell && !r._isInternal;
+}
+
+/** A real expense: cash out that is neither a trade, an own-account transfer nor a dividend/interest correction. */
+export function isSpend(r: EnrichedRow): boolean {
+  return r._amt < 0 && isCashflow(r) && !r._isDiv && !r._isInterest;
+}
+
+const TRANSFER_TYPE = /TRANSFER|BERWEISUNG|GUTSCHRIFT|LASTSCHRIFT|DAUERAUFTRAG/i;
+
+/**
+ * Compares payee names across spelling variants ("Lutz Brüggemann", "Lutz Bruggemann",
+ * "Brueggemann Lutz"): umlauts folded, word order ignored.
+ */
+function payeeKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/ß/g, 'ss')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/([aou])e/g, '$1')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .sort()
+    .join(' ');
+}
+
+/**
+ * A payee that money is transferred both to and from is treated as an own account
+ * (another bank, a second broker): moving money there is neither income nor spending.
+ */
+function markInternalTransfers(rows: EnrichedRow[]): void {
+  const flows = new Map<string, { in: boolean; out: boolean }>();
+  const keyOf = (r: EnrichedRow) => (r._name && TRANSFER_TYPE.test(r._type) ? payeeKey(r._name) : '');
+  for (const r of rows) {
+    const key = keyOf(r);
+    if (!key) continue;
+    const f = flows.get(key) ?? { in: false, out: false };
+    if (r._amt > 0) f.in = true;
+    else if (r._amt < 0) f.out = true;
+    flows.set(key, f);
+  }
+  for (const r of rows) {
+    const f = flows.get(keyOf(r));
+    r._isInternal = !!f && f.in && f.out;
+  }
+}
+
+/**
+ * Fixed costs (Fixkosten): payees paid in at least 3 months (2 when the data is shorter)
+ * with a stable monthly total — coefficient of variation (std/mean) ≤ 0.30. Calibrated on
+ * real data: rent/insurance/gym land at 0.0–0.22, groceries/shopping at 0.39+.
+ * Decided once on the whole history, so every period agrees on what is fixed.
+ */
+function markFixedCosts(rows: EnrichedRow[], maxCv = 0.3): void {
+  const byName = new Map<string, Map<string, number>>();
+  const months = new Set<string>();
+  for (const r of rows) {
+    months.add(r._month);
+    if (!r._name || !isSpend(r)) continue;
+    let perMonth = byName.get(r._name);
+    if (!perMonth) byName.set(r._name, (perMonth = new Map()));
+    perMonth.set(r._month, (perMonth.get(r._month) ?? 0) + Math.abs(r._amt));
+  }
+  const minMonths = months.size >= 3 ? 3 : Math.max(2, months.size);
+  const fixed = new Set<string>();
+  for (const [name, perMonth] of byName) {
+    if (perMonth.size < minMonths) continue;
+    const vals = [...perMonth.values()];
+    const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+    const variance = vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length;
+    if (mean > 0 && Math.sqrt(variance) / mean <= maxCv) fixed.add(name);
+  }
+  for (const r of rows) r._isFixed = fixed.has(r._name) && isSpend(r);
 }
 
 /**
@@ -105,7 +184,7 @@ export function enrich(rows: RawRow[]): EnrichedRow[] {
  * month) can be re-aggregated without re-parsing the CSV.
  */
 export function aggregate(enriched: EnrichedRow[]): Analysis {
-  const cash = enriched.filter((r) => !r._isBuy && !r._isSell);
+  const cash = enriched.filter(isCashflow);
   const inc = cash.filter((r) => r._amt > 0);
   const exp = cash.filter((r) => r._amt < 0);
   const buys = enriched.filter((r) => r._isBuy);
@@ -125,24 +204,23 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
   for (const r of enriched) {
     if (!r._month) continue;
     const m = (months[r._month] ??= {
-      income: 0, expense: 0, invested: 0, sold: 0, dividend: 0, count: 0, cardCount: 0,
-      net: 0, cumBal: 0, savingsRate: 0,
+      income: 0, expense: 0, invested: 0, sold: 0, dividend: 0, count: 0, cardCount: 0, cardExpense: 0,
+      net: 0, savingsRate: 0,
     });
     m.count++;
+    if (r._isCard) m.cardCount++;
+    if (r._isInternal) continue;
     if (r._isBuy) m.invested += Math.abs(r._amt);
     else if (r._isSell) m.sold += r._amt;
     else if (r._amt > 0) m.income += r._amt;
     else m.expense += r._amt;
     if (r._isDiv) m.dividend += r._amt;
-    if (r._isCard) m.cardCount++;
+    if (r._isCard && r._amt < 0) m.cardExpense -= r._amt;
   }
   const mKeys = Object.keys(months).sort();
-  let cum = 0;
   for (const mk of mKeys) {
     const m = months[mk]!;
     m.net = m.income + m.expense;
-    cum += m.net;
-    m.cumBal = cum;
     m.savingsRate = m.income > 0 ? (m.net / m.income) * 100 : 0;
   }
 
@@ -170,16 +248,6 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
   }
   const yKeys = Object.keys(years).sort();
 
-  // By type
-  const byType: Record<string, ByTypeAgg> = {};
-  for (const r of enriched) {
-    const t = r._type || 'Unbekannt';
-    const bt = (byType[t] ??= { income: 0, expense: 0, count: 0 });
-    if (r._amt > 0) bt.income += r._amt;
-    else bt.expense += r._amt;
-    bt.count++;
-  }
-
   // By asset (dividends)
   const byAsset: Record<string, ByAssetAgg> = {};
   for (const r of divs) {
@@ -194,15 +262,6 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
   for (const r of buys) {
     const ac = r._asset || 'Unbekannt';
     byAssetClass[ac] = (byAssetClass[ac] ?? 0) + Math.abs(r._amt);
-  }
-
-  // Expense by category (Dividenden/Zinsen ausgeschlossen: vereinzelte Korrekturbuchungen
-  // können netto negativ ausfallen, sind aber keine Ausgabenkategorie, sondern Ertragskorrekturen)
-  const expCat: Record<string, number> = {};
-  for (const r of exp) {
-    if (r._isDiv || r._isInterest) continue;
-    const t = typeLabel(r._type);
-    expCat[t] = (expCat[t] ?? 0) + Math.abs(r._amt);
   }
 
   // Top merchants (card)
@@ -227,17 +286,6 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
           .sort((a, b) => b._z - a._z)
       : [];
 
-  // Recurring / subscriptions: same name+amount appears 2+ months
-  const recurMap: Record<string, Subscription> = {};
-  for (const r of exp.filter((r) => r._name)) {
-    const key = `${r._name.substring(0, 30)}|${Math.round(Math.abs(r._amt))}`;
-    const sub = (recurMap[key] ??= { name: r._name, amt: Math.abs(r._amt), months: new Set<string>() });
-    sub.months.add(r._month);
-  }
-  const subscriptions = Object.values(recurMap)
-    .filter((x) => x.months.size >= 2)
-    .sort((a, b) => b.months.size * b.amt - a.months.size * a.amt);
-
   const mc = mKeys.length || 1;
   const avgInc = totalInc / mc;
   const avgExp = Math.abs(totalExp) / mc;
@@ -246,7 +294,7 @@ export function aggregate(enriched: EnrichedRow[]): Analysis {
   return {
     enriched, cash, inc, exp, buys, sells, divs,
     totalInc, totalExp, totalInv, totalSold, totalDiv, netBal, totalFee,
-    months, mKeys, years, yKeys, byType, byAsset, byAssetClass, expCat, merchants, outliers, subscriptions,
+    months, mKeys, years, yKeys, byAsset, byAssetClass, merchants, outliers,
     avgInc, avgExp, avgNet, mean, std, mc,
   };
 }

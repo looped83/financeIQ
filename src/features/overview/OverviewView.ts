@@ -1,39 +1,38 @@
 import { html, nothing, type TemplateResult } from 'lit-html';
-import { mountChart } from '../../charts/chartManager';
+import { mountChart, mountDonut } from '../../charts/chartManager';
 import { axes, INDEX_TOOLTIP } from '../../charts/chartTheme';
-import { fmt, fmtP } from '../../domain/format';
+import { fmtSigned } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
+import type { AppActions } from '../../state/appStore';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, seriesColor } from '../../theme/palette';
-import { barList, card, chartBox, getCanvas, insight, kpiGrid, segmented, statusIcon } from '../../ui/components';
+import { card, chartBox, donut, emptyNote, getCanvas, insightList, kpiGrid, rowList, segmented, statusIcon } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
-import { href } from '../../shell/routes';
-import { computeRecommendations } from '../recommendations/selectors';
-import { getRecurringExpenses, getSpendBreakdown } from '../shared/commonSelectors';
-import { buildMonthlySnapshots, computeTrends } from '../shared/monthlySnapshots';
+import { getFixedCosts, getSpendBreakdown } from '../shared/commonSelectors';
+import { isFolded, showBookings } from '../shared/drilldown';
+import { fixedCostsList } from '../shared/fixedCostsList';
 import { getCumulativeIncExpChartData, getMonthlyIncomeExpenseData } from '../timeline/selectors';
-import { computeAlerts, computeFinancialRatios, computeOverviewRates, getOverviewKpis } from './selectors';
+import { computeHints } from './hints';
+import { computeFinancialRatios, computeOverviewRates, getOverviewKpis } from './selectors';
 
 type TrendMode = 'monthly' | 'cumulative';
 type SpendBy = 'payee' | 'type';
-type HintTab = 'hints' | 'recs';
 
 /** Page-local view state — not worth a store slice, lost on reload by design. */
-const ui = { trend: 'monthly' as TrendMode, spendBy: 'payee' as SpendBy, hints: 'hints' as HintTab, allHints: false };
+const ui = { trend: 'monthly' as TrendMode, spendBy: 'payee' as SpendBy };
 const HINTS_SHOWN = 4;
 
-export function mountOverviewView(container: HTMLElement, store: Store<AppState>): Unsubscribe {
+export function mountOverviewView(container: HTMLElement, store: Store<AppState>, actions: AppActions): Unsubscribe {
   return mountPage(container, store, (s) => [s.analysis], (state, redraw) => {
     const a = state.analysis;
     if (!hasData(a)) return { view: noData() };
     const set = <K extends keyof typeof ui>(k: K, v: (typeof ui)[K]) => {
       ui[k] = v;
-      if (k === 'hints') ui.allHints = false;
       redraw();
     };
     const spend = getSpendBreakdown(a, ui.spendBy);
-    return { view: view(a, spend, set), charts: () => charts(container, a, spend) };
+    return { view: view(a, spend, set, actions), charts: () => charts(container, a, spend) };
   });
 }
 
@@ -41,9 +40,12 @@ function view(
   a: Analysis,
   spend: ReturnType<typeof getSpendBreakdown>,
   set: <K extends keyof typeof ui>(k: K, v: (typeof ui)[K]) => void,
+  actions: AppActions,
 ): TemplateResult {
   const rates = computeOverviewRates(a);
-  const recurring = getRecurringExpenses(a, 6);
+  const spendLink = (name: string, i: number) => isFolded(spend.entries, i)
+    ? undefined
+    : showBookings(actions, ui.spendBy === 'payee' ? { search: name, kind: 'out' } : { category: name, kind: 'out' });
 
   return html`
     ${kpiGrid(getOverviewKpis(a, rates))}
@@ -51,7 +53,7 @@ function view(
     <div class="grid">
       ${card({
         title: 'Einnahmen vs. Ausgaben',
-        sub: `Ø Netto ${a.avgNet >= 0 ? '+' : ''}${fmt(a.avgNet)} pro Monat`,
+        sub: `Ø Netto ${fmtSigned(a.avgNet)} pro Monat`,
         actions: segmented('Darstellung', [
           { value: 'monthly', label: 'Monatlich' },
           { value: 'cumulative', label: 'Kumuliert' },
@@ -68,79 +70,25 @@ function view(
           { value: 'payee', label: 'Empfänger' },
           { value: 'type', label: 'Typ' },
         ], ui.spendBy, (v) => set('spendBy', v)),
-      }, html`
-        <div class="donut-wrap">
-          <div class="donut">
-            <canvas data-chart="ov-donut" role="img" aria-label="Ringdiagramm der Ausgaben"></canvas>
-            <div class="donut-center"><span>Gesamt</span><strong>${fmt(spend.total, 0)}</strong></div>
-          </div>
-          ${barList(spend.entries.map(([label, v], i) => ({
-            label, value: fmt(v), share: fmtP(spend.total ? (v / spend.total) * 100 : 0), color: seriesColor(i),
-          })))}
-        </div>
-      `)}
+      }, donut('ov-donut', 'Ringdiagramm der Ausgaben', spend.entries, spend.total, seriesColor, spendLink))}
     </div>
 
     <div class="grid grid--3">
-      ${card({ title: 'Finanz-Kennzahlen' }, html`
-        <ul class="rows">
-          ${computeFinancialRatios(a, rates).map((r) => html`
-            <li>
-              <span class="row-label">${r.label}</span>
-              <span class="row-value">${r.good === null ? nothing : statusIcon(r.good ? 'good' : 'warn')}${r.value}</span>
-            </li>
-          `)}
-        </ul>
-      `)}
+      ${card({ title: 'Finanz-Kennzahlen' }, rowList(computeFinancialRatios(a, rates).map((r) => ({
+        title: r.label, value: r.value, before: r.good === null ? nothing : statusIcon(r.good ? 'good' : 'warn'),
+      }))))}
 
-      ${card({ title: 'Wiederkehrende Ausgaben', actions: html`<a class="more" href=${href('ausgaben')}>Alle</a>` },
-        recurring.rows.length === 0
-          ? html`<p class="muted">Keine wiederkehrenden Zahlungen erkannt.</p>`
-          : html`
-            <ul class="rows">
-              ${recurring.rows.map((r) => html`
-                <li>
-                  <div class="row-main"><div class="row-title">${r.name}</div><div class="row-sub">in ${r.monthCount} Monaten</div></div>
-                  <span class="row-value">${r.perMonth}<small>/ Monat</small></span>
-                </li>
-              `)}
-            </ul>
-            <div class="card-foot"><span>Gesamt</span><span class="num"><strong>${recurring.totalPerMonth}</strong> / Monat · ≈ ${recurring.totalPerYear} / Jahr</span></div>
-          `)}
+      ${card({ title: 'Fixkosten', sub: 'Wiederkehrend mit stabilem Betrag' }, fixedCostsList(getFixedCosts(a), actions))}
 
-      ${hintsCard(a, rates, set)}
+      ${hintsCard(a)}
     </div>
   `;
 }
 
-function hintsCard(
-  a: Analysis,
-  rates: ReturnType<typeof computeOverviewRates>,
-  set: <K extends keyof typeof ui>(k: K, v: (typeof ui)[K]) => void,
-): TemplateResult {
-  const items = ui.hints === 'hints'
-    ? [
-        ...computeAlerts(a, rates),
-        ...(a.mKeys.length >= 2 ? computeTrends(buildMonthlySnapshots(a)) : []),
-      ]
-    : computeRecommendations(a).map((r) => ({ color: r.level, title: r.title, desc: r.desc }));
-  const shown = ui.allHints ? items : items.slice(0, HINTS_SHOWN);
-
-  return card({
-    title: 'Hinweise',
-    actions: segmented('Art', [
-      { value: 'hints', label: 'Auffälligkeiten' },
-      { value: 'recs', label: 'Empfehlungen' },
-    ], ui.hints, (v) => set('hints', v)),
-  }, html`
-    <div class="insights">
-      ${shown.length ? shown.map((i) => insight(i.color, i.title, i.desc)) : html`<p class="muted">Keine besonderen Auffälligkeiten.</p>`}
-    </div>
-    ${items.length > HINTS_SHOWN
-      ? html`<button type="button" class="more" @click=${() => set('allHints', !ui.allHints)}>
-          ${ui.allHints ? 'Weniger anzeigen' : `Alle ${items.length} anzeigen`}</button>`
-      : nothing}
-  `);
+function hintsCard(a: Analysis): TemplateResult {
+  const hints = computeHints(a);
+  return card({ title: 'Hinweise', sub: 'Wichtigstes zuerst' },
+    hints.length ? insightList(hints, HINTS_SHOWN) : emptyNote('Keine besonderen Auffälligkeiten.'));
 }
 
 function charts(root: HTMLElement, a: Analysis, spend: ReturnType<typeof getSpendBreakdown>): void {
@@ -172,17 +120,5 @@ function charts(root: HTMLElement, a: Analysis, spend: ReturnType<typeof getSpen
     });
   }
 
-  mountChart(getCanvas(root, 'ov-donut'), {
-    type: 'doughnut',
-    data: {
-      labels: spend.entries.map(([l]) => l),
-      datasets: [{ data: spend.entries.map(([, v]) => v), backgroundColor: spend.entries.map((_, i) => seriesColor(i)) }],
-    },
-    options: {
-      cutout: '72%',
-      plugins: {
-        tooltip: { callbacks: { label: (c) => ` ${fmt(Number(c.parsed))} · ${fmtP(spend.total ? (Number(c.parsed) / spend.total) * 100 : 0)}` } },
-      },
-    },
-  });
+  mountDonut(getCanvas(root, 'ov-donut'), spend.entries, spend.total);
 }

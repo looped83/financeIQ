@@ -1,13 +1,16 @@
 import { html, type TemplateResult } from 'lit-html';
-import { mountChart } from '../../charts/chartManager';
+import { mountChart, mountDonut } from '../../charts/chartManager';
 import { axes, INDEX_TOOLTIP } from '../../charts/chartTheme';
 import { fmt, fmtP } from '../../domain/format';
+import { TARGETS } from '../../domain/targets';
 import type { Analysis } from '../../domain/types';
+import type { AppActions } from '../../state/appStore';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, SERIES, seriesColor } from '../../theme/palette';
-import { barList, card, chartBox, getCanvas, kpiGrid } from '../../ui/components';
+import { barList, card, chartBox, donut, emptyNote, foldable, getCanvas, kpiGrid } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
+import { showBookings } from '../shared/drilldown';
 import {
   getAssetClassBreakdown,
   getDividendChartData,
@@ -16,32 +19,31 @@ import {
   getTradeVolumeData,
 } from './selectors';
 
-const PASSIVE_TARGET = 5;
 const SECURITIES_SHOWN = 6;
 
-export function mountInvestmentsView(container: HTMLElement, store: Store<AppState>): Unsubscribe {
+export function mountInvestmentsView(container: HTMLElement, store: Store<AppState>, actions: AppActions): Unsubscribe {
   return mountPage(container, store, (s) => [s.analysis], (state) => {
     const a = state.analysis;
     if (!hasData(a)) return { view: noData() };
     const classes = getAssetClassBreakdown(a);
-    return { view: view(a, classes), charts: () => charts(container, a, classes) };
+    return { view: view(a, classes, actions), charts: () => charts(container, a, classes) };
   });
 }
 
-function view(a: Analysis, classes: [string, number][]): TemplateResult {
+function view(a: Analysis, classes: [string, number][], actions: AppActions): TemplateResult {
   const k = getInvestmentKpis(a);
   const securities = getDividendsBySecurity(a);
   const classTotal = classes.reduce((s, [, v]) => s + v, 0);
 
   return html`
     ${kpiGrid([
-      { label: 'Investiert', value: fmt(k.invested), sub: `Käufe · verkauft: ${fmt(k.sold)}`, dot: 'invest' },
-      { label: 'Dividenden (netto)', value: fmt(k.dividends), sub: `Ø ${fmt(k.avgDividend)} pro Monat`, dot: 'dividend' },
+      { label: 'Netto investiert', value: fmt(k.invested - k.sold, 0), sub: `Käufe ${fmt(k.invested, 0)} · Verkäufe ${fmt(k.sold, 0)}`, dot: 'invest' },
+      { label: 'Dividenden (netto)', value: fmt(k.dividends, 0), sub: `Ø ${fmt(k.avgDividend, 0)} / Monat`, dot: 'dividend' },
       {
-        label: 'Passives Einkommen', value: fmtP(k.passiveRate), sub: `der Einnahmen · Ziel ${fmtP(PASSIVE_TARGET)}`,
-        status: k.passiveRate >= PASSIVE_TARGET ? 'good' : 'warn',
+        label: 'Passives Einkommen', value: fmtP(k.passiveRate), sub: `der Einnahmen · Ziel ${fmtP(TARGETS.passiveRate)}`,
+        status: k.passiveRate >= TARGETS.passiveRate ? 'good' : 'warn',
       },
-      { label: 'Gebühren', value: fmt(k.fees), sub: k.invested ? `${fmtP((k.fees / k.invested) * 100)} der Käufe` : 'keine Käufe' },
+      { label: 'Gebühren', value: fmt(k.fees, 0), sub: k.invested ? `${fmtP((k.fees / k.invested) * 100)} der Käufe` : 'keine Käufe' },
     ])}
 
     <div class="grid grid--charts">
@@ -55,36 +57,21 @@ function view(a: Analysis, classes: [string, number][]): TemplateResult {
 
     <div class="grid grid--wide-right">
       ${card({ title: 'Käufe nach Anlageklasse' }, classes.length
-        ? html`
-          <div class="donut-wrap">
-            <div class="donut">
-              <canvas data-chart="in-classes" role="img" aria-label="Ringdiagramm der Käufe nach Anlageklasse"></canvas>
-              <div class="donut-center"><span>Gesamt</span><strong>${fmt(classTotal, 0)}</strong></div>
-            </div>
-            ${barList(classes.map(([label, v], i) => ({
-              label, value: fmt(v), share: fmtP(classTotal ? (v / classTotal) * 100 : 0), color: seriesColor(i),
-            })))}
-          </div>`
-        : html`<p class="muted">Keine Käufe im Zeitraum.</p>`)}
+        ? donut('in-classes', 'Ringdiagramm der Käufe nach Anlageklasse', classes, classTotal, seriesColor)
+        : emptyNote('Keine Käufe im Zeitraum.'))}
       ${card({ title: 'Dividenden nach Wertpapier', sub: securities.length ? `${securities.length} Wertpapiere · sortiert nach Betrag` : '' },
-        securities.length ? securityList(securities) : html`<p class="muted">Keine Dividenden im Zeitraum.</p>`)}
+        securities.length ? securityList(securities, actions) : emptyNote('Keine Dividenden im Zeitraum.'))}
     </div>
   `;
 }
 
 /** Top positions always visible; the long tail folds away so the card keeps the height of its neighbour. */
-function securityList(securities: ReturnType<typeof getDividendsBySecurity>): TemplateResult {
+function securityList(securities: ReturnType<typeof getDividendsBySecurity>, actions: AppActions): TemplateResult {
   const rows = securities.map((s) => ({
     label: s.name, sub: `${s.count}×`, value: s.amount, share: s.pctLabel, pct: s.pct, barColor: COLORS.dividend,
+    link: showBookings(actions, { search: s.name, kind: 'div' }),
   }));
-  if (rows.length <= SECURITIES_SHOWN + 1) return barList(rows);
-  return html`
-    ${barList(rows.slice(0, SECURITIES_SHOWN))}
-    <details class="disclosure">
-      <summary class="more">Alle ${rows.length} Wertpapiere anzeigen</summary>
-      ${barList(rows.slice(SECURITIES_SHOWN))}
-    </details>
-  `;
+  return foldable(rows, SECURITIES_SHOWN, barList);
 }
 
 function charts(root: HTMLElement, a: Analysis, classes: [string, number][]): void {
@@ -108,18 +95,5 @@ function charts(root: HTMLElement, a: Analysis, classes: [string, number][]): vo
     options: { ...INDEX_TOOLTIP, scales: axes(), datasets: { bar: { categoryPercentage: 0.7, barPercentage: 0.92 } } },
   });
 
-  const total = classes.reduce((s, [, v]) => s + v, 0);
-  mountChart(getCanvas(root, 'in-classes'), {
-    type: 'doughnut',
-    data: {
-      labels: classes.map(([l]) => l),
-      datasets: [{ data: classes.map(([, v]) => v), backgroundColor: classes.map((_, i) => seriesColor(i)) }],
-    },
-    options: {
-      cutout: '72%',
-      plugins: {
-        tooltip: { callbacks: { label: (c) => ` ${fmt(Number(c.parsed))} · ${fmtP(total ? (Number(c.parsed) / total) * 100 : 0)}` } },
-      },
-    },
-  });
+  mountDonut(getCanvas(root, 'in-classes'), classes, classes.reduce((s, [, v]) => s + v, 0));
 }

@@ -20,6 +20,10 @@ export type EnrichedRow = RawRow & {
   _isDiv: boolean;
   _isInterest: boolean;
   _isCard: boolean;
+  /** Transfer to/from an own account — excluded from income, expenses and cashflow. */
+  _isInternal: boolean;
+  /** Expense to a payee detected as a fixed cost over the whole history. */
+  _isFixed: boolean;
 };
 
 export type OutlierRow = EnrichedRow & {
@@ -34,8 +38,9 @@ export interface MonthAgg {
   dividend: number;
   count: number;
   cardCount: number;
+  /** Spent by card (absolute). */
+  cardExpense: number;
   net: number;
-  cumBal: number;
   savingsRate: number;
 }
 
@@ -50,21 +55,9 @@ export interface YearAgg {
   months: number;
 }
 
-export interface ByTypeAgg {
-  income: number;
-  expense: number;
-  count: number;
-}
-
 export interface ByAssetAgg {
   total: number;
   count: number;
-}
-
-export interface Subscription {
-  name: string;
-  amt: number;
-  months: Set<string>;
 }
 
 export interface Analysis {
@@ -89,13 +82,10 @@ export interface Analysis {
   years: Record<string, YearAgg>;
   yKeys: string[];
 
-  byType: Record<string, ByTypeAgg>;
   byAsset: Record<string, ByAssetAgg>;
   byAssetClass: Record<string, number>;
-  expCat: Record<string, number>;
   merchants: Record<string, { total: number; count: number }>;
   outliers: OutlierRow[];
-  subscriptions: Subscription[];
 
   avgInc: number;
   avgExp: number;
@@ -103,4 +93,14 @@ export interface Analysis {
   mean: number;
   std: number;
   mc: number;
+}
+
+/** How a hint is judged: good, worth a look, a problem, or neutral information. */
+export type Tone = 'green' | 'yellow' | 'red' | 'blue';
+
+/** One insight row (hints, recommendations, scenarios). */
+export interface Hint {
+  color: Tone;
+  title: string;
+  desc: string;
 }

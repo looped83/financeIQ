@@ -10,14 +10,13 @@ import {
   LineController,
   LineElement,
   PointElement,
-  TimeScale,
   Tooltip,
   type ChartConfiguration,
   type ChartType,
 } from 'chart.js';
-import 'chartjs-adapter-date-fns';
-import { COLORS } from '../theme/palette';
-import { track, untrack } from './registry';
+import { fmt, fmtP } from '../domain/format';
+import { COLORS, seriesColor } from '../theme/palette';
+import { track, tracked, untrack } from './registry';
 
 // Register only what the app draws (bar, line, doughnut) instead of every
 // controller/scale Chart.js ships — keeps the lazily loaded chart chunk small.
@@ -26,7 +25,7 @@ import { track, untrack } from './registry';
 Chart.register(
   BarController, LineController, DoughnutController,
   BarElement, LineElement, PointElement, ArcElement,
-  CategoryScale, LinearScale, TimeScale,
+  CategoryScale, LinearScale,
   Filler, Tooltip,
 );
 
@@ -37,7 +36,9 @@ d.font.size = 11;
 d.color = COLORS.textMuted;
 d.borderColor = COLORS.raised;
 d.maintainAspectRatio = false;
-if (matchMedia('(prefers-reduced-motion: reduce)').matches) d.animation = false;
+// No animations: every chart appears in its final state at once — less CPU and
+// battery, and data switches (toggles, period) never replay an intro.
+d.animation = false;
 d.elements.bar.borderRadius = 4;
 d.elements.line.borderWidth = 2;
 d.elements.line.tension = 0.3;
@@ -57,9 +58,37 @@ tip.cornerRadius = 8;
 tip.boxPadding = 4;
 tip.usePointStyle = true;
 
-/** Creates (or replaces) the Chart.js instance for `canvas`; `null` (canvas not rendered) is a no-op. */
+/**
+ * Draws `config` on `canvas`. A chart of the same type already on that canvas is
+ * updated in place (new data and options, one redraw) instead of being destroyed
+ * and rebuilt; `null` (canvas not rendered) is a no-op.
+ */
 export function mountChart<T extends ChartType>(canvas: HTMLCanvasElement | null, config: ChartConfiguration<T>): void {
   if (!canvas) return;
+  const current = tracked(canvas);
+  if (current instanceof Chart && (current.config as ChartConfiguration).type === config.type) {
+    current.data = config.data as Chart['data'];
+    current.options = (config.options ?? {}) as Chart['options'];
+    current.update();
+    return;
+  }
   untrack(canvas);
   track(canvas, new Chart(canvas, config));
+}
+
+/** The ring chart of `donut()` (ui/components): series colors in entry order, amount and share in the tooltip. */
+export function mountDonut(canvas: HTMLCanvasElement | null, entries: [string, number][], total: number): void {
+  mountChart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(([l]) => l),
+      datasets: [{ data: entries.map(([, v]) => v), backgroundColor: entries.map((_, i) => seriesColor(i)) }],
+    },
+    options: {
+      cutout: '72%',
+      plugins: {
+        tooltip: { callbacks: { label: (c) => ` ${fmt(Number(c.parsed))} · ${fmtP(total ? (Number(c.parsed) / total) * 100 : 0)}` } },
+      },
+    },
+  });
 }

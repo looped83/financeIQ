@@ -1,11 +1,17 @@
-import { fmt, fmtP, fmtPP } from '../../domain/format';
+import { fmt, fmtP, fmtSigned, fmtSignedP } from '../../domain/format';
+import { TARGETS } from '../../domain/targets';
+import { changeDir, type Direction } from '../../domain/stats';
 import type { Analysis } from '../../domain/types';
 
 export function isMultiYear(a: Analysis): boolean {
   return a.yKeys.length > 1;
 }
 
+export type QuarterKey = 'Q1' | 'Q2' | 'Q3' | 'Q4';
+const QUARTER_KEYS: QuarterKey[] = ['Q1', 'Q2', 'Q3', 'Q4'];
+
 export interface QuarterAgg {
+  quarter: QuarterKey;
   income: number;
   expense: number;
   invested: number;
@@ -13,35 +19,27 @@ export interface QuarterAgg {
   net: number;
 }
 
-export type QuarterKey = 'Q1' | 'Q2' | 'Q3' | 'Q4';
-const QUARTER_KEYS: QuarterKey[] = ['Q1', 'Q2', 'Q3', 'Q4'];
-
 export interface QuarterlyBreakdown {
   year: string;
-  quarters: Record<QuarterKey, QuarterAgg>;
+  /** Only quarters the data covers, in order — no empty Q3/Q4 for a half year. */
+  quarters: QuarterAgg[];
 }
 
-/** Single-year view: aggregates all months into 4 quarters. */
+/** Single-year view: aggregates the months into quarters. */
 export function computeQuarterlyBreakdown(a: Analysis): QuarterlyBreakdown {
-  const year = a.yKeys[0] ?? '';
-  const quarters: Record<QuarterKey, QuarterAgg> = {
-    Q1: { income: 0, expense: 0, invested: 0, dividend: 0, net: 0 },
-    Q2: { income: 0, expense: 0, invested: 0, dividend: 0, net: 0 },
-    Q3: { income: 0, expense: 0, invested: 0, dividend: 0, net: 0 },
-    Q4: { income: 0, expense: 0, invested: 0, dividend: 0, net: 0 },
-  };
+  const byQuarter = new Map<QuarterKey, QuarterAgg>();
   for (const mk of a.mKeys) {
-    const month = parseInt(mk.split('-')[1]!, 10);
-    const q = QUARTER_KEYS[Math.ceil(month / 3) - 1]!;
+    const quarter = QUARTER_KEYS[Math.ceil(parseInt(mk.slice(5, 7), 10) / 3) - 1]!;
+    const qa = byQuarter.get(quarter) ?? { quarter, income: 0, expense: 0, invested: 0, dividend: 0, net: 0 };
     const md = a.months[mk]!;
-    const qa = quarters[q];
     qa.income += md.income;
     qa.expense += md.expense;
     qa.invested += md.invested;
     qa.dividend += md.dividend;
     qa.net += md.net;
+    byQuarter.set(quarter, qa);
   }
-  return { year, quarters };
+  return { year: a.yKeys[0] ?? '', quarters: QUARTER_KEYS.flatMap((q) => byQuarter.get(q) ?? []) };
 }
 
 export interface QuarterlyChartData {
@@ -52,13 +50,13 @@ export interface QuarterlyChartData {
   dividend: number[];
 }
 
-export function getQuarterlyChartData(breakdown: QuarterlyBreakdown): QuarterlyChartData {
+export function getQuarterlyChartData({ quarters }: QuarterlyBreakdown): QuarterlyChartData {
   return {
-    labels: QUARTER_KEYS,
-    income: QUARTER_KEYS.map((q) => breakdown.quarters[q].income),
-    expense: QUARTER_KEYS.map((q) => Math.abs(breakdown.quarters[q].expense)),
-    invested: QUARTER_KEYS.map((q) => breakdown.quarters[q].invested),
-    dividend: QUARTER_KEYS.map((q) => breakdown.quarters[q].dividend),
+    labels: quarters.map((q) => q.quarter),
+    income: quarters.map((q) => q.income),
+    expense: quarters.map((q) => Math.abs(q.expense)),
+    invested: quarters.map((q) => q.invested),
+    dividend: quarters.map((q) => q.dividend),
   };
 }
 
@@ -66,8 +64,6 @@ export interface YearlyKpiCard {
   year: string;
   net: string;
   income: string;
-  expense: string;
-  netPositive: boolean;
   yoyIncomeChange: string | null;
   yoyIncomeUp: boolean;
 }
@@ -80,11 +76,9 @@ export function getYearlyKpiCards(a: Analysis): YearlyKpiCard[] {
     const yoyChange = prev && prev.income > 0 ? ((yr.income - prev.income) / prev.income) * 100 : null;
     return {
       year: y,
-      net: fmt(yr.net),
-      income: fmt(yr.income),
-      expense: fmt(Math.abs(yr.expense)),
-      netPositive: yr.net >= 0,
-      yoyIncomeChange: yoyChange !== null ? fmtPP(yoyChange) : null,
+      net: fmtSigned(yr.net, 0),
+      income: fmt(yr.income, 0),
+      yoyIncomeChange: yoyChange !== null ? fmtSignedP(yoyChange) : null,
       yoyIncomeUp: yoyChange !== null && yoyChange >= 0,
     };
   });
@@ -111,10 +105,10 @@ export function getYearlyChartData(a: Analysis): YearlyChartData {
 export interface YearlyTableRow {
   year: string;
   income: string;
-  incomeDelta: 'up' | 'down' | null;
+  incomeDelta: Direction;
   expense: string;
   /** 'up' = spending rose (bad), 'down' = it fell (good). */
-  expenseDelta: 'up' | 'down' | null;
+  expenseDelta: Direction;
   net: string;
   netPositive: boolean;
   invested: string;
@@ -124,13 +118,6 @@ export interface YearlyTableRow {
   savingsRateCls: 'pos' | 'warn' | 'neg';
   isBest: boolean;
   isWorst: boolean;
-}
-
-function deltaDir(curr: number, prev: number | null): 'up' | 'down' | null {
-  if (prev === null) return null;
-  const d = curr - prev;
-  if (Math.abs(d) < 1) return null;
-  return d > 0 ? 'up' : 'down';
 }
 
 export function getYearlyTableRows(a: Analysis): YearlyTableRow[] {
@@ -145,16 +132,16 @@ export function getYearlyTableRows(a: Analysis): YearlyTableRow[] {
     return {
       year: y,
       income: fmt(yr.income),
-      incomeDelta: deltaDir(yr.income, prev?.income ?? null),
+      incomeDelta: changeDir(yr.income, prev?.income),
       expense: fmt(Math.abs(yr.expense)),
-      expenseDelta: deltaDir(Math.abs(yr.expense), prev ? Math.abs(prev.expense) : null),
+      expenseDelta: changeDir(Math.abs(yr.expense), prev && Math.abs(prev.expense)),
       net: fmt(yr.net),
       netPositive: yr.net >= 0,
       invested: fmt(yr.invested),
       dividend: fmt(yr.dividend),
       fees: fmt(yr.fees),
       savingsRate: fmtP(sr),
-      savingsRateCls: sr >= 20 ? 'pos' : sr >= 10 ? 'warn' : 'neg',
+      savingsRateCls: sr >= TARGETS.savingsRate ? 'pos' : sr >= TARGETS.savingsRate / 2 ? 'warn' : 'neg',
       isBest: i === bestIdx,
       isWorst: i === worstIdx,
     };

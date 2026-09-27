@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseCSV } from '../../domain/csv';
 import { analyze } from '../../domain/analyze';
-import { getFixedCostNames, getRecurringExpenses, getSpendBreakdown, getTopMerchants } from './commonSelectors';
+import { getFixedCosts, getSpendBreakdown, getTopMerchants } from './commonSelectors';
 
 const HEADER = 'date,type,amount,tax,name,category';
 const row = (date: string, type: string, amount: number, name = '') => `${date},${type},${amount},0,${name},`;
@@ -31,13 +31,14 @@ describe('getSpendBreakdown', () => {
   });
 });
 
-describe('getTopMerchants / getRecurringExpenses / getFixedCostNames', () => {
+describe('getTopMerchants / getFixedCosts', () => {
   it('ranks card merchants and labels nameless ones "Unbekannt"', () => {
     expect(getTopMerchants(a).map((m) => m.name)).toEqual(['REWE', 'Unbekannt']);
   });
 
   it('detects the stable monthly transfer as recurring and as a fixed cost', () => {
-    expect(getRecurringExpenses(a).rows.map((r) => r.name)).toEqual(['Hausverwaltung']);
-    expect([...getFixedCostNames(a)]).toEqual(['Hausverwaltung']); // REWE varies too much (CV > 0.3)
+    const fixed = getFixedCosts(a); // REWE varies too much (CV > 0.3)
+    expect(fixed.rows).toEqual([{ name: 'Hausverwaltung', monthCount: 3, perMonth: 1200 }]);
+    expect(fixed.totalPerMonth).toBe(1200);
   });
 });

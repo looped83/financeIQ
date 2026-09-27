@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseCSV } from '../../domain/csv';
 import { analyze } from '../../domain/analyze';
+import { fmt } from '../../domain/format';
 import { computeForecast } from './selectors';
 
 const MINI_HEADER = 'date,type,amount,tax,name,category';
@@ -33,7 +34,7 @@ describe('computeForecast', () => {
     const result = computeForecast(a, 3);
     const trendKpi = result.kpis[0]!;
     expect(trendKpi.cls).toBe('income');
-    expect(trendKpi.value).toBe('100,00 €'); // perfectly linear net: +100/month
+    expect(trendKpi.value).toBe('+100 €'); // perfectly linear net: +100/month
   });
 
   it('projects the cumulative balance forward using the linear trend', () => {
@@ -54,8 +55,25 @@ describe('computeForecast', () => {
   it('base-case scenario matches the KPI-projected value', () => {
     const result = computeForecast(a, 3);
     const baseScenario = result.scenarios.find((s) => s.title === 'Basisszenario (Lineartrend)')!;
-    const projValueStr = result.kpis[1]!.sub.replace('Prognosewert: ', '');
-    expect(baseScenario.desc).toContain(projValueStr);
+    const projected = result.chart.forecast[result.chart.forecast.length - 1]!;
+    expect(result.kpis[1]!.sub).toContain(fmt(projected, 0));
+    expect(baseScenario.desc).toContain(fmt(projected));
+  });
+
+  it('labels forecast months like every other chart', () => {
+    expect(computeForecast(a, 3).chart.labels.slice(-3)).toEqual(['Mai 24', 'Jun 24', 'Jul 24']);
+  });
+
+  it('optimistic and pessimistic scenarios are the ends of the confidence band', () => {
+    const b = analyze(parseCSV(miniCsv([
+      { date: '2024-01-05', type: 'TRANSFER_INBOUND', amount: 500 },
+      { date: '2024-02-05', type: 'TRANSFER_INBOUND', amount: 100 },
+      { date: '2024-03-05', type: 'TRANSFER_INBOUND', amount: 700 },
+    ])));
+    const r = computeForecast(b, 3);
+    const fmtEnd = (xs: (number | null)[]) => new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(xs[xs.length - 1]!);
+    expect(r.scenarios[0]!.desc).toContain(fmtEnd(r.chart.ciUpper));
+    expect(r.scenarios[2]!.desc).toContain(fmtEnd(r.chart.ciLower));
   });
 
   it('returns exactly 3 scenarios in a fixed order', () => {

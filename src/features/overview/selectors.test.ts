@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseCSV } from '../../domain/csv';
 import { analyze } from '../../domain/analyze';
-import { computeAlerts, computeFinancialRatios, computeOverviewRates, getOverviewKpis } from './selectors';
+import { cardShare, computeFinancialRatios, computeOverviewRates, getOverviewKpis } from './selectors';
 
 function fixture(name: string) {
   return readFileSync(fileURLToPath(new URL(`../../../test/fixtures/${name}`, import.meta.url)), 'utf8');
@@ -24,20 +24,20 @@ describe('computeOverviewRates', () => {
     expect(rates.savingsRate).toBeCloseTo((2024.5 / 2115) * 100, 3);
     // passiveRatio = totalDiv/totalInc = 70/2115 * 100
     expect(rates.passiveRatio).toBeCloseTo((70 / 2115) * 100, 3);
-    // investRate = totalInv/totalInc = 1000/2115 * 100
-    expect(rates.investRate).toBeCloseTo((1000 / 2115) * 100, 3);
+    // investRate = (buys − sells)/totalInc = (1000 − 550)/2115 * 100
+    expect(rates.investRate).toBeCloseTo((450 / 2115) * 100, 3);
   });
 });
 
 describe('getOverviewKpis', () => {
   it('returns the 4 headline tiles with the totals from the fixture', () => {
     const kpis = getOverviewKpis(a, computeOverviewRates(a));
-    expect(kpis.map((k) => k.label)).toEqual(['Einnahmen', 'Ausgaben', 'Netto-Saldo', 'Dividenden (netto)']);
-    expect(kpis[0]?.value).toBe('2.115,00 €');
-    expect(kpis[2]?.value).toBe('+2.024,50 €');
+    expect(kpis.map((k) => k.label)).toEqual(['Einnahmen', 'Ausgaben', 'Netto', 'Dividenden (netto)']);
+    expect(kpis[0]?.value).toBe('2.115 €'); // KPI tiles show whole euros
+    expect(kpis[2]?.value).toBe('+2.025 €');
   });
 
-  it('judges the savings rate against the 15 % mark', () => {
+  it('judges the savings rate against the shared target', () => {
     const kpis = getOverviewKpis(a, computeOverviewRates(a));
     expect(kpis[2]?.status).toBe('good'); // fixture's savings rate is ~95.7 %
   });
@@ -53,59 +53,13 @@ describe('computeFinancialRatios', () => {
   });
 });
 
-describe('computeAlerts', () => {
-  it('fires exactly the passive-income and sparplan alerts for the fixture', () => {
-    const alerts = computeAlerts(a, computeOverviewRates(a));
-    expect(alerts).toHaveLength(2);
-    expect(alerts[0]?.color).toBe('green');
-    expect(alerts[0]?.title).toBe('Passives Einkommen');
-    expect(alerts[1]?.title).toBe('Sparplan aktiv');
-  });
-
-  it('fires the negative-balance alert when expenses exceed income', () => {
-    const neg = analyze(parseCSV(miniCsv([
-      { date: '2024-01-05', type: 'TRANSFER_INBOUND', amount: 500 },
-      { date: '2024-01-10', type: 'CARD_TRANSACTION', amount: -800 },
-    ])));
-    const alerts = computeAlerts(neg, computeOverviewRates(neg));
-    expect(alerts.some((al) => al.title === 'Negativer Saldo')).toBe(true);
-  });
-
-  it('fires the "2+ negative months" alert independently of the balance alert', () => {
-    const rows = analyze(parseCSV(miniCsv([
-      { date: '2024-01-05', type: 'TRANSFER_INBOUND', amount: 500 },
-      { date: '2024-01-10', type: 'CARD_TRANSACTION', amount: -800 },
-      { date: '2024-02-05', type: 'TRANSFER_INBOUND', amount: 3000 },
-      { date: '2024-02-10', type: 'CARD_TRANSACTION', amount: -500 },
-      { date: '2024-03-05', type: 'TRANSFER_INBOUND', amount: 400 },
-      { date: '2024-03-10', type: 'CARD_TRANSACTION', amount: -900 },
-    ])));
-    const alerts = computeAlerts(rows, computeOverviewRates(rows));
-    expect(alerts.some((al) => al.title === '2 negative Monate')).toBe(true);
-  });
-
-  it('fires the 3-month rising-expenses trend alert', () => {
-    const rows = analyze(parseCSV(miniCsv([
-      { date: '2024-01-05', type: 'TRANSFER_INBOUND', amount: 3000 },
-      { date: '2024-01-10', type: 'CARD_TRANSACTION', amount: -500 },
-      { date: '2024-02-05', type: 'TRANSFER_INBOUND', amount: 3000 },
-      { date: '2024-02-10', type: 'CARD_TRANSACTION', amount: -800 },
-      { date: '2024-03-05', type: 'TRANSFER_INBOUND', amount: 3000 },
-      { date: '2024-03-10', type: 'CARD_TRANSACTION', amount: -1000 },
-      { date: '2024-04-05', type: 'TRANSFER_INBOUND', amount: 3000 },
-      { date: '2024-04-10', type: 'CARD_TRANSACTION', amount: -1500 },
-    ])));
-    const alerts = computeAlerts(rows, computeOverviewRates(rows));
-    expect(alerts.some((al) => al.title === 'Steigende Ausgaben')).toBe(true);
-  });
-
-  it('produces no alerts for a small, unremarkable dataset', () => {
-    // Uses a non-card expense type deliberately, since a 100%-via-card
-    // dataset would (correctly) trip the "Kartenlastig" alert on its own.
-    const rows = analyze(parseCSV(miniCsv([
+describe('cardShare', () => {
+  it('reads the card share of spending from the monthly aggregates', () => {
+    const cardOnly = analyze(parseCSV(miniCsv([
       { date: '2024-01-05', type: 'TRANSFER_INBOUND', amount: 1000 },
-      { date: '2024-01-10', type: 'TRANSFER_DIRECT_DEBIT_INBOUND', amount: -100 },
+      { date: '2024-01-10', type: 'CARD_TRANSACTION', amount: -300 },
+      { date: '2024-01-11', type: 'TRANSFER_OUTBOUND', amount: -100 },
     ])));
-    expect(computeAlerts(rows, computeOverviewRates(rows))).toEqual([]);
+    expect(cardShare(cardOnly)).toBeCloseTo(75, 6);
   });
 });

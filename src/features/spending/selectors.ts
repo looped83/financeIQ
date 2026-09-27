@@ -1,12 +1,7 @@
 import { fmt, fmtD, mLabel, typeLabel } from '../../domain/format';
+import { isSpend } from '../../domain/analyze';
 import type { Analysis, EnrichedRow } from '../../domain/types';
 import { SERIES } from '../../theme/palette';
-import { getFixedCostNames } from '../shared/commonSelectors';
-
-/** A real expense: money out that is neither a trade nor a dividend/interest correction. */
-function isSpend(r: EnrichedRow): boolean {
-  return r._amt < 0 && !r._isDiv && !r._isInterest && !r._isBuy && !r._isSell;
-}
 
 export interface SpendingKpis {
   total: number;
@@ -74,8 +69,7 @@ export interface FixVarTimelineData {
 
 /** Monthly spend split into fixed costs (stable recurring payees) and everything else. */
 export function getFixVarTimelineData(a: Analysis): FixVarTimelineData {
-  const fixedNames = getFixedCostNames(a);
-  const totals = monthlyTotals(a, (r) => (fixedNames.has(r._name) ? 'fixed' : 'variable'));
+  const totals = monthlyTotals(a, (r) => (r._isFixed ? 'fixed' : 'variable'));
   const zeros = a.mKeys.map(() => 0);
   return { labels: a.mKeys.map(mLabel), fixed: totals.get('fixed') ?? zeros, variable: totals.get('variable') ?? zeros };
 }
@@ -85,7 +79,6 @@ export interface OutlierRow {
   type: string;
   name: string;
   amount: string;
-  positive: boolean;
   zScore: string;
   level: 'Kritisch' | 'Erhöht' | 'Auffällig';
 }
@@ -97,7 +90,6 @@ export function getOutlierRows(a: Analysis, limit = 25): OutlierRow[] {
     type: typeLabel(r._type),
     name: r._name || r._desc || '—',
     amount: fmt(r._amt),
-    positive: r._amt >= 0,
     zScore: `${r._z.toFixed(1).replace('.', ',')} σ`,
     level: r._z > 4 ? 'Kritisch' : r._z > 3 ? 'Erhöht' : 'Auffällig',
   }));

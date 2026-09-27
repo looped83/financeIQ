@@ -1,4 +1,6 @@
 import { fmt, fmtP, mLabel } from '../../domain/format';
+import { TARGETS } from '../../domain/targets';
+import { changeDir, type Direction } from '../../domain/stats';
 import type { Analysis } from '../../domain/types';
 
 export interface MonthlySavingsRateChartData {
@@ -10,15 +12,13 @@ export function getMonthlySavingsRateChartData(a: Analysis): MonthlySavingsRateC
   return { labels: a.mKeys.map(mLabel), savingsRate: a.mKeys.map((m) => a.months[m]?.savingsRate ?? 0) };
 }
 
-export type Delta = 'up' | 'down' | null;
-
 export interface MonthDetailRow {
   month: string;
   income: string;
-  incomeDelta: Delta;
+  incomeDelta: Direction;
   expense: string;
   /** 'up' = spending went up (bad), 'down' = it went down (good). */
-  expenseDelta: Delta;
+  expenseDelta: Direction;
   net: string;
   netPositive: boolean;
   savingsRate: string;
@@ -29,14 +29,6 @@ export interface MonthDetailRow {
   txCount: number;
   isBest: boolean;
   isWorst: boolean;
-}
-
-/** No arrow for the first month, a zero previous month, or a change under 1 €. */
-function delta(curr: number, prev: number | undefined): Delta {
-  if (!prev) return null;
-  const d = curr - prev;
-  if (Math.abs(d) < 1) return null;
-  return d > 0 ? 'up' : 'down';
 }
 
 /** One row per month, straight from the monthly aggregates, best/worst month by net flagged. */
@@ -52,13 +44,13 @@ export function getMonthlyDetailRows(a: Analysis): MonthDetailRow[] {
     return {
       month: mLabel(a.mKeys[i]!),
       income: fmt(m.income),
-      incomeDelta: delta(m.income, prev?.income),
+      incomeDelta: changeDir(m.income, prev?.income),
       expense: fmt(expense),
-      expenseDelta: delta(expense, prev && Math.abs(prev.expense)),
+      expenseDelta: changeDir(expense, prev && Math.abs(prev.expense)),
       net: fmt(m.net),
       netPositive: m.net >= 0,
       savingsRate: fmtP(m.savingsRate),
-      savingsRateLevel: m.savingsRate >= 20 ? 'good' : m.savingsRate >= 10 ? 'ok' : 'bad',
+      savingsRateLevel: m.savingsRate >= TARGETS.savingsRate ? 'good' : m.savingsRate >= TARGETS.savingsRate / 2 ? 'ok' : 'bad',
       dividend: fmt(m.dividend),
       invested: fmt(m.invested),
       cardCount: m.cardCount,

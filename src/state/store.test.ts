@@ -98,7 +98,7 @@ describe('subscribeSelected', () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
-  it('re-notifies a listener that dispatches synchronously during its initial run (DeepDive default-month pattern)', () => {
+  it('re-notifies a listener that dispatches synchronously during its initial run ', () => {
     const store = createStore({ selected: '', analysisVersion: 1 });
     const seen: string[] = [];
     subscribeSelected(store, (s) => [s.selected, s.analysisVersion], (s) => {
