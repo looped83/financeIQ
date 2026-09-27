@@ -6,7 +6,7 @@
 
 - **Sprache:** Deutsch (UI), `de-DE` Locale, Euro-Formatierung
 - **Design:** Dark Mode (warmes Anthrazit, Akzent Orange, Systemschrift), feste Seitenleiste auf Desktop und Tablet (ab 768 px), Leiste unten + „Mehr“-Sheet auf Smartphones; Diagramm-Legenden als HTML immer links über dem Plot (`chartBox(..., series)`), Chart.js-Legend-Plugin nicht registriert
-- **Stack:** TypeScript, Vite, `lit-html` (~5kb, Template-Literal-basiert, kein virtuelles DOM), Chart.js + `chartjs-adapter-date-fns` (echte npm-Dependencies, nicht mehr CDN), Vitest
+- **Stack:** TypeScript, Vite, `lit-html` (~5kb, Template-Literal-basiert, kein virtuelles DOM), Chart.js (echte npm-Dependency, ohne Zeit-Adapter — die Tagesachse ist eine lineare Achse mit Monats-Ticks), Vitest
 - **Deployment:** GitHub Pages via `.github/workflows/pages-vite.yml`, das bei jedem Push auf `main` baut und deployed. Pages-Source ist auf "GitHub Actions" umgestellt und **läuft produktiv** (verifiziert: Build+Deploy grün, App vom Nutzer live getestet und funktionsfähig bestätigt).
 
 ## Aktuelle Architektur (Stand nach Dark-Mode-Redesign)
@@ -48,13 +48,28 @@ test/fixtures/            — CSV-Fixtures für die Vitest-Suite
 | `#/investments` | Investment | investments/InvestmentsView | ja |
 | `#/vergleich/monate` | Vergleich › Monate | monthcompare/MonthCompareView | nein |
 | `#/vergleich/jahre` | Vergleich › Jahre | yearly/YearlyView | nein |
-| `#/transaktionen` | Transaktionen | transactions/TransactionsView | ja |
+| `#/transaktionen` | Buchungen | transactions/TransactionsView | ja |
 
 Jede Seite nutzt `mountPage()` aus `ui/page.ts`: neu zeichnen, wenn sich die gewählten State-Slices ändern, vorher alte Charts abbauen, beim Unmount alles aufräumen. Seiten werden erst beim ersten Öffnen geladen; ist eine Seite verborgen, hält `createGatedStore` ihre Updates zurück und spielt beim Wiederanzeigen nur den letzten Stand einmal ab.
 
 ### Globaler Zeitraum
 
 Der Zeitraum im Seitenkopf (‹ Label › + Presets: Gesamter Zeitraum, Letzte 12/3 Monate, Letzter Monat, je Kalenderjahr) setzt `period`. `setPeriod()` filtert `fullAnalysis.enriched` auf die Monate und ruft `aggregate()` erneut auf — die CSV wird nicht neu geparst, alle Selektoren bleiben unverändert. Presets beziehen sich auf den **letzten Monat in den Daten**, nicht auf heute. Prognose und Vergleich lesen immer `fullAnalysis`. Die früheren Jahr-/Monat-/Datumsfilter der Transaktionen sind dadurch entfallen; dort gibt es jetzt Schnellfilter (Alle, Einnahmen, Ausgaben, Investments, Dividenden), Typ, Suche und Sortierung.
+
+## UX-/Performance-Audit (2026-09)
+
+Umgesetzt in fünf Commits (P1 Kennzahlen, P4 Performance, P5 Aufräumen, P2 Mobil, P3 Interaktion):
+
+- **Umbuchungen:** `enrich()` markiert `_isInternal`, wenn an einen Empfänger Geld überwiesen *und* von ihm empfangen wird (Namensvarianten wie „Lutz Brüggemann“ / „Brueggemann Lutz“ werden gleichgesetzt, nur Überweisungstypen). Solche Buchungen zählen nicht als Einnahme/Ausgabe, erscheinen aber in den Buchungen mit Badge „Umbuchung“. Zentrale Prädikate: `isCashflow(r)`, `isSpend(r)` in `domain/analyze.ts`.
+- **Fixkosten:** eine Logik (stabiler Monatsbetrag, CV ≤ 0,30, mind. 3 Monate) als Zeilen-Flag `_isFixed`, einmal über die ganze Historie bestimmt; `getFixedCosts(a)` summiert je Zeitraum. `analyze().subscriptions`, `byType`, `expCat`, `cumBal` sind entfallen.
+- **Zielwerte** zentral in `domain/targets.ts` (Sparquote 20 %, Investitionsrate netto 15 %, passiv 5 %, Gebühren 0,5 %, Kartenanteil 50 %).
+- **Hinweise:** `features/overview/hints.ts` (`computeHints`) ersetzt Auffälligkeiten, Trends und Empfehlungen — jedes Thema einmal, sortiert rot → gelb → blau → grün.
+- **Performance:** `mountChart` aktualisiert vorhandene Chart-Instanzen statt sie neu zu bauen, keine Animationen; `date-fns` entfernt (Chart-Chunk 74 → 62 kB gzip); Shell reagiert nur auf Datei/Zeitraum; Suche mit Index je Buchung (`domain/memo.ts`) und 150 ms Debounce; Monats-Trends aus `a.months` (inkl. neuem `cardExpense`).
+- **UI-Bausteine** (`ui/components.ts`): `rowList`, `foldable`/`LIST_LIMIT` (5 Einträge + natives „Alle n anzeigen“), `insightList`, `donut` (+ `mountDonut`), `emptyNote`; `features/shared/fixedCostsList.ts`, `features/shared/drilldown.ts` (`showBookings` setzt Filter und verlinkt auf `#/transaktionen`).
+- **Formatierung:** `fmtSigned`, `fmtSignedP`, `fmtPts`; KPI-Kacheln zeigen ganze Euro, Tabellen und Listen Cent.
+- **Mobil:** ein Zeitraum-Control (‹ Label ›, Presets als natives Select hinter dem Label), Upload/Datei nur im Mehr-Sheet, erste Tabellenspalte sticky, Monatsvergleich ohne doppelte Karten.
+- **Datei laden:** ersetzt die Sitzung erst nach erfolgreichem Einlesen; Fehler als Toast (`notify` in `main.ts`); „Datei vom Gerät entfernen“ mit Rückfrage.
+- **Begriffe:** Buchungen (Navigation heißt jetzt so, Route bleibt `#/transaktionen`), Empfänger, Netto, Fixkosten.
 
 ## Dark-Mode-Redesign (2026-09)
 
@@ -158,7 +173,7 @@ Banküberweisungen (Miete, Versicherung, Nebenkosten) kommen oft mit leerem `nam
 
 ## Testing
 
-- `npm test` — Vitest-Suite gegen `src/` (aktuell 216 Tests, 24 Test-Dateien). Das ist die einzige Regressionsabsicherung.
+- `npm test` — Vitest-Suite gegen `src/` (aktuell 206 Tests, 23 Test-Dateien). Das ist die einzige Regressionsabsicherung.
 - `npm run typecheck` — TypeScript-Check ohne Build (`tsc --noEmit`).
 - Fixtures unter `test/fixtures/` decken u.a. ab: Datumsfilter, Netto-Dividendenlogik (`amount + tax`), Korrekturbuchungen, BUY/SELL-Gebührenbehandlung, deutsche CSV-Spaltennamen mit Semikolon-Trennung.
 - Vor jedem Merge auf `main`: `npm run typecheck && npm test && npm run build` — der Workflow `.github/workflows/pages-vite.yml` führt genau das bei jedem Push auf `main` aus, bevor deployed wird.
@@ -180,9 +195,9 @@ CSV-Upload-Fehler sichtbar gemacht: Falls `parseCSV()`/`analyze()` eine Exceptio
 
 ## Wichtige Hinweise
 
-- **Wording:** "Wiederkehrende Ausgaben" statt "Abos/Abonnements" — bewusste Entscheidung
+- **Wording:** "Fixkosten" für wiederkehrende Ausgaben mit stabilem Betrag (nie "Abos/Abonnements")
 - **CSV-Kompatibilität:** Trade Republic, Sparkasse, DKB und weitere (automatische Spalten-Erkennung über `findCol()`)
-- **Bekannte Schwäche (unverändert übernommen):** `analyze().subscriptions` erkennt „wiederkehrend“ an gleichem Namen + gerundetem Betrag in ≥ 2 Monaten. Bei vielen Kartenzahlungen entstehen Zufallstreffer (z. B. zweimal 45 € bei REWE) — die Summe „Wiederkehrende Ausgaben“ ist dann zu hoch. Die CV-basierte Fixkosten-Erkennung (`getFixedCostNames`) ist robuster.
+- **Bekannte Schwäche:** Monats-Keys entstehen aus der lokalen Zeitzone (`getMonth()`), Buchungsdaten sind UTC-Mitternacht — in Zeitzonen westlich von UTC kann eine Buchung vom 1. in den Vormonat rutschen.
 
 ## PR-Historie (chronologisch)
 
