@@ -44,9 +44,9 @@ function view(a: Analysis, classes: [string, number][]): TemplateResult {
       { label: 'Gebühren', value: fmt(k.fees), sub: k.invested ? `${fmtP((k.fees / k.invested) * 100)} der Käufe` : 'keine Käufe' },
     ])}
 
-    <div class="grid">
+    <div class="grid grid--charts">
       ${card({ title: 'Dividenden pro Monat', sub: `${k.positions} ${k.positions === 1 ? 'Position' : 'Positionen'} · netto nach Steuern` },
-        chartBox('in-div', 'Dividenden je Monat'))}
+        chartBox('in-div', 'Dividenden je Monat', '', [{ label: 'Dividenden (netto)', color: COLORS.dividend }]))}
       ${card({ title: 'Kauf- und Verkaufsvolumen', sub: 'Pro Monat' }, chartBox('in-trades', 'Käufe und Verkäufe je Monat', '', [
         { label: 'Käufe', color: COLORS.invest },
         { label: 'Verkäufe', color: SERIES[2] },

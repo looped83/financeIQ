@@ -180,6 +180,11 @@ svg { flex-shrink: 0; }
 .grid--3 { --cols: 3; }
 .grid--wide-left { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
 .grid--wide-right { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+/* Rows of chart cards: header, legend and plot share row tracks across the cards
+   (subgrid), so plots start and end at the same height even when a legend wraps. */
+.grid--charts > .card { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: var(--s-3); }
+.grid--charts > .card > .chart-block { display: contents; }
+.grid--charts .legend { align-self: start; }
 @media (max-width: 1200px) { .grid--3 { --cols: 2; } .grid--3 > :last-child:nth-child(odd) { grid-column: 1 / -1; } }
 @media (max-width: 1100px) { .grid--kpi { --cols: 2; } }
 @media (max-width: 900px) {
@@ -216,6 +221,9 @@ svg { flex-shrink: 0; }
 
 /* ---------- Charts ---------- */
 .chart { position: relative; height: 280px; }
+/* Cards in a row share one height: the plot takes the space left under header and
+   legend, so side-by-side charts end on the same baseline (height above is the minimum). */
+.card > .chart, .card > .chart-block, .chart-block > .chart { flex: 1 1 auto; }
 .chart--sm { height: 220px; }
 .chart--lg { height: 360px; }
 /* Legend: always left-aligned directly above the plot (see chartBox). */
