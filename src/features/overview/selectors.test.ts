@@ -33,11 +33,11 @@ describe('getOverviewKpis', () => {
   it('returns the 4 headline tiles with the totals from the fixture', () => {
     const kpis = getOverviewKpis(a, computeOverviewRates(a));
     expect(kpis.map((k) => k.label)).toEqual(['Einnahmen', 'Ausgaben', 'Netto', 'Dividenden (netto)']);
-    expect(kpis[0]?.value).toBe('2.115,00 €');
-    expect(kpis[2]?.value).toBe('+2.024,50 €');
+    expect(kpis[0]?.value).toBe('2.115 €'); // KPI tiles show whole euros
+    expect(kpis[2]?.value).toBe('+2.025 €');
   });
 
-  it('judges the savings rate against the 15 % mark', () => {
+  it('judges the savings rate against the shared target', () => {
     const kpis = getOverviewKpis(a, computeOverviewRates(a));
     expect(kpis[2]?.status).toBe('good'); // fixture's savings rate is ~95.7 %
   });

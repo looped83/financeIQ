@@ -1,7 +1,7 @@
 import { isSpend } from '../../domain/analyze';
 import { fmt, fmtP, fmtPts, fmtSigned, fmtSignedP, mLabel, typeLabel } from '../../domain/format';
 import { memoize } from '../../domain/memo';
-import type { Analysis, Hint, MonthAgg } from '../../domain/types';
+import type { Analysis, MonthAgg } from '../../domain/types';
 import type { MonthCompareMetric } from '../../state/appState';
 
 export interface MonthKpi {
@@ -51,71 +51,6 @@ export function getMonthCategoryComparison(analysis: Analysis, monthA: string, m
     deltasA: sorted.map((x) => x.a),
     deltasB: sorted.map((x) => x.b),
   };
-}
-
-export function computeMonthInsights(
-  a: MonthAgg, b: MonthAgg, labelA: string, labelB: string,
-  analysis: Analysis, monthA: string, monthB: string,
-): Hint[] {
-  const ins: Hint[] = [];
-
-  if (a.income > 0) {
-    const incChg = ((b.income - a.income) / a.income) * 100;
-    ins.push({
-      color: incChg >= 0 ? 'green' : 'red',
-      title: `Einnahmen ${incChg >= 0 ? 'gestiegen' : 'gesunken'}`,
-      desc: `${labelB}: ${fmt(b.income)} vs. ${labelA}: ${fmt(a.income)} — ${fmtSignedP(incChg)}.`,
-    });
-  }
-
-  const absExpA = Math.abs(a.expense);
-  const absExpB = Math.abs(b.expense);
-  if (absExpA > 0) {
-    const expChg = ((absExpB - absExpA) / absExpA) * 100;
-    ins.push({
-      color: expChg <= 0 ? 'green' : 'red',
-      title: `Ausgaben ${expChg >= 0 ? 'gestiegen' : 'gesunken'}`,
-      desc: `${labelB}: ${fmt(absExpB)} vs. ${labelA}: ${fmt(absExpA)} — ${fmtSignedP(expChg)}.`,
-    });
-  }
-
-  const netDelta = b.net - a.net;
-  ins.push({
-    color: netDelta >= 0 ? 'green' : 'red',
-    title: `Netto-Cashflow ${netDelta >= 0 ? 'verbessert' : 'verschlechtert'}`,
-    desc: `Von ${fmt(a.net)} auf ${fmt(b.net)} — Delta: ${fmt(netDelta)}.`,
-  });
-
-  if (a.savingsRate > 0 || b.savingsRate > 0) {
-    const srDelta = b.savingsRate - a.savingsRate;
-    ins.push({
-      color: srDelta >= 0 ? 'green' : 'yellow',
-      title: `Sparquote ${srDelta >= 0 ? 'verbessert' : 'gesunken'}`,
-      desc: `${labelB}: ${fmtP(b.savingsRate)} vs. ${labelA}: ${fmtP(a.savingsRate)} — ${fmtPts(srDelta)}.`,
-    });
-  }
-
-  if (b.dividend > 0 || a.dividend > 0) {
-    const divDelta = b.dividend - a.dividend;
-    ins.push({
-      color: divDelta >= 0 ? 'green' : 'yellow',
-      title: `Dividenden ${divDelta >= 0 ? 'gestiegen' : 'gesunken'}`,
-      desc: `${labelB}: ${fmt(b.dividend)} vs. ${labelA}: ${fmt(a.dividend)}.`,
-    });
-  }
-
-  const txA = analysis.months[monthA]?.count ?? 0;
-  const txB = analysis.months[monthB]?.count ?? 0;
-  if (txA > 0) {
-    const txChg = ((txB - txA) / txA) * 100;
-    ins.push({
-      color: 'blue',
-      title: `${txB} Transaktionen in ${labelB}`,
-      desc: `${labelA} hatte ${txA} Transaktionen — ${fmtSignedP(txChg)} Veränderung.`,
-    });
-  }
-
-  return ins;
 }
 
 export interface MonthDeltaRow {
@@ -243,27 +178,6 @@ export function getTopSingleExpenses(analysis: Analysis, month: string, limit = 
     amount: Math.abs(r._amt),
     date: r._date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
   }));
-}
-
-// ── 4. Dividenden-Vergleich ──
-
-export interface DividendComparison {
-  countA: number;
-  countB: number;
-  totalA: number;
-  totalB: number;
-}
-
-export function getDividendComparison(analysis: Analysis, monthA: string, monthB: string): DividendComparison {
-  let countA = 0, countB = 0, totalA = 0, totalB = 0;
-
-  for (const r of analysis.enriched) {
-    if (!r._isDiv) continue;
-    if (r._month === monthA) { countA++; totalA += r._amt; }
-    if (r._month === monthB) { countB++; totalB += r._amt; }
-  }
-
-  return { countA, countB, totalA, totalB };
 }
 
 // ── 5. Wiederkehrende Ausgaben Delta ──

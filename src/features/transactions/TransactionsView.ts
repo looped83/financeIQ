@@ -87,7 +87,7 @@ function view(all: EnrichedRow[], state: AppState, actions: AppActions): Templat
             ${SORTS.map((s) => html`<option value=${s.value} ?selected=${s.value === sort}>${s.label}</option>`)}
           </select>
           <span class="tx-summary">
-            ${fmtN(filtered.length)} Buchungen · <span class="pos">${fmtSigned(inflow)}</span> rein · ${fmt(outflow)} raus
+            ${fmtN(filtered.length)} Buchungen · <span class="pos">${fmtSigned(inflow, 0)}</span> rein · ${fmt(outflow, 0)} raus
           </span>
         </div>
       </div>

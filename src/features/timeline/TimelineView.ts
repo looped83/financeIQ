@@ -7,7 +7,7 @@ import type { AppActions } from '../../state/appStore';
 import type { AppState, TimelineView as Mode } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { alpha, COLORS, SERIES } from '../../theme/palette';
-import { barList, card, chartBox, emptyNote, getCanvas, segmented } from '../../ui/components';
+import { barList, card, chartBox, emptyNote, foldable, getCanvas, LIST_LIMIT, segmented } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import { computeMainChartData, getIncomeSources, getMonthlyNetChartData } from './selectors';
 
@@ -61,7 +61,7 @@ function view(a: Analysis, mode: Mode, actions: AppActions): TemplateResult {
         ]))}
       ${card({ title: 'Einnahmenquellen', sub: `${fmt(a.totalInc)} gesamt` },
         sources.length
-          ? barList(sources.map((s) => ({ label: s.label, sub: `${s.count}×`, value: s.total, share: s.pctLabel, pct: s.pct, barColor: COLORS.income })))
+          ? foldable(sources.map((s) => ({ label: s.label, sub: `${s.count}×`, value: s.total, share: s.pctLabel, pct: s.pct, barColor: COLORS.income })), LIST_LIMIT, barList)
           : emptyNote('Keine Einnahmen im Zeitraum.'))}
     </div>
   `;

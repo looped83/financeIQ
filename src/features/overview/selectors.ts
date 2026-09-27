@@ -41,18 +41,18 @@ export interface KpiCard {
 export function getOverviewKpis(a: Analysis, rates: OverviewRates): KpiCard[] {
   const positions = Object.keys(a.byAsset).length;
   return [
-    { label: 'Einnahmen', value: fmt(a.totalInc), sub: `Ø ${fmt(a.avgInc)} pro Monat`, dot: 'income' },
-    { label: 'Ausgaben', value: fmt(Math.abs(a.totalExp)), sub: `Ø ${fmt(a.avgExp)} pro Monat`, dot: 'expense' },
+    { label: 'Einnahmen', value: fmt(a.totalInc, 0), sub: `Ø ${fmt(a.avgInc, 0)} / Monat`, dot: 'income' },
+    { label: 'Ausgaben', value: fmt(Math.abs(a.totalExp), 0), sub: `Ø ${fmt(a.avgExp, 0)} / Monat`, dot: 'expense' },
     {
       label: 'Netto',
-      value: fmtSigned(a.netBal),
+      value: fmtSigned(a.netBal, 0),
       sub: `Sparquote ${fmtP(rates.savingsRate)}`,
       status: rates.savingsRate >= TARGETS.savingsRate ? 'good' : 'warn',
     },
     {
       label: 'Dividenden (netto)',
-      value: fmt(a.totalDiv),
-      sub: `Ø ${fmt(a.totalDiv / a.mc)} pro Monat · ${positions} ${positions === 1 ? 'Position' : 'Positionen'}`,
+      value: fmt(a.totalDiv, 0),
+      sub: `Ø ${fmt(a.totalDiv / a.mc, 0)} / Monat · ${positions} ${positions === 1 ? 'Position' : 'Positionen'}`,
       dot: 'dividend',
     },
   ];

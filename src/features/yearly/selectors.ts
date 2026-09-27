@@ -1,4 +1,4 @@
-import { fmt, fmtP, fmtSignedP } from '../../domain/format';
+import { fmt, fmtP, fmtSigned, fmtSignedP } from '../../domain/format';
 import { TARGETS } from '../../domain/targets';
 import { changeDir, type Direction } from '../../domain/stats';
 import type { Analysis } from '../../domain/types';
@@ -76,8 +76,8 @@ export function getYearlyKpiCards(a: Analysis): YearlyKpiCard[] {
     const yoyChange = prev && prev.income > 0 ? ((yr.income - prev.income) / prev.income) * 100 : null;
     return {
       year: y,
-      net: fmt(yr.net),
-      income: fmt(yr.income),
+      net: fmtSigned(yr.net, 0),
+      income: fmt(yr.income, 0),
       yoyIncomeChange: yoyChange !== null ? fmtSignedP(yoyChange) : null,
       yoyIncomeUp: yoyChange !== null && yoyChange >= 0,
     };

@@ -7,11 +7,9 @@ import type { AppActions } from '../../state/appStore';
 import type { AppState, MonthCompareMetric } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { alpha, COLORS, SERIES } from '../../theme/palette';
-import { card, chartBox, deltaMark, emptyNote, emptyState, getCanvas, insight, rowList, segmented } from '../../ui/components';
+import { card, chartBox, deltaMark, emptyNote, emptyState, foldable, getCanvas, LIST_LIMIT, rowList, segmented } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import {
-  computeMonthInsights,
-  getDividendComparison,
   getIntraMonthCashflowData,
   getMerchantComparison,
   getMonthCategoryComparison,
@@ -21,6 +19,7 @@ import {
   getTopSingleExpenses,
   getUniqueMerchants,
   type IntraMonthCashflowData,
+  type UniqueExpense,
 } from './selectors';
 
 const METRICS: { value: MonthCompareMetric; label: string }[] = [
@@ -37,9 +36,12 @@ const METRICS: { value: MonthCompareMetric; label: string }[] = [
  */
 const [COLOR_A, COLOR_B] = [COLORS.textSecondary, SERIES[0]];
 
+/** Page-local view state: which month the detail card shows. */
+const ui = { detail: 'B' as 'A' | 'B' };
+
 /** Compares two months of the whole history, independent of the global period. */
 export function mountMonthCompareView(container: HTMLElement, store: Store<AppState>, actions: AppActions): Unsubscribe {
-  return mountPage(container, store, (s) => [s.fullAnalysis, s.monthCompare], (state) => {
+  return mountPage(container, store, (s) => [s.fullAnalysis, s.monthCompare], (state, redraw) => {
     const a = state.fullAnalysis;
     if (!hasData(a)) return { view: noData() };
     if (a.mKeys.length < 2) return { view: emptyState('Zu wenig Daten', 'Für einen Vergleich braucht es mindestens zwei Monate.') };
@@ -49,8 +51,12 @@ export function mountMonthCompareView(container: HTMLElement, store: Store<AppSt
     const monthB = state.monthCompare.monthB && a.months[state.monthCompare.monthB] ? state.monthCompare.monthB : keys[keys.length - 1]!;
     const metric = state.monthCompare.metric;
     const intra = getIntraMonthCashflowData(a, monthA, monthB);
+    const pickDetail = (d: 'A' | 'B') => {
+      ui.detail = d;
+      redraw();
+    };
     return {
-      view: view(a, monthA, monthB, metric, intra, actions),
+      view: view(a, monthA, monthB, metric, intra, actions, pickDetail),
       charts: () => charts(container, a, monthA, monthB, metric, intra),
     };
   });
@@ -64,23 +70,26 @@ function monthSelect(a: Analysis, label: string, value: string, pick: (m: string
   `;
 }
 
-function expenseList(items: { name: string; total?: number; amount?: number; count?: number; date?: string }[], emptyText: string): TemplateResult {
-  return items.length
-    ? rowList(items.map((i) => ({ title: i.name, sub: i.date ?? `${i.count}×`, value: fmt(i.total ?? i.amount ?? 0) })))
-    : emptyNote(emptyText);
+/** One month in detail: its largest single expenses and the payees that only appear in it. */
+function monthDetail(a: Analysis, month: string, only: UniqueExpense[]): TemplateResult {
+  const top = getTopSingleExpenses(a, month);
+  return html`
+    <h3 class="card-section">Größte Einzelausgaben</h3>
+    ${top.length ? rowList(top.map((t) => ({ title: t.name, sub: t.date, value: fmt(t.amount) }))) : emptyNote('Keine Ausgaben.')}
+    <h3 class="card-section">Nur in diesem Monat</h3>
+    ${only.length
+      ? foldable(only, LIST_LIMIT, (xs) => rowList(xs.map((u) => ({ title: u.name, sub: `${u.count}×`, value: fmt(u.total) }))))
+      : emptyNote('Keine Empfänger nur in diesem Monat.')}
+  `;
 }
 
 function view(
-  a: Analysis, monthA: string, monthB: string, metric: MonthCompareMetric, intra: IntraMonthCashflowData, actions: AppActions,
+  a: Analysis, monthA: string, monthB: string, metric: MonthCompareMetric, intra: IntraMonthCashflowData,
+  actions: AppActions, pickDetail: (d: 'A' | 'B') => void,
 ): TemplateResult {
-  const mA = a.months[monthA]!;
-  const mB = a.months[monthB]!;
   const [labelA, labelB] = [mLabel(monthA), mLabel(monthB)];
-  const deltaRows = getMonthDeltaTableRows(a, monthA, monthB);
-  const insights = computeMonthInsights(mA, mB, labelA, labelB, a, monthA, monthB);
-  const merchants = getMerchantComparison(a, monthA, monthB);
+  const merchants = getMerchantComparison(a, monthA, monthB, 15);
   const unique = getUniqueMerchants(a, monthA, monthB);
-  const divs = getDividendComparison(a, monthA, monthB);
   const recurring = getRecurringExpensesDelta(a, monthA, monthB);
   const ab = [{ label: labelA, color: COLOR_A }, { label: labelB, color: COLOR_B }];
   const abLines = ab.map((i) => ({ ...i, mark: 'line' as const }));
@@ -97,7 +106,7 @@ function view(
       <div class="table-wrap">
         <table class="table">
           <thead><tr><th scope="col">Kennzahl</th><th scope="col">${labelA}</th><th scope="col">${labelB}</th><th scope="col">Differenz</th><th scope="col">in %</th></tr></thead>
-          <tbody>${deltaRows.map((r) => html`
+          <tbody>${getMonthDeltaTableRows(a, monthA, monthB).map((r) => html`
             <tr>
               <td>${r.label}</td><td>${r.vA}</td><td>${r.vB}</td>
               <td class=${r.good === null ? '' : r.good ? 'pos' : 'neg'}>${r.delta}</td>
@@ -107,12 +116,12 @@ function view(
       </div>
     `)}
 
-    <div class="grid">
-      ${card({ title: 'Erkenntnisse' }, html`<div class="insights">${insights.map(insight)}</div>`)}
+    <div class="grid grid--charts">
       ${card({
         title: 'Cashflow im Monatsverlauf',
         sub: html`Laufende Summe je Tag · Ende ${labelA}: <span class="num">${fmt(intra.endA)}</span> · ${labelB}: <span class="num">${fmt(intra.endB)}</span>`,
       }, chartBox('mc-intra', 'Kumulierter Cashflow je Tag beider Monate', '', abLines))}
+      ${card({ title: 'Ausgaben nach Typ', sub: 'Beide Monate im Vergleich' }, chartBox('mc-cat', 'Ausgaben je Buchungstyp in beiden Monaten', '', ab))}
     </div>
 
     ${card({
@@ -122,48 +131,30 @@ function view(
     }, chartBox('mc-timeline', 'Kennzahl über alle Monate', 'sm', ab))}
 
     <div class="grid">
-      ${card({ title: 'Ausgaben nach Typ' }, chartBox('mc-cat', 'Ausgaben je Buchungstyp in beiden Monaten', '', ab))}
       ${card({ title: 'Empfänger im Vergleich', sub: 'Größte Ausgaben, Differenz = zweiter minus erster Monat' }, merchants.length
-        ? rowList(merchants.map((m) => ({
+        ? foldable(merchants, LIST_LIMIT, (ms) => rowList(ms.map((m) => ({
             title: m.name,
             sub: html`<span class="num">${labelA}: ${m.countA}× ${fmt(m.totalA)} · ${labelB}: ${m.countB}× ${fmt(m.totalB)}</span>`,
             value: fmtSigned(m.delta),
             valueClass: m.delta <= 0 ? 'pos' : 'neg',
             after: deltaMark(m.delta > 0 ? 'up' : m.delta < 0 ? 'down' : null, 'down'),
-          })))
+          }))))
         : emptyNote('Keine Ausgaben in diesen Monaten.'))}
+      ${card({
+        title: 'Einzelheiten',
+        actions: segmented('Monat', [{ value: 'A', label: labelA }, { value: 'B', label: labelB }], ui.detail, pickDetail),
+      }, ui.detail === 'A' ? monthDetail(a, monthA, unique.onlyA) : monthDetail(a, monthB, unique.onlyB))}
     </div>
 
-    <div class="grid">
-      ${card({ title: `Nur in ${labelA}` }, expenseList(unique.onlyA, 'Keine Empfänger nur in diesem Monat.'))}
-      ${card({ title: `Nur in ${labelB}` }, expenseList(unique.onlyB, 'Keine Empfänger nur in diesem Monat.'))}
-    </div>
-
-    <div class="grid">
-      ${card({ title: `Größte Einzelausgaben ${labelA}` }, expenseList(getTopSingleExpenses(a, monthA), 'Keine Ausgaben.'))}
-      ${card({ title: `Größte Einzelausgaben ${labelB}` }, expenseList(getTopSingleExpenses(a, monthB), 'Keine Ausgaben.'))}
-    </div>
-
-    <div class="grid">
-      ${recurring.length
-        ? card({ title: 'Fixkosten' }, html`
-            <div class="table-wrap"><table class="table">
-              <thead><tr><th scope="col">Empfänger</th><th scope="col">${labelA}</th><th scope="col">${labelB}</th><th scope="col">Differenz</th></tr></thead>
-              <tbody>${recurring.map((r) => html`
-                <tr><td>${r.name}</td><td>${fmt(r.amountA)}</td><td>${fmt(r.amountB)}</td>
-                  <td class=${r.deltaPositive ? 'pos' : 'neg'}>${fmtSigned(r.delta)}</td></tr>`)}</tbody>
-            </table></div>`)
-        : nothing}
-      ${divs.countA || divs.countB
-        ? card({ title: 'Dividenden' }, html`
-            <ul class="rows">
-              <li><span class="row-label">Ausschüttungen</span><span class="row-value">${divs.countA} → ${divs.countB}</span></li>
-              <li><span class="row-label">Summe netto</span><span class="row-value">${fmt(divs.totalA)} → ${fmt(divs.totalB)}</span></li>
-              <li><span class="row-label">Differenz</span>
-                <span class="row-value ${divs.totalB >= divs.totalA ? 'pos' : 'neg'}">${fmtSigned(divs.totalB - divs.totalA)}</span></li>
-            </ul>`)
-        : nothing}
-    </div>
+    ${recurring.length
+      ? card({ title: 'Fixkosten', sub: 'In beiden Monaten gezahlt' }, html`
+          <div class="table-wrap"><table class="table">
+            <thead><tr><th scope="col">Empfänger</th><th scope="col">${labelA}</th><th scope="col">${labelB}</th><th scope="col">Differenz</th></tr></thead>
+            <tbody>${recurring.map((r) => html`
+              <tr><td>${r.name}</td><td>${fmt(r.amountA)}</td><td>${fmt(r.amountB)}</td>
+                <td class=${r.delta === 0 ? '' : r.deltaPositive ? 'pos' : 'neg'}>${fmtSigned(r.delta)}</td></tr>`)}</tbody>
+          </table></div>`)
+      : nothing}
   `;
 }
 

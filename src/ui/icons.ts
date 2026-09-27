@@ -12,6 +12,7 @@ const PATHS = {
   upload: svg`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>`,
   chevronLeft: svg`<path d="M15 18l-6-6 6-6"/>`,
   chevronRight: svg`<path d="M9 18l6-6-6-6"/>`,
+  chevronDown: svg`<path d="M6 9l6 6 6-6"/>`,
   search: svg`<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>`,
   check: svg`<path d="M5 12l5 5 9-10"/>`,
   checkCircle: svg`<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>`,

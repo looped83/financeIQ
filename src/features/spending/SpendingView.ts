@@ -6,7 +6,7 @@ import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, seriesColor } from '../../theme/palette';
-import { card, chartBox, emptyNote, getCanvas, kpiGrid, rowList, type LegendItem } from '../../ui/components';
+import { card, chartBox, emptyNote, foldable, getCanvas, kpiGrid, LIST_LIMIT, rowList, type LegendItem } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import { getFixedCosts, getTopMerchants } from '../shared/commonSelectors';
 import { fixedCostsList } from '../shared/fixedCostsList';
@@ -46,16 +46,16 @@ const seriesLegend = (d: StackedSeries): LegendItem[] => d.series.map((s, i) => 
 
 function view(a: Analysis, stacks: Stacks): TemplateResult {
   const k = getSpendingKpis(a);
-  const merchants = getTopMerchants(a, 6);
+  const merchants = getTopMerchants(a, 15);
   const fixed = getFixedCosts(a);
-  const outliers = getOutlierRows(a, 12);
+  const outliers = getOutlierRows(a, 15);
 
   return html`
     ${kpiGrid([
-      { label: 'Ausgaben', value: fmt(k.total), sub: `Ø ${fmt(k.avgPerMonth)} pro Monat`, dot: 'expense' },
-      { label: 'Fixkosten', value: fmt(fixed.totalPerMonth), sub: `pro Monat · ${fmtP(k.avgPerMonth ? (fixed.totalPerMonth / k.avgPerMonth) * 100 : 0)} der Ausgaben` },
-      { label: 'Ø pro Buchung', value: fmt(k.avgPerBooking), sub: `${fmtN(k.bookings)} Ausgaben-Buchungen` },
-      { label: 'Ausreißer', value: String(k.outliers), sub: 'Buchungen > 2σ vom Schnitt', status: k.outliers ? 'warn' : 'good' },
+      { label: 'Ausgaben', value: fmt(k.total, 0), sub: `Ø ${fmt(k.avgPerMonth, 0)} / Monat`, dot: 'expense' },
+      { label: 'Fixkosten / Monat', value: fmt(fixed.totalPerMonth, 0), sub: `${fmtP(k.avgPerMonth ? (fixed.totalPerMonth / k.avgPerMonth) * 100 : 0)} der Ausgaben` },
+      { label: 'Ø pro Buchung', value: fmt(k.avgPerBooking, 0), sub: `${fmtN(k.bookings)} Ausgaben` },
+      { label: 'Ausreißer', value: String(k.outliers), sub: 'mehr als 2σ vom Schnitt', status: k.outliers ? 'warn' : 'good' },
     ])}
 
     <div class="grid grid--charts">
@@ -67,17 +67,17 @@ function view(a: Analysis, stacks: Stacks): TemplateResult {
     <div class="grid grid--wide-left">
       ${card({ title: 'Top-Empfänger im Zeitverlauf' }, chartBox('sp-merchants', 'Ausgaben der größten Empfänger je Monat', 'lg', seriesLegend(stacks.merchants)))}
       ${card({ title: 'Kartenzahlungen', sub: 'Größte Empfänger' }, merchants.length
-        ? rowList(merchants.map((m) => ({ title: m.name, sub: `${m.count} Zahlungen · Ø ${m.avg}`, value: m.total })))
+        ? foldable(merchants, LIST_LIMIT, (ms) => rowList(ms.map((m) => ({ title: m.name, sub: `${m.count} Zahlungen · Ø ${m.avg}`, value: m.total }))))
         : emptyNote('Keine Kartenzahlungen im Zeitraum.'))}
     </div>
 
     <div class="grid">
       ${card({ title: 'Fixkosten', sub: 'Mindestens dreimal gezahlt, mit stabilem Monatsbetrag' }, fixedCostsList(fixed))}
       ${card({ title: 'Ausreißer', sub: `Mehr als 2σ vom Schnitt (Ø ${fmt(a.mean)}, σ ${fmt(a.std)})` }, outliers.length
-        ? rowList(outliers.map((o) => ({
+        ? foldable(outliers, LIST_LIMIT, (os) => rowList(os.map((o) => ({
             title: o.name, sub: `${o.date} · ${o.type} · ${o.zScore}`, value: o.amount,
             after: html`<span class="badge ${LEVEL_BADGE[o.level]}">${o.level}</span>`,
-          })))
+          }))))
         : emptyNote('Keine auffälligen Ausgaben im Zeitraum.'))}
     </div>
   `;

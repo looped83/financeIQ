@@ -7,7 +7,7 @@ import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, SERIES, seriesColor } from '../../theme/palette';
-import { barList, card, chartBox, donut, emptyNote, getCanvas, kpiGrid } from '../../ui/components';
+import { barList, card, chartBox, donut, emptyNote, foldable, getCanvas, kpiGrid } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
 import {
   getAssetClassBreakdown,
@@ -35,13 +35,13 @@ function view(a: Analysis, classes: [string, number][]): TemplateResult {
 
   return html`
     ${kpiGrid([
-      { label: 'Netto investiert', value: fmt(k.invested - k.sold), sub: `Käufe ${fmt(k.invested)} · Verkäufe ${fmt(k.sold)}`, dot: 'invest' },
-      { label: 'Dividenden (netto)', value: fmt(k.dividends), sub: `Ø ${fmt(k.avgDividend)} pro Monat`, dot: 'dividend' },
+      { label: 'Netto investiert', value: fmt(k.invested - k.sold, 0), sub: `Käufe ${fmt(k.invested, 0)} · Verkäufe ${fmt(k.sold, 0)}`, dot: 'invest' },
+      { label: 'Dividenden (netto)', value: fmt(k.dividends, 0), sub: `Ø ${fmt(k.avgDividend, 0)} / Monat`, dot: 'dividend' },
       {
         label: 'Passives Einkommen', value: fmtP(k.passiveRate), sub: `der Einnahmen · Ziel ${fmtP(TARGETS.passiveRate)}`,
         status: k.passiveRate >= TARGETS.passiveRate ? 'good' : 'warn',
       },
-      { label: 'Gebühren', value: fmt(k.fees), sub: k.invested ? `${fmtP((k.fees / k.invested) * 100)} der Käufe` : 'keine Käufe' },
+      { label: 'Gebühren', value: fmt(k.fees, 0), sub: k.invested ? `${fmtP((k.fees / k.invested) * 100)} der Käufe` : 'keine Käufe' },
     ])}
 
     <div class="grid grid--charts">
@@ -68,14 +68,7 @@ function securityList(securities: ReturnType<typeof getDividendsBySecurity>): Te
   const rows = securities.map((s) => ({
     label: s.name, sub: `${s.count}×`, value: s.amount, share: s.pctLabel, pct: s.pct, barColor: COLORS.dividend,
   }));
-  if (rows.length <= SECURITIES_SHOWN + 1) return barList(rows);
-  return html`
-    ${barList(rows.slice(0, SECURITIES_SHOWN))}
-    <details class="disclosure">
-      <summary class="more">Alle ${rows.length} Wertpapiere anzeigen</summary>
-      ${barList(rows.slice(SECURITIES_SHOWN))}
-    </details>
-  `;
+  return foldable(rows, SECURITIES_SHOWN, barList);
 }
 
 function charts(root: HTMLElement, a: Analysis, classes: [string, number][]): void {

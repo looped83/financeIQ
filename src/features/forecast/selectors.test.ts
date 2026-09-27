@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseCSV } from '../../domain/csv';
 import { analyze } from '../../domain/analyze';
+import { fmt } from '../../domain/format';
 import { computeForecast } from './selectors';
 
 const MINI_HEADER = 'date,type,amount,tax,name,category';
@@ -33,7 +34,7 @@ describe('computeForecast', () => {
     const result = computeForecast(a, 3);
     const trendKpi = result.kpis[0]!;
     expect(trendKpi.cls).toBe('income');
-    expect(trendKpi.value).toBe('100,00 €'); // perfectly linear net: +100/month
+    expect(trendKpi.value).toBe('+100 €'); // perfectly linear net: +100/month
   });
 
   it('projects the cumulative balance forward using the linear trend', () => {
@@ -54,8 +55,9 @@ describe('computeForecast', () => {
   it('base-case scenario matches the KPI-projected value', () => {
     const result = computeForecast(a, 3);
     const baseScenario = result.scenarios.find((s) => s.title === 'Basisszenario (Lineartrend)')!;
-    const projValueStr = result.kpis[1]!.sub.replace('in 3 Monaten auf ', '');
-    expect(baseScenario.desc).toContain(projValueStr);
+    const projected = result.chart.forecast[result.chart.forecast.length - 1]!;
+    expect(result.kpis[1]!.sub).toContain(fmt(projected, 0));
+    expect(baseScenario.desc).toContain(fmt(projected));
   });
 
   it('labels forecast months like every other chart', () => {

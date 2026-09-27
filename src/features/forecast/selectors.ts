@@ -1,5 +1,5 @@
 import { linReg } from '../../domain/stats';
-import { fmt, mLabel } from '../../domain/format';
+import { fmt, fmtSigned, mLabel } from '../../domain/format';
 import { addMonths } from '../../domain/period';
 import type { Analysis, Hint } from '../../domain/types';
 
@@ -55,15 +55,15 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
 
   const kpis: ForecastKpi[] = [
     {
-      label: 'Monatlicher Trend', value: fmt(slope), cls: slope >= 0 ? 'income' : 'expense',
+      label: 'Monatlicher Trend', value: fmtSigned(slope, 0), cls: slope >= 0 ? 'income' : 'expense',
       sub: slope >= 0 ? 'Netto pro Monat wächst' : 'Netto pro Monat sinkt',
     },
     {
-      label: 'Erwarteter Zuwachs', value: fmt(projEnd - lastActual), cls: 'invest',
-      sub: `in ${months} Monaten auf ${fmt(projEnd)}`,
+      label: 'Erwarteter Zuwachs', value: fmtSigned(projEnd - lastActual, 0), cls: 'invest',
+      sub: `in ${months} Monaten auf ${fmt(projEnd, 0)}`,
     },
     {
-      label: 'Aktueller Saldo', value: fmt(a.netBal), cls: a.netBal >= 0 ? 'income' : 'expense',
+      label: 'Aktueller Saldo', value: fmt(a.netBal, 0), cls: a.netBal >= 0 ? 'income' : 'expense',
       sub: `Basis: ${a.mc} Monate Daten`,
     },
   ];

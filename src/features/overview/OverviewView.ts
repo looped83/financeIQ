@@ -6,9 +6,8 @@ import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
 import type { Store, Unsubscribe } from '../../state/store';
 import { COLORS, seriesColor } from '../../theme/palette';
-import { card, chartBox, donut, emptyNote, getCanvas, insight, kpiGrid, rowList, segmented, statusIcon } from '../../ui/components';
+import { card, chartBox, donut, emptyNote, getCanvas, insightList, kpiGrid, rowList, segmented, statusIcon } from '../../ui/components';
 import { hasData, mountPage, noData } from '../../ui/page';
-import { href } from '../../shell/routes';
 import { computeRecommendations } from '../recommendations/selectors';
 import { getFixedCosts, getSpendBreakdown } from '../shared/commonSelectors';
 import { fixedCostsList } from '../shared/fixedCostsList';
@@ -20,7 +19,7 @@ type SpendBy = 'payee' | 'type';
 type HintTab = 'hints' | 'recs';
 
 /** Page-local view state — not worth a store slice, lost on reload by design. */
-const ui = { trend: 'monthly' as TrendMode, spendBy: 'payee' as SpendBy, hints: 'hints' as HintTab, allHints: false };
+const ui = { trend: 'monthly' as TrendMode, spendBy: 'payee' as SpendBy, hints: 'hints' as HintTab };
 const HINTS_SHOWN = 4;
 
 export function mountOverviewView(container: HTMLElement, store: Store<AppState>): Unsubscribe {
@@ -29,7 +28,6 @@ export function mountOverviewView(container: HTMLElement, store: Store<AppState>
     if (!hasData(a)) return { view: noData() };
     const set = <K extends keyof typeof ui>(k: K, v: (typeof ui)[K]) => {
       ui[k] = v;
-      if (k === 'hints') ui.allHints = false;
       redraw();
     };
     const spend = getSpendBreakdown(a, ui.spendBy);
@@ -75,8 +73,7 @@ function view(
         title: r.label, value: r.value, before: r.good === null ? nothing : statusIcon(r.good ? 'good' : 'warn'),
       }))))}
 
-      ${card({ title: 'Fixkosten', sub: 'Wiederkehrend mit stabilem Betrag', actions: html`<a class="more" href=${href('ausgaben')}>Alle</a>` },
-        fixedCostsList(getFixedCosts(a), 6))}
+      ${card({ title: 'Fixkosten', sub: 'Wiederkehrend mit stabilem Betrag' }, fixedCostsList(getFixedCosts(a)))}
 
       ${hintsCard(a, rates, set)}
     </div>
@@ -94,7 +91,6 @@ function hintsCard(
         ...(a.mKeys.length >= 2 ? computeTrends(a) : []),
       ]
     : computeRecommendations(a).map((r) => ({ color: r.level, title: r.title, desc: r.desc }));
-  const shown = ui.allHints ? items : items.slice(0, HINTS_SHOWN);
 
   return card({
     title: 'Hinweise',
@@ -102,15 +98,7 @@ function hintsCard(
       { value: 'hints', label: 'Auffälligkeiten' },
       { value: 'recs', label: 'Empfehlungen' },
     ], ui.hints, (v) => set('hints', v)),
-  }, html`
-    <div class="insights">
-      ${shown.length ? shown.map(insight) : emptyNote('Keine besonderen Auffälligkeiten.')}
-    </div>
-    ${items.length > HINTS_SHOWN
-      ? html`<button type="button" class="more" @click=${() => set('allHints', !ui.allHints)}>
-          ${ui.allHints ? 'Weniger anzeigen' : `Alle ${items.length} anzeigen`}</button>`
-      : nothing}
-  `);
+  }, items.length ? insightList(items, HINTS_SHOWN) : emptyNote('Keine besonderen Auffälligkeiten.'));
 }
 
 function charts(root: HTMLElement, a: Analysis, spend: ReturnType<typeof getSpendBreakdown>): void {

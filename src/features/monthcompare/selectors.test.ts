@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { parseCSV } from '../../domain/csv';
 import { analyze } from '../../domain/analyze';
 import {
-  computeMonthInsights,
   computeMonthKpis,
   getMonthCategoryComparison,
   getMonthDeltaTableRows,
@@ -54,22 +53,6 @@ describe('getMonthCategoryComparison', () => {
   it('respects the limit parameter', () => {
     const cat = getMonthCategoryComparison(a, '2024-02', '2024-03', 1);
     expect(cat.labels.length).toBeLessThanOrEqual(1);
-  });
-});
-
-describe('computeMonthInsights', () => {
-  it('generates insights for two months', () => {
-    const insights = computeMonthInsights(mA, mB, 'Feb 24', 'Mär 24', a, '2024-02', '2024-03');
-    expect(insights.length).toBeGreaterThanOrEqual(3);
-    const titles = insights.map((i) => i.title);
-    expect(titles.some((t) => t.includes('Einnahmen'))).toBe(true);
-    expect(titles.some((t) => t.includes('Netto-Cashflow'))).toBe(true);
-  });
-
-  it('includes transaction count insight', () => {
-    const insights = computeMonthInsights(mA, mB, 'Feb 24', 'Mär 24', a, '2024-02', '2024-03');
-    const txInsight = insights.find((i) => i.title.includes('Transaktionen'));
-    expect(txInsight).toBeDefined();
   });
 });
 

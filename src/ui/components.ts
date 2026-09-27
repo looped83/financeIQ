@@ -157,6 +157,29 @@ export function insight({ color, title, desc }: Hint): TemplateResult {
   `;
 }
 
+/** How many rows a list shows before "Alle n anzeigen". */
+export const LIST_LIMIT = 5;
+
+/**
+ * Long lists: the first `limit` items, the rest behind a native "Alle n anzeigen"
+ * disclosure — no JavaScript state, no re-render, charts on the page stay untouched.
+ */
+export function foldable<T>(items: T[], limit: number, render: (items: T[]) => TemplateResult): TemplateResult {
+  if (items.length <= limit + 1) return render(items);
+  return html`
+    ${render(items.slice(0, limit))}
+    <details class="disclosure">
+      <summary class="more">Alle ${items.length} anzeigen</summary>
+      ${render(items.slice(limit))}
+    </details>
+  `;
+}
+
+/** Hint rows (tone icon, title, text), folded after `limit`. */
+export function insightList(hints: Hint[], limit = hints.length): TemplateResult {
+  return foldable(hints, limit, (xs) => html`<div class="insights">${xs.map(insight)}</div>`);
+}
+
 /** Page-level "nothing here", e.g. no bookings in the period. */
 export function emptyState(title: string, text = ''): TemplateResult {
   return html`<div class="empty"><strong>${title}</strong>${text}</div>`;

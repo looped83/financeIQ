@@ -36,9 +36,9 @@ export function createShell(el: ShellElements, store: Store<AppState>, actions: 
     if (!route) return;
     const s = store.getState();
     render(sidebar(s, route, onReset), el.sidebar);
-    render(header(s, route, actions, onReset), el.header);
+    render(header(s, route, actions), el.header);
     render(bottomNav(route, sheetOpen, () => setSheet(!sheetOpen)), el.bottomNav);
-    render(sheetOpen ? sheet(route, () => setSheet(false), onReset) : nothing, el.sheet);
+    render(sheetOpen ? sheet(s, route, () => setSheet(false), onReset) : nothing, el.sheet);
     document.title = `${route.sub ? `${route.area.label} · ${route.sub.label}` : route.area.label} · FinanceIQ`;
   }
 
@@ -72,12 +72,9 @@ function fileInfo(s: AppState): string {
   return `${fmtN(a.enriched.length)} Buchungen${first ? ` · seit ${mLabel(first)}` : ''}`;
 }
 
-function sidebar(s: AppState, route: Route, onReset: () => void): TemplateResult {
+/** The loaded file and how to replace it — sidebar on desktop, "Mehr" sheet on phones. */
+function fileCard(s: AppState, onReset: () => void): TemplateResult {
   return html`
-    <div class="brand"><span class="brand-mark">${icon('logo', 18)}</span>FinanceIQ</div>
-    <nav aria-label="Hauptnavigation"><ul class="nav">
-      ${AREAS.map((a) => html`<li>${navLink(a, route)}</li>`)}
-    </ul></nav>
     <div class="file-card">
       <span>Aktuelle Datei</span>
       <span class="file-name">${s.fileName}</span>
@@ -87,7 +84,17 @@ function sidebar(s: AppState, route: Route, onReset: () => void): TemplateResult
   `;
 }
 
-function header(s: AppState, route: Route, actions: AppActions, onReset: () => void): TemplateResult {
+function sidebar(s: AppState, route: Route, onReset: () => void): TemplateResult {
+  return html`
+    <div class="brand"><span class="brand-mark">${icon('logo', 18)}</span>FinanceIQ</div>
+    <nav aria-label="Hauptnavigation"><ul class="nav">
+      ${AREAS.map((a) => html`<li>${navLink(a, route)}</li>`)}
+    </ul></nav>
+    ${fileCard(s, onReset)}
+  `;
+}
+
+function header(s: AppState, route: Route, actions: AppActions): TemplateResult {
   const full = s.fullAnalysis;
   const shown = route.usesPeriod ? s.analysis : full;
   const last = full?.enriched[full.enriched.length - 1]?._date ?? null;
@@ -96,11 +103,8 @@ function header(s: AppState, route: Route, actions: AppActions, onReset: () => v
 
   return html`
     <div>
-      <div class="page-header-top">
-        <h1 class="page-title"><span class="brand-mark mobile-only">${icon('logo', 16)}</span>${route.area.label}</h1>
-        <button type="button" class="btn btn--icon mobile-only" aria-label="Neue Datei laden" @click=${onReset}>${icon('upload')}</button>
-      </div>
-      <p class="page-meta">${meta}</p>
+      <h1 class="page-title"><span class="brand-mark mobile-only">${icon('logo', 16)}</span>${route.area.label}</h1>
+      <p class="page-meta ${route.usesPeriod ? 'desktop-only' : ''}">${meta}</p>
       ${route.area.subs
         ? html`<nav class="seg page-sub" aria-label="${route.area.label}: Ansicht">
             ${route.area.subs.map((sub) => html`
@@ -113,6 +117,10 @@ function header(s: AppState, route: Route, actions: AppActions, onReset: () => v
   `;
 }
 
+/**
+ * One control for the global period: ‹ / › step through time, the label in the
+ * middle opens the presets (a native select laid over it — the phone's own picker).
+ */
 function periodControl(s: AppState, actions: AppActions): TemplateResult {
   const mKeys = s.fullAnalysis!.mKeys;
   const bounds = boundsOf(mKeys);
@@ -123,27 +131,25 @@ function periodControl(s: AppState, actions: AppActions): TemplateResult {
   const shown = s.period ?? (bounds && { from: bounds.first, to: bounds.last });
 
   return html`
-    <div class="page-actions">
-      <div class="period">
-        <button type="button" class="btn" aria-label="Vorheriger Zeitraum" ?disabled=${!prev} @click=${() => actions.setPeriod(prev!)}>
-          ${icon('chevronLeft', 16)}
-        </button>
-        <span class="period-label" aria-live="polite">
-          <span class="desktop-only">${periodLabel(shown)}</span><span class="mobile-only">${shown ? periodLabelShort(shown) : ''}</span>
-        </span>
-        <button type="button" class="btn" aria-label="Nächster Zeitraum" ?disabled=${!next} @click=${() => actions.setPeriod(next!)}>
-          ${icon('chevronRight', 16)}
-        </button>
-      </div>
-      <select class="select" aria-label="Zeitraum wählen"
-        @change=${(e: Event) => {
-          const id = (e.target as HTMLSelectElement).value;
-          const preset = presets.find((p) => p.id === id);
-          if (preset) actions.setPeriod(preset.period);
-        }}>
-        ${presets.map((p) => html`<option value=${p.id} ?selected=${p === current}>${p.label}</option>`)}
-        ${current ? nothing : html`<option value="" selected disabled>Eigener Zeitraum</option>`}
-      </select>
+    <div class="period">
+      <button type="button" class="btn" aria-label="Vorheriger Zeitraum" ?disabled=${!prev} @click=${() => actions.setPeriod(prev!)}>
+        ${icon('chevronLeft', 16)}
+      </button>
+      <label class="period-label" title=${current?.label ?? 'Eigener Zeitraum'}>
+        <span class="desktop-only">${periodLabel(shown)}</span><span class="mobile-only">${shown ? periodLabelShort(shown) : ''}</span>
+        ${icon('chevronDown', 14)}
+        <select aria-label="Zeitraum wählen"
+          @change=${(e: Event) => {
+            const preset = presets.find((p) => p.id === (e.target as HTMLSelectElement).value);
+            if (preset) actions.setPeriod(preset.period);
+          }}>
+          ${presets.map((p) => html`<option value=${p.id} ?selected=${p === current}>${p.label}</option>`)}
+          ${current ? nothing : html`<option value="" selected disabled>Eigener Zeitraum</option>`}
+        </select>
+      </label>
+      <button type="button" class="btn" aria-label="Nächster Zeitraum" ?disabled=${!next} @click=${() => actions.setPeriod(next!)}>
+        ${icon('chevronRight', 16)}
+      </button>
     </div>
   `;
 }
@@ -160,15 +166,15 @@ function bottomNav(route: Route, sheetOpen: boolean, toggleSheet: () => void): T
   `;
 }
 
-function sheet(route: Route, close: () => void, onReset: () => void): TemplateResult {
+function sheet(s: AppState, route: Route, close: () => void, onReset: () => void): TemplateResult {
   return html`
     <div class="sheet-backdrop" @click=${close}></div>
     <div class="sheet" id="more-sheet" role="dialog" aria-modal="true" aria-label="Weitere Bereiche">
       <div class="sheet-handle"></div>
       <ul class="nav">
         ${MORE.map((a) => html`<li>${navLink(a, route)}</li>`)}
-        <li><button type="button" class="nav-item" @click=${onReset}>${icon('upload')}<span class="nav-label">Neue Datei laden</span></button></li>
       </ul>
+      ${fileCard(s, onReset)}
     </div>
   `;
 }
