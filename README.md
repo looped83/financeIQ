@@ -8,17 +8,14 @@ A modern analytics dashboard for visualizing and analyzing personal finance data
 
 📊 Comprehensive Financial Analytics
 
-FinanceIQ provides an interactive interface for analyzing financial data across 9 advanced analytics tabs:
+FinanceIQ organizes the analysis into 6 areas (sidebar on desktop, bottom bar on phones), all filtered by one global period picker (last month, last 3/12 months, calendar years — step back and forth):
 
-* Overview & Trends
-* Yearly Breakdown
-* Monthly Breakdown
-* Category Analysis
-* Outlier Detection
-* Cashflow Forecasting
-* Comparative Analytics
-* Recommendations & Insights
-* KPI Dashboard
+* Übersicht — headline KPIs, income vs. expenses, where the money goes, ratios, recurring costs, hints & recommendations
+* Cashflow — cumulative trend, monthly net and income sources · month table with savings rate · forecast
+* Ausgaben — spending by type and payee over time, fixed vs. variable, top merchants, recurring costs, outliers
+* Investments & Dividenden — dividends per month and per security, buy/sell volume, asset classes
+* Vergleich — two months side by side · year over year
+* Transaktionen — grouped by day, quick filters, search
 
 ⸻
 
@@ -50,18 +47,6 @@ Built-in intelligent analysis includes:
 
 ⸻
 
-⚖️ CSV Comparison Engine
-
-Compare two CSV files side-by-side:
-
-* Monthly deltas
-* Year-over-year comparisons
-* KPI benchmarking
-* Category comparison
-* Auto-generated insights
-
-⸻
-
 🧩 Supported Data Sources
 
 * Trade Republic
@@ -73,19 +58,18 @@ Compare two CSV files side-by-side:
 
 🖥️ Tech Stack
 
-* HTML5
-* CSS3
-* JavaScript
-* Chart.js
-* CSV Parsing & Data Aggregation
+* TypeScript + Vite
+* lit-html (~5 kB, no virtual DOM)
+* Chart.js (only bar/line/doughnut registered, loaded lazily per page)
+* Plain CSS with design tokens (`src/styles/tokens.css`), system font — no CSS framework, no web font
+* Vitest
 
 📤 Usage
 
 1. Upload your CSV file
 2. FinanceIQ automatically processes the data
-3. Navigate through analytics tabs
-4. Explore forecasts and insights
-5. Optionally upload a second CSV for comparison
+3. Pick a period and navigate through the areas (every area has its own URL, e.g. `#/cashflow/monate`)
+4. Explore forecasts, comparisons and hints
 
 ⸻
 
@@ -100,7 +84,7 @@ No financial data is uploaded to external servers.
 
 * Interactive charts
 * Responsive dashboard UI
-* Dark mode ready
+* Dark mode (warm anthracite, colour-blind-safe data colours)
 * Fast CSV processing
 * Fully local analytics without backend infrastructure
 
@@ -115,8 +99,6 @@ npm run typecheck # TypeScript, no build
 ```
 
 `npm test` runs the Vitest suite against `src/` — the real, typed domain/state/feature/persistence layers that `index.html` now actually runs (since Phase 5's cutover; see below). The former `test:legacy` suite, which replayed fixtures through the inline `parseCSV()`/`analyze()` that used to live directly in `index.html`, has been retired: that inline script no longer exists, so there's nothing left for it to test.
-
-To preview a migrated component standalone: `npm run dev`, then open `/src/dev/transactions-preview.html` or `/src/dev/overview-preview.html`.
 
 🏗️ V2 Migration (complete)
 
@@ -152,7 +134,10 @@ The app was incrementally rewritten into a typed, componentized architecture whi
   - `.github/workflows/pages-vite.yml` now triggers on push to `main` (previously `workflow_dispatch` only, from its Phase 0 proof-of-concept days). **Manual step still required:** GitHub Pages' source setting needs to be switched from "Deploy from a branch" to "GitHub Actions" in the repo's Settings → Pages — that's a repository setting, not something a workflow file or a code change can flip on its own.
   - Verified with Playwright against the actual built `index.html` (not a `/src/dev/` preview): upload a real CSV, click through all 11 tabs and confirm each renders without console errors, exercise interactive controls (forecast month toggle, Deep-Dive month picker, Vergleich's second-file upload, transaction table), reset back to the upload screen, and reload the page to confirm the persisted session restores automatically.
   - 18 new unit tests against the in-memory store; `dist/index.html` stays byte-identical.
-* ⬜ Phase 5 — Cut over: `index.html`'s inline script is replaced by the `src/` bundle, GitHub Pages source switches to the Actions-based deploy.
+
+🎨 Dark-mode redesign (2026-09)
+
+Consolidated the 10 tabs into 6 areas with a sidebar/bottom-bar shell, added the global period picker, removed duplicate charts, replaced the old navy theme with design tokens (warm anthracite, orange accent, validated data palette) and removed dead code (second-CSV comparison, Deep-Dive view, dev preview pages). Details: `handover.md`.
 
 ⸻
 
@@ -163,7 +148,6 @@ The app was incrementally rewritten into a typed, componentized architecture whi
 * AI spending coach
 * Budget planning
 * Portfolio tracking
-* Mobile optimization
 
 ⸻
 
