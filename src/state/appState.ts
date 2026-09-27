@@ -1,17 +1,17 @@
+import type { Period } from '../domain/period';
 import type { Analysis } from '../domain/types';
 
 export type TimelineView = 'daily' | 'monthly' | 'quarterly';
-export type CompareMetric = 'income' | 'expense' | 'net' | 'invested';
 export type TransactionSort = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
+/** Transaktionen quick filter: money in, money out, trades, dividends. */
+export type TransactionKind = 'all' | 'in' | 'out' | 'invest' | 'div';
 
 /** How many transaction rows are shown per page (not user-adjustable today). */
 export const TRANSACTIONS_PER_PAGE = 50;
 
+/** Date filtering is the global period's job — these only narrow within it. */
 export interface TransactionFilters {
-  year: string;
-  month: string;
-  from: string;
-  to: string;
+  kind: TransactionKind;
   category: string;
   search: string;
 }
@@ -20,20 +20,6 @@ export interface TransactionsState {
   filters: TransactionFilters;
   sort: TransactionSort;
   page: number;
-}
-
-export interface CompareState {
-  /** null = no second file loaded yet (mirrors G.cmpData in index.html today). */
-  analysis: Analysis | null;
-  /**
-   * The second file's display name. Not persisted anywhere in the current
-   * index.html (it's only ever a local variable inside loadCompareFile(),
-   * baked once into rendered HTML text) — genuinely new here, needed so a
-   * future re-render can reproduce the "Basis vs. Vergleich" headline
-   * without re-reading the DOM.
-   */
-  fileName: string;
-  metric: CompareMetric;
 }
 
 export type MonthCompareMetric = 'income' | 'expense' | 'net' | 'invested' | 'dividend';
@@ -45,30 +31,30 @@ export interface MonthCompareState {
 }
 
 export interface AppState {
-  /** null until a CSV has been loaded. */
+  /** The whole history — Prognose and Vergleich always read this. null until a CSV is loaded. */
+  fullAnalysis: Analysis | null;
+  /** fullAnalysis narrowed to `period` (the very same object while `period` is null). */
   analysis: Analysis | null;
+  period: Period;
   fileName: string;
   timelineView: TimelineView;
   forecastMonths: number;
-  /** null until the Deep-Dive tab has been opened at least once. */
-  deepDiveSelectedMonth: string | null;
-  compare: CompareState;
   monthCompare: MonthCompareState;
   transactions: TransactionsState;
 }
 
 export function initialTransactionFilters(): TransactionFilters {
-  return { year: '', month: '', from: '', to: '', category: '', search: '' };
+  return { kind: 'all', category: '', search: '' };
 }
 
 export function initialAppState(): AppState {
   return {
+    fullAnalysis: null,
     analysis: null,
+    period: null,
     fileName: '',
     timelineView: 'daily',
     forecastMonths: 3,
-    deepDiveSelectedMonth: null,
-    compare: { analysis: null, fileName: '', metric: 'income' },
     monthCompare: { monthA: null, monthB: null, metric: 'income' },
     transactions: { filters: initialTransactionFilters(), sort: 'date-desc', page: 0 },
   };

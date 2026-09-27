@@ -1,69 +1,106 @@
+import './styles/tokens.css';
+import './styles/app.css';
 import { parseCSV } from './domain/csv';
 import { analyze } from './domain/analyze';
-import { createAppStore } from './state/appStore';
 import { createIndexedDbStore } from './persistence/indexedDbStore';
 import { clearPersistedSession, persistPrimaryFile, restoreSession } from './persistence/sessionBootstrap';
+import { createAppStore, type AppActions } from './state/appStore';
+import type { AppState } from './state/appState';
+import type { Store, Unsubscribe } from './state/store';
+import { createGatedStore, type GatedStore } from './shell/gatedStore';
+import { href, resolveRoute, type Route } from './shell/routes';
+import { createShell } from './shell/shell';
+
+type Mount = (container: HTMLElement, store: Store<AppState>, actions: AppActions) => Unsubscribe;
+
+/**
+ * One lazily imported module per page: the upload screen ships without Chart.js
+ * or any page code; each page's bundle is fetched the first time it is opened.
+ */
+const PAGES: Record<string, () => Promise<Mount>> = {
+  'uebersicht': () => import('./features/overview/OverviewView').then((m) => m.mountOverviewView),
+  'cashflow/verlauf': () => import('./features/timeline/TimelineView').then((m) => m.mountTimelineView),
+  'cashflow/monate': () => import('./features/monthly/MonthlyView').then((m) => m.mountMonthlyView),
+  'cashflow/prognose': () => import('./features/forecast/ForecastView').then((m) => m.mountForecastView),
+  'ausgaben': () => import('./features/spending/SpendingView').then((m) => m.mountSpendingView),
+  'investments': () => import('./features/investments/InvestmentsView').then((m) => m.mountInvestmentsView),
+  'vergleich/monate': () => import('./features/monthcompare/MonthCompareView').then((m) => m.mountMonthCompareView),
+  'vergleich/jahre': () => import('./features/yearly/YearlyView').then((m) => m.mountYearlyView),
+  'transaktionen': () => import('./features/transactions/TransactionsView').then((m) => m.mountTransactionsView),
+};
+
+interface MountedPage {
+  el: HTMLElement;
+  gate: GatedStore<AppState>;
+  unmount?: Unsubscribe;
+}
 
 const { store, actions } = createAppStore();
 const kv = createIndexedDbStore();
 
-const uploadScreen = document.getElementById('upload-screen')!;
-const dashboard = document.getElementById('dashboard')!;
-const fileInput = document.getElementById('file-input') as HTMLInputElement;
-const uploadZone = document.getElementById('upload-zone')!;
-const resetBtn = document.getElementById('reset-btn')!;
-const tabBtns = Array.from(document.querySelectorAll<HTMLButtonElement>('.tab-btn'));
-const tabContents = Array.from(document.querySelectorAll<HTMLElement>('.tab-content'));
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const uploadScreen = $('upload-screen');
+const app = $('app');
+const pagesRoot = $('pages');
+const fileInput = $<HTMLInputElement>('file-input');
+const uploadZone = $('upload-zone');
 
-/** Each tab is mounted the first time it's shown (matches the original's lazy
- *  `TAB_FNS`/`rendered` behavior) — mounting a Chart.js canvas while its container is
- *  `display:none` produces a zero-size, broken chart, so eager-mounting all 11 tabs
- *  up front isn't an option. Once mounted, a tab's view subscribes to the store and
- *  keeps itself in sync with future data changes without needing to be re-mounted.
- *
- *  Views are code-split via dynamic import(): the upload screen loads without
- *  Chart.js (~260 kB) or any tab bundle; each is fetched on first display. */
-const TAB_LOADERS: (() => Promise<(container: HTMLElement) => void>)[] = [
-  () => import('./features/overview/OverviewView').then((m) => (el) => m.mountOverviewView(el, store)),
-  () => import('./features/timeline/TimelineView').then((m) => (el) => m.mountTimelineView(el, store, actions)),
-  () => import('./features/yearly/YearlyView').then((m) => (el) => m.mountYearlyView(el, store)),
-  () => import('./features/monthly/MonthlyView').then((m) => (el) => m.mountMonthlyView(el, store)),
-  () => import('./features/monthcompare/MonthCompareView').then((m) => (el) => m.mountMonthCompareView(el, store, actions)),
-  () => import('./features/categories/CategoriesView').then((m) => (el) => m.mountCategoriesView(el, store)),
-  () => import('./features/outliers/OutliersView').then((m) => (el) => m.mountOutliersView(el, store)),
-  () => import('./features/forecast/ForecastView').then((m) => (el) => m.mountForecastView(el, store, actions)),
-  () => import('./features/recommendations/RecommendationsView').then((m) => (el) => m.mountRecommendationsView(el, store)),
-  () => import('./features/transactions/TransactionsView').then((m) => (el) => m.mountTransactionsView(el, store, actions)),
-];
-const mountedTabs = new Set<number>();
-const loadingTabs = new Set<number>();
+const pages = new Map<string, MountedPage>();
 
-function showTab(i: number): void {
-  tabBtns.forEach((b, j) => b.classList.toggle('active', j === i));
-  tabContents.forEach((c, j) => c.classList.toggle('active', j === i));
-  if (mountedTabs.has(i) || loadingTabs.has(i)) return;
-  loadingTabs.add(i);
-  TAB_LOADERS[i]?.()
-    .then((mount) => {
-      // Only mount while the tab is still visible — if the user switched away
-      // during the import, a hidden container would produce zero-size charts;
-      // the next click on this tab retries (the module is already cached).
-      if (tabContents[i]!.classList.contains('active')) {
-        mount(tabContents[i]!);
-        mountedTabs.add(i);
-      }
-    })
-    .catch((err) => console.error('Fehler beim Laden des Tabs:', err))
-    .finally(() => loadingTabs.delete(i));
+const shell = createShell(
+  { sidebar: $('sidebar'), header: $('page-header'), bottomNav: $('bottom-nav'), sheet: $('sheet') },
+  store,
+  actions,
+  resetAll,
+);
+
+function showPage(route: Route): void {
+  shell.update(route);
+  for (const [key, p] of pages) {
+    const visible = key === route.key;
+    p.el.hidden = !visible;
+    p.gate.setOpen(visible);
+  }
+  if (!pages.has(route.key)) mountPage(route.key);
+  window.scrollTo({ top: 0 });
 }
 
-tabBtns.forEach((btn, i) => btn.addEventListener('click', () => showTab(i)));
+function mountPage(key: string): void {
+  const el = document.createElement('div');
+  el.className = 'page';
+  el.dataset.page = key;
+  pagesRoot.append(el);
+  const page: MountedPage = { el, gate: createGatedStore(store) };
+  pages.set(key, page);
+  PAGES[key]!()
+    .then((mount) => {
+      if (pages.get(key) !== page) return; // reset while loading
+      page.unmount = mount(el, page.gate.store, actions);
+      page.gate.setOpen(!el.hidden);
+    })
+    .catch((err) => console.error('Fehler beim Laden der Seite:', err));
+}
+
+/** Drops every mounted page (subscriptions, charts, DOM) — the next file starts clean. */
+function unmountAll(): void {
+  for (const p of pages.values()) {
+    p.unmount?.();
+    p.gate.dispose();
+    p.el.remove();
+  }
+  pages.clear();
+}
+
+function showApp(): void {
+  uploadScreen.hidden = true;
+  app.hidden = false;
+  showPage(resolveRoute(location.hash));
+}
 
 function loadPrimaryFile(text: string, fileName: string): void {
-  let rows: ReturnType<typeof parseCSV>;
   let analysis: ReturnType<typeof analyze>;
   try {
-    rows = parseCSV(text);
+    const rows = parseCSV(text);
     if (!rows.length) {
       alert('Keine Daten gefunden.');
       return;
@@ -76,46 +113,44 @@ function loadPrimaryFile(text: string, fileName: string): void {
   }
   actions.loadFile(analysis, fileName);
   void persistPrimaryFile(kv, fileName, text);
-  uploadScreen.style.display = 'none';
-  dashboard.style.display = 'block';
-  showTab(0);
+  history.replaceState(null, '', href('uebersicht'));
+  showApp();
 }
 
 function readAndLoad(file: File): void {
-  const reader = new FileReader();
-  reader.onload = () => loadPrimaryFile(String(reader.result), file.name);
-  reader.readAsText(file);
+  file.text().then((text) => loadPrimaryFile(text, file.name));
+}
+
+function resetAll(): void {
+  unmountAll();
+  actions.resetAll();
+  void clearPersistedSession(kv);
+  fileInput.value = '';
+  app.hidden = true;
+  uploadScreen.hidden = false;
 }
 
 fileInput.addEventListener('change', () => {
   const file = fileInput.files?.[0];
   if (file) readAndLoad(file);
 });
-
 uploadZone.addEventListener('dragover', (e) => {
   e.preventDefault();
-  uploadZone.classList.add('drag');
+  uploadZone.classList.add('is-drag');
 });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('is-drag'));
 uploadZone.addEventListener('drop', (e) => {
   e.preventDefault();
-  uploadZone.classList.remove('drag');
+  uploadZone.classList.remove('is-drag');
   const file = e.dataTransfer?.files[0];
   if (file) readAndLoad(file);
 });
 
-resetBtn.addEventListener('click', () => {
-  actions.resetAll();
-  void clearPersistedSession(kv);
-  fileInput.value = '';
-  uploadScreen.style.display = 'flex';
-  dashboard.style.display = 'none';
-  showTab(0);
+addEventListener('hashchange', () => {
+  if (!app.hidden) showPage(resolveRoute(location.hash));
 });
 
 restoreSession(kv, actions).then((restored) => {
-  if (!restored) return;
-  uploadScreen.style.display = 'none';
-  dashboard.style.display = 'block';
-  showTab(0);
+  if (restored) showApp();
 });
+

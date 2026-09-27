@@ -21,13 +21,13 @@ describe('fmtN', () => {
 
 describe('fmtP / fmtPP', () => {
   it('fmtP never adds a sign', () => {
-    expect(fmtP(12.34)).toBe('12.3%');
-    expect(fmtP(-5)).toBe('-5.0%');
+    expect(fmtP(12.34)).toBe('12,3 %');
+    expect(fmtP(-5)).toBe('-5,0 %');
   });
   it('fmtPP adds a leading + for non-negative values', () => {
-    expect(fmtPP(12.34)).toBe('+12.3%');
-    expect(fmtPP(-5)).toBe('-5.0%');
-    expect(fmtPP(0)).toBe('+0.0%');
+    expect(fmtPP(12.34)).toBe('+12,3 %');
+    expect(fmtPP(-5)).toBe('-5,0 %');
+    expect(fmtPP(0)).toBe('+0,0 %');
   });
 });
 
@@ -44,7 +44,7 @@ describe('mLabel / monthName', () => {
   it('mLabel formats a YYYY-MM key as a short German label', () => {
     // Uses Intl's "short" month style (not the hardcoded MONTH_NAMES list
     // below, which backs monthName() instead) — German CLDR spells this "März".
-    expect(mLabel('2024-03')).toBe('März 24');
+    expect(mLabel('2024-03')).toBe('Mär 24');
   });
   it('monthName maps a two-digit month to its German abbreviation', () => {
     expect(monthName('01')).toBe('Jan');

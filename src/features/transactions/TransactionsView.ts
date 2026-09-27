@@ -1,155 +1,138 @@
-import { html, nothing, render, type TemplateResult } from 'lit-html';
-import { fmt, fmtD, monthName, typeLabel } from '../../domain/format';
+import { html, nothing, type TemplateResult } from 'lit-html';
+import { fmt, fmtN, typeLabel } from '../../domain/format';
 import type { EnrichedRow } from '../../domain/types';
 import type { AppActions } from '../../state/appStore';
-import type { AppState, TransactionSort } from '../../state/appState';
+import type { AppState, TransactionKind, TransactionSort } from '../../state/appState';
 import { TRANSACTIONS_PER_PAGE } from '../../state/appState';
-import { subscribeSelected, type Store } from '../../state/store';
+import type { Store, Unsubscribe } from '../../state/store';
+import { icon } from '../../ui/icons';
+import { hasData, mountPage, noData } from '../../ui/page';
 import {
   computePaginationItems,
-  computeTransactionKpis,
   filterTransactions,
   getAvailableCategories,
-  getAvailableYears,
+  groupByDay,
   paginate,
   sortTransactions,
-  type PaginationItem,
+  sumInOut,
 } from './selectors';
 
-/**
- * Mounts the Transaktionen tab into `container`, re-rendering whenever the
- * analysis or the transactions slice (filters/sort/page) changes. Returns an
- * unsubscribe function to unmount.
- */
-export function mountTransactionsView(
-  container: HTMLElement,
-  store: Store<AppState>,
-  actions: AppActions,
-): () => void {
-  return subscribeSelected(
-    store,
-    (s) => [s.analysis, s.transactions],
-    (state) => render(view(state, actions), container),
-  );
+const KINDS: { value: TransactionKind; label: string }[] = [
+  { value: 'all', label: 'Alle' },
+  { value: 'in', label: 'Einnahmen' },
+  { value: 'out', label: 'Ausgaben' },
+  { value: 'invest', label: 'Investments' },
+  { value: 'div', label: 'Dividenden' },
+];
+const SORTS: { value: TransactionSort; label: string }[] = [
+  { value: 'date-desc', label: 'Neueste zuerst' },
+  { value: 'date-asc', label: 'Älteste zuerst' },
+  { value: 'amount-desc', label: 'Größte Beträge' },
+  { value: 'amount-asc', label: 'Kleinste Beträge' },
+];
+
+const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v))}`;
+
+function badgeClass(r: EnrichedRow): string {
+  if (r._isDiv) return 'badge--div';
+  if (r._isBuy || r._isSell) return 'badge--invest';
+  return r._amt > 0 ? 'badge--in' : '';
 }
 
-function view(state: AppState, actions: AppActions): TemplateResult {
-  if (!state.analysis) {
-    return html`<p style="color:var(--text-muted)">Keine Daten geladen.</p>`;
-  }
+export function mountTransactionsView(container: HTMLElement, store: Store<AppState>, actions: AppActions): Unsubscribe {
+  return mountPage(container, store, (s) => [s.analysis, s.transactions], (state) => {
+    const a = state.analysis;
+    return { view: hasData(a) ? view(a.enriched, state, actions) : noData() };
+  });
+}
 
-  const allRows = state.analysis.enriched;
-  const filtered = filterTransactions(allRows, state.transactions.filters);
-  const sorted = sortTransactions(filtered, state.transactions.sort);
-  const kpis = computeTransactionKpis(sorted);
-  const { pageRows, totalPages } = paginate(sorted, state.transactions.page, TRANSACTIONS_PER_PAGE);
-  const paginationItems = computePaginationItems(state.transactions.page, totalPages);
-  const years = getAvailableYears(allRows);
-  const categories = getAvailableCategories(allRows);
-  const f = state.transactions.filters;
-
-  const selectValue = (e: Event) => (e.target as HTMLSelectElement).value;
-  const inputValue = (e: Event) => (e.target as HTMLInputElement).value;
+function view(all: EnrichedRow[], state: AppState, actions: AppActions): TemplateResult {
+  const { filters: f, sort, page } = state.transactions;
+  const filtered = sortTransactions(filterTransactions(all, f), sort);
+  const { inflow, outflow } = sumInOut(filtered);
+  const { pageRows, totalPages } = paginate(filtered, page, TRANSACTIONS_PER_PAGE);
+  const byDate = sort.startsWith('date');
+  const from = filtered.length ? page * TRANSACTIONS_PER_PAGE + 1 : 0;
+  const to = page * TRANSACTIONS_PER_PAGE + pageRows.length;
+  const value = (e: Event) => (e.target as HTMLInputElement | HTMLSelectElement).value;
 
   return html`
-    <div class="g4" style="margin-bottom:1.2rem;">
-      ${kpiCard('Einnahmen', kpis.income, 'income')}
-      ${kpiCard('Ausgaben', Math.abs(kpis.expense), 'expense')}
-      ${kpiCard('Investitionen', kpis.invested, 'invest')}
-      ${kpiCard('Dividenden', kpis.dividend, 'dividend')}
-    </div>
-
-    <div class="card">
-      <div class="card-header" style="flex-wrap:wrap;gap:.5rem;">
-        <span class="card-title">${sorted.length} Transaktionen</span>
-        <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-left:auto;">
-          <select class="tx-input tx-select" @change=${(e: Event) => actions.setTransactionFilters({ year: selectValue(e) })}>
-            <option value="">Alle Jahre</option>
-            ${years.map((y) => html`<option value=${y} ?selected=${f.year === y}>${y}</option>`)}
+    <section class="card card--flush" aria-label="Buchungsliste">
+      <div class="tx-toolbar">
+        <label class="search">
+          ${icon('search', 16)}
+          <input type="search" placeholder="Händler, Beschreibung oder Typ suchen" aria-label="Buchungen durchsuchen"
+            .value=${f.search} @input=${(e: Event) => actions.setTransactionFilters({ search: value(e) })}>
+        </label>
+        <div class="tx-filters">
+          <div class="chips" role="group" aria-label="Buchungsart">
+            ${KINDS.map((k) => html`
+              <button type="button" class="chip" aria-pressed=${k.value === f.kind ? 'true' : 'false'}
+                @click=${() => actions.setTransactionFilters({ kind: k.value })}>${k.label}</button>
+            `)}
+          </div>
+          <select class="select" aria-label="Typ" @change=${(e: Event) => actions.setTransactionFilters({ category: value(e) })}>
+            <option value="">Alle Typen</option>
+            ${getAvailableCategories(all).map((c) => html`<option value=${c} ?selected=${f.category === c}>${c}</option>`)}
           </select>
-          <select class="tx-input tx-select" @change=${(e: Event) => actions.setTransactionFilters({ month: selectValue(e) })}>
-            <option value="">Alle Monate</option>
-            ${Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(
-              (mn) => html`<option value=${mn} ?selected=${f.month === mn}>${monthName(mn)}</option>`,
-            )}
+          <select class="select" aria-label="Sortierung" @change=${(e: Event) => actions.setTransactionSort(value(e) as TransactionSort)}>
+            ${SORTS.map((s) => html`<option value=${s.value} ?selected=${s.value === sort}>${s.label}</option>`)}
           </select>
-          <input type="date" class="tx-input" .value=${f.from}
-            @change=${(e: Event) => actions.setTransactionFilters({ from: inputValue(e) })}>
-          <input type="date" class="tx-input" .value=${f.to}
-            @change=${(e: Event) => actions.setTransactionFilters({ to: inputValue(e) })}>
-          <select class="tx-input tx-select" @change=${(e: Event) => actions.setTransactionFilters({ category: selectValue(e) })}>
-            <option value="">Alle Kategorien</option>
-            ${categories.map((c) => html`<option value=${c} ?selected=${f.category === c}>${c}</option>`)}
-          </select>
-          <input type="text" class="tx-input" style="width:160px;" placeholder="Suche…" .value=${f.search}
-            @input=${(e: Event) => actions.setTransactionFilters({ search: inputValue(e) })}>
-          <select class="tx-input tx-select"
-            @change=${(e: Event) => actions.setTransactionSort(selectValue(e) as TransactionSort)}>
-            <option value="date-desc" ?selected=${state.transactions.sort === 'date-desc'}>Datum ↓</option>
-            <option value="date-asc" ?selected=${state.transactions.sort === 'date-asc'}>Datum ↑</option>
-            <option value="amount-desc" ?selected=${state.transactions.sort === 'amount-desc'}>Betrag ↓</option>
-            <option value="amount-asc" ?selected=${state.transactions.sort === 'amount-asc'}>Betrag ↑</option>
-          </select>
-          <button class="cb" @click=${() => actions.resetTransactionFilters()}>× Reset</button>
+          <span class="tx-summary">
+            ${fmtN(filtered.length)} Buchungen · <span class="pos">+${fmt(inflow)}</span> rein · ${signed(outflow)} raus
+          </span>
         </div>
       </div>
-      <div style="overflow-x:auto">
-        <table class="dt">
-          <thead>
-            <tr>
-              <th>Datum</th><th>Typ</th><th>Name / Beschreibung</th><th>Kategorie</th>
-              <th style="text-align:right">Betrag</th><th style="text-align:right">Gebühr</th>
-            </tr>
-          </thead>
-          <tbody>${pageRows.map(transactionRow)}</tbody>
-        </table>
-      </div>
-      <div style="display:flex;justify-content:center;gap:.4rem;margin-top:1rem;">
-        ${paginationItems.map((item) => paginationButton(item, actions))}
-      </div>
-    </div>
+
+      <div class="tx-head" aria-hidden="true"><span></span><span>Name / Beschreibung</span><span>Typ</span><span>Betrag</span></div>
+
+      ${filtered.length === 0
+        ? html`<div class="empty"><strong>Keine Treffer</strong>Filter oder Suche anpassen.</div>`
+        : byDate
+          ? groupByDay(pageRows, filtered).map((g) => html`
+              <section aria-label=${g.label}>
+                <h3 class="tx-day"><span>${g.label}</span><span class=${g.sum > 0 ? 'pos' : ''}>${signed(g.sum)}</span></h3>
+                <ul>${g.rows.map(row)}</ul>
+              </section>
+            `)
+          : html`<ul>${pageRows.map(row)}</ul>`}
+
+      ${totalPages > 1 ? html`
+        <nav class="pager" aria-label="Seiten">
+          <span class="num">${fmtN(from)}–${fmtN(to)} von ${fmtN(filtered.length)}</span>
+          <div class="pager-buttons">
+            <button type="button" class="btn" aria-label="Vorherige Seite" ?disabled=${page === 0}
+              @click=${() => actions.setTransactionPage(page - 1)}>${icon('chevronLeft', 16)}</button>
+            ${computePaginationItems(page, totalPages).map((item) =>
+              item.type === 'page'
+                ? html`<button type="button" class="btn pager-page" aria-current=${item.active ? 'page' : 'false'}
+                    @click=${() => actions.setTransactionPage(item.page)}>${item.page + 1}</button>`
+                : item.type === 'ellipsis' ? html`<span class="pager-page muted">…</span>` : nothing)}
+            <button type="button" class="btn" aria-label="Nächste Seite" ?disabled=${page >= totalPages - 1}
+              @click=${() => actions.setTransactionPage(page + 1)}>${icon('chevronRight', 16)}</button>
+          </div>
+        </nav>
+      ` : nothing}
+    </section>
   `;
 }
 
-function kpiCard(label: string, value: number, cls: string): TemplateResult {
+function row(r: EnrichedRow): TemplateResult {
+  const name = r._name || r._desc || typeLabel(r._type);
+  const type = typeLabel(r._type);
+  const detail = r._desc && r._desc !== name ? r._desc : type !== name ? type : '';
   return html`
-    <div class="kpi ${cls}">
-      <div class="kpi-label">${label}</div>
-      <div class="kpi-value ${cls}">${fmt(value)}</div>
-    </div>
+    <li class="tx-row">
+      <span class="avatar" aria-hidden="true">${name.charAt(0).toUpperCase()}</span>
+      <div class="row-main">
+        <div class="row-title">${name}</div>
+        ${detail ? html`<div class="row-sub">${detail}</div>` : nothing}
+      </div>
+      <span class="tx-type"><span class="badge ${badgeClass(r)}">${type}</span></span>
+      <div class="tx-amount ${r._amt > 0 ? 'pos' : ''}">
+        ${signed(r._amt)}
+        ${r._fee ? html`<small>Gebühr ${fmt(Math.abs(r._fee))}</small>` : nothing}
+      </div>
+    </li>
   `;
-}
-
-function transactionRow(r: EnrichedRow): TemplateResult {
-  const amtCls = r._isBuy ? 'neu' : r._amt >= 0 ? 'pos' : 'neg';
-  const badgeCls = r._amt >= 0 ? 'bg' : r._isBuy ? 'bb' : 'br';
-  return html`
-    <tr>
-      <td>${fmtD(r._date)}</td>
-      <td><span class="badge ${badgeCls}" style="font-size:.68rem">${typeLabel(r._type)}</span></td>
-      <td>
-        ${r._name || '—'}
-        ${r._desc
-          ? html`<span style="color:var(--text-muted);font-size:.72rem;display:block;margin-top:.1rem;">${r._desc.substring(0, 60)}</span>`
-          : nothing}
-      </td>
-      <td style="color:var(--text-muted)">${r._cat || '—'}</td>
-      <td style="text-align:right" class=${amtCls}>${fmt(r._amt)}</td>
-      <td style="text-align:right;color:var(--text-muted)">${r._fee ? fmt(r._fee) : '—'}</td>
-    </tr>
-  `;
-}
-
-function paginationButton(item: PaginationItem, actions: AppActions): TemplateResult {
-  switch (item.type) {
-    case 'prev':
-      return html`<button class="cb" @click=${() => actions.setTransactionPage(item.page)}>‹</button>`;
-    case 'next':
-      return html`<button class="cb" @click=${() => actions.setTransactionPage(item.page)}>›</button>`;
-    case 'ellipsis':
-      return html`<span style="color:var(--text-muted);padding:0 .3rem;">…</span>`;
-    case 'page':
-      return html`<button class="cb ${item.active ? 'active' : ''}"
-        @click=${() => actions.setTransactionPage(item.page)}>${item.page + 1}</button>`;
-  }
 }

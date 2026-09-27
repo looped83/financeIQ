@@ -1,5 +1,5 @@
-import { fmt, fmtP, mLabel, typeLabel } from '../../domain/format';
-import type { Analysis, EnrichedRow } from '../../domain/types';
+import { fmt, fmtP, mLabel } from '../../domain/format';
+import type { Analysis } from '../../domain/types';
 
 export interface OverviewRates {
   savingsRate: number;
@@ -15,105 +15,40 @@ export function computeOverviewRates(a: Analysis): OverviewRates {
   };
 }
 
+/** Which series a KPI's dot stands for; `status` marks a judged value (✓ / ⚠). */
 export interface KpiCard {
   label: string;
   value: string;
-  cls: string;
   sub: string;
+  dot?: 'income' | 'expense' | 'dividend' | 'invest';
+  status?: 'good' | 'warn';
 }
 
 export function getOverviewKpis(a: Analysis, rates: OverviewRates): KpiCard[] {
-  const { savingsRate, investRate } = rates;
+  const positions = Object.keys(a.byAsset).length;
   return [
-    { label: 'Gesamteinnahmen', value: fmt(a.totalInc), cls: 'income', sub: `Ø ${fmt(a.avgInc)}/Monat` },
-    { label: 'Gesamtausgaben', value: fmt(Math.abs(a.totalExp)), cls: 'expense', sub: `Ø ${fmt(a.avgExp)}/Monat` },
-    { label: 'Netto-Saldo', value: fmt(a.netBal), cls: 'balance', sub: a.netBal >= 0 ? 'Positiv ✓' : 'Negativ ⚠️' },
-    { label: 'Investiert', value: fmt(a.totalInv), cls: 'invest', sub: `Verkauft: ${fmt(a.totalSold)}` },
-    { label: 'Dividenden', value: fmt(a.totalDiv), cls: 'dividend', sub: `${Object.keys(a.byAsset).length} Positionen` },
+    { label: 'Einnahmen', value: fmt(a.totalInc), sub: `Ø ${fmt(a.avgInc)} pro Monat`, dot: 'income' },
+    { label: 'Ausgaben', value: fmt(Math.abs(a.totalExp)), sub: `Ø ${fmt(a.avgExp)} pro Monat`, dot: 'expense' },
     {
-      label: 'Sparquote',
-      value: fmtP(savingsRate),
-      cls: savingsRate >= 20 ? 'income' : savingsRate >= 10 ? 'warn' : 'expense',
-      sub: `Investitionsrate: ${fmtP(investRate)}`,
+      label: 'Netto-Saldo',
+      value: (a.netBal > 0 ? '+' : '') + fmt(a.netBal),
+      sub: `Sparquote ${fmtP(rates.savingsRate)}`,
+      status: rates.savingsRate >= 15 ? 'good' : 'warn',
+    },
+    {
+      label: 'Dividenden (netto)',
+      value: fmt(a.totalDiv),
+      sub: `Ø ${fmt(a.totalDiv / a.mc)} pro Monat · ${positions} ${positions === 1 ? 'Position' : 'Positionen'}`,
+      dot: 'dividend',
     },
   ];
-}
-
-export interface Last6MonthsChartData {
-  labels: string[];
-  income: number[];
-  expense: number[];
-}
-
-export function getLast6MonthsChartData(a: Analysis): Last6MonthsChartData {
-  const l6 = a.mKeys.slice(-6);
-  return {
-    labels: l6.map(mLabel),
-    income: l6.map((m) => a.months[m]?.income ?? 0),
-    expense: l6.map((m) => Math.abs(a.months[m]?.expense ?? 0)),
-  };
-}
-
-export interface AllMonthsTrendData {
-  labels: string[];
-  income: number[];
-  expense: number[];
-  net: number[];
-}
-
-export function getAllMonthsTrendData(a: Analysis): AllMonthsTrendData {
-  return {
-    labels: a.mKeys.map(mLabel),
-    income: a.mKeys.map((m) => a.months[m]?.income ?? 0),
-    expense: a.mKeys.map((m) => Math.abs(a.months[m]?.expense ?? 0)),
-    net: a.mKeys.map((m) => a.months[m]?.net ?? 0),
-  };
-}
-
-export interface VolumeByTypeChartData {
-  labels: string[];
-  values: number[];
-}
-
-/** Top 8 transaction types by total volume (income + |expense|), for the donut chart. */
-export function getVolumeByTypeChartData(a: Analysis): VolumeByTypeChartData {
-  const entries = Object.entries(a.byType)
-    .sort((x, y) => y[1].income + Math.abs(y[1].expense) - (x[1].income + Math.abs(x[1].expense)))
-    .slice(0, 8);
-  return {
-    labels: entries.map(([t]) => typeLabel(t)),
-    values: entries.map(([, v]) => v.income + Math.abs(v.expense)),
-  };
-}
-
-export interface SavingsRateTrendData {
-  labels: string[];
-  savingsRate: number[];
-  target: number[];
-}
-
-export function getSavingsRateTrendData(a: Analysis): SavingsRateTrendData {
-  return {
-    labels: a.mKeys.map(mLabel),
-    savingsRate: a.mKeys.map((mk) => a.months[mk]!.savingsRate),
-    target: a.mKeys.map(() => 20),
-  };
-}
-
-export interface TopExpenseCategoriesData {
-  labels: string[];
-  values: number[];
-}
-
-export function getTopExpenseCategoriesData(a: Analysis, limit = 5): TopExpenseCategoriesData {
-  const entries = Object.entries(a.expCat).sort((x, y) => y[1] - x[1]).slice(0, limit);
-  return { labels: entries.map(([k]) => k), values: entries.map(([, v]) => v) };
 }
 
 export interface RatioRow {
   label: string;
   value: string;
-  good: boolean;
+  /** Judged against a target; `null` for purely informational rows. */
+  good: boolean | null;
 }
 
 export function computeFinancialRatios(a: Analysis, rates: OverviewRates): RatioRow[] {
@@ -123,73 +58,31 @@ export function computeFinancialRatios(a: Analysis, rates: OverviewRates): Ratio
   const avgTxSize = a.exp.length > 0 ? Math.abs(a.totalExp) / a.exp.length : 0;
   const feeRatio = a.totalInv > 0 ? (a.totalFee / a.totalInv) * 100 : 0;
 
-  const maxMonth = a.mKeys.reduce(
-    (best, mk) => {
-      const n = a.months[mk]?.net ?? 0;
-      return n > best.v ? { k: mk, v: n } : best;
-    },
-    { k: '', v: -Infinity },
-  );
-  const minMonth = a.mKeys.reduce(
-    (worst, mk) => {
-      const n = a.months[mk]?.net ?? 0;
-      return n < worst.v ? { k: mk, v: n } : worst;
-    },
-    { k: '', v: Infinity },
-  );
+  let best = { k: '', v: -Infinity };
+  let worst = { k: '', v: Infinity };
+  for (const mk of a.mKeys) {
+    const n = a.months[mk]?.net ?? 0;
+    if (n > best.v) best = { k: mk, v: n };
+    if (n < worst.v) worst = { k: mk, v: n };
+  }
 
   return [
-    { label: 'Sparquote (Netto/Einnahmen)', value: fmtP(savingsRate), good: savingsRate >= 15 },
-    { label: 'Passives Einkommen', value: fmtP(passiveRatio), good: passiveRatio >= 5 },
+    { label: 'Sparquote', value: fmtP(savingsRate), good: savingsRate >= 15 },
     { label: 'Investitionsrate', value: fmtP(investRate), good: investRate >= 15 },
+    { label: 'Passives Einkommen', value: fmtP(passiveRatio), good: passiveRatio >= 5 },
     { label: 'Kartenzahlungsanteil', value: fmtP(cardRatio), good: cardRatio < 50 },
-    { label: 'Ø Ausgabe pro Transaktion', value: fmt(avgTxSize), good: true },
-    { label: 'Gebührenquote', value: a.totalInv > 0 ? fmtP(feeRatio) : '-', good: feeRatio < 0.5 },
-    { label: 'Ø Monats-Transaktionen', value: Math.round(a.enriched.length / a.mc) + '×', good: true },
-    { label: 'Bester Monat', value: `${mLabel(maxMonth.k)} (${fmt(maxMonth.v)})`, good: true },
-    { label: 'Schwächster Monat', value: `${mLabel(minMonth.k)} (${fmt(minMonth.v)})`, good: minMonth.v >= 0 },
+    { label: 'Gebührenquote', value: a.totalInv > 0 ? fmtP(feeRatio) : '–', good: a.totalInv > 0 ? feeRatio < 0.5 : null },
+    { label: 'Ø Ausgabe pro Buchung', value: fmt(avgTxSize), good: null },
+    { label: 'Ø Buchungen pro Monat', value: Math.round(a.enriched.length / a.mc) + '×', good: null },
+    { label: 'Bester Monat', value: `${mLabel(best.k)} (${fmt(best.v)})`, good: null },
+    { label: 'Schwächster Monat', value: `${mLabel(worst.k)} (${fmt(worst.v)})`, good: worst.v >= 0 ? null : false },
   ];
 }
 
-// Moved to features/shared/commonSelectors.ts (also used by Kategorien) —
-// re-exported here so existing imports from './selectors' keep working.
-export { getTopMerchants, type MerchantRow } from '../shared/commonSelectors';
-
-export interface IncomeSourceRow {
-  label: string;
-  count: number;
-  total: string;
-  pct: number;
-  pctLabel: string;
-}
-
-export function getIncomeSources(a: Analysis): IncomeSourceRow[] {
-  const byType: Record<string, { total: number; count: number }> = {};
-  for (const r of a.inc) {
-    const t = typeLabel(r._type);
-    const entry = (byType[t] ??= { total: 0, count: 0 });
-    entry.total += r._amt;
-    entry.count++;
-  }
-  return Object.entries(byType)
-    .sort((x, y) => y[1].total - x[1].total)
-    .map(([label, v]) => {
-      const pct = a.totalInc > 0 ? (v.total / a.totalInc) * 100 : 0;
-      return { label, count: v.count, total: fmt(v.total), pct: Math.min(pct, 100), pctLabel: fmtP(pct) };
-    });
-}
-
-// Moved to features/shared/commonSelectors.ts (also used by Ausreißer) —
-// re-exported here so existing imports from './selectors' keep working.
-export {
-  getRecurringExpenses,
-  type RecurringExpenseRow,
-  type RecurringExpensesSummary,
-} from '../shared/commonSelectors';
-
 export interface Alert {
   color: 'red' | 'yellow' | 'green' | 'blue';
-  text: string;
+  title: string;
+  desc: string;
 }
 
 export function computeAlerts(a: Analysis, rates: OverviewRates): Alert[] {
@@ -197,25 +90,26 @@ export function computeAlerts(a: Analysis, rates: OverviewRates): Alert[] {
   const alerts: Alert[] = [];
 
   if (a.netBal < 0) {
-    alerts.push({ color: 'red', text: `<strong>Negativer Saldo:</strong> Ausgaben übersteigen Einnahmen um ${fmt(Math.abs(a.netBal))}.` });
+    alerts.push({ color: 'red', title: 'Negativer Saldo', desc: `Ausgaben übersteigen Einnahmen um ${fmt(Math.abs(a.netBal))}.` });
   }
   if (savingsRate < 10 && a.netBal >= 0) {
-    alerts.push({ color: 'yellow', text: `<strong>Niedrige Sparquote:</strong> Nur ${fmtP(savingsRate)} des Einkommens verbleibt als Netto.` });
+    alerts.push({ color: 'yellow', title: 'Niedrige Sparquote', desc: `Nur ${fmtP(savingsRate)} des Einkommens verbleibt als Netto.` });
   }
   if (a.totalDiv > 0) {
-    alerts.push({ color: 'green', text: `<strong>Passives Einkommen:</strong> ${fmt(a.totalDiv)} Dividenden aus ${Object.keys(a.byAsset).length} Positionen.` });
+    alerts.push({ color: 'green', title: 'Passives Einkommen', desc: `${fmt(a.totalDiv)} Dividenden aus ${Object.keys(a.byAsset).length} Positionen.` });
   }
   if (a.totalInv > 0) {
-    alerts.push({ color: 'green', text: `<strong>Sparplan aktiv:</strong> ${fmt(a.totalInv)} in Wertpapiere investiert (Rate: ${fmtP(investRate)}).` });
+    alerts.push({ color: 'green', title: 'Sparplan aktiv', desc: `${fmt(a.totalInv)} in Wertpapiere investiert (Rate: ${fmtP(investRate)}).` });
   }
   if (a.totalFee > 100) {
-    alerts.push({ color: 'yellow', text: `<strong>Handelsgebühren:</strong> ${fmt(a.totalFee)} an Gebühren — Sparpläne prüfen.` });
+    alerts.push({ color: 'yellow', title: 'Handelsgebühren', desc: `${fmt(a.totalFee)} an Gebühren — Sparpläne prüfen.` });
   }
   const bigExp = a.exp.filter((r) => Math.abs(r._amt) > 500);
   if (bigExp.length) {
     alerts.push({
       color: 'yellow',
-      text: `<strong>${bigExp.length} große Ausgaben</strong> (>500€) — ${fmt(bigExp.reduce((s, r) => s + Math.abs(r._amt), 0))} gesamt.`,
+      title: `${bigExp.length} große Ausgaben`,
+      desc: `Über 500 € je Buchung — ${fmt(bigExp.reduce((s, r) => s + Math.abs(r._amt), 0))} gesamt.`,
     });
   }
   if (a.mKeys.length >= 3) {
@@ -223,12 +117,13 @@ export function computeAlerts(a: Analysis, rates: OverviewRates): Alert[] {
     if (last3Exp[2]! > last3Exp[1]! && last3Exp[1]! > last3Exp[0]!) {
       alerts.push({
         color: 'yellow',
-        text: `<strong>Steigende Ausgaben:</strong> Die Ausgaben sind 3 Monate in Folge gestiegen (${last3Exp.map((v) => fmt(v)).join(' → ')}).`,
+        title: 'Steigende Ausgaben',
+        desc: `Die Ausgaben sind 3 Monate in Folge gestiegen (${last3Exp.map((v) => fmt(v)).join(' → ')}).`,
       });
     }
     const last3Inc = a.mKeys.slice(-3).map((mk) => a.months[mk]?.income ?? 0);
     if (last3Inc[2]! < last3Inc[1]! && last3Inc[1]! < last3Inc[0]!) {
-      alerts.push({ color: 'yellow', text: `<strong>Sinkende Einnahmen:</strong> Die Einnahmen sind 3 Monate in Folge gesunken.` });
+      alerts.push({ color: 'yellow', title: 'Sinkende Einnahmen', desc: 'Die Einnahmen sind 3 Monate in Folge gesunken.' });
     }
   }
   if (a.subscriptions.length > 0) {
@@ -237,26 +132,24 @@ export function computeAlerts(a: Analysis, rates: OverviewRates): Alert[] {
     if (subPct > 15) {
       alerts.push({
         color: 'yellow',
-        text: `<strong>Hoher Fixkostenanteil:</strong> ${a.subscriptions.length} wiederkehrende Ausgaben kosten Ø ${fmt(subTotal)}/Monat (${fmtP(subPct)} der Ausgaben).`,
+        title: 'Hoher Fixkostenanteil',
+        desc: `${a.subscriptions.length} wiederkehrende Ausgaben kosten Ø ${fmt(subTotal)}/Monat (${fmtP(subPct)} der Ausgaben).`,
       });
     }
   }
   const cardTotal = a.exp.filter((r) => r._isCard).reduce((s, r) => s + Math.abs(r._amt), 0);
   const cardRatio = Math.abs(a.totalExp) > 0 ? (cardTotal / Math.abs(a.totalExp)) * 100 : 0;
   if (cardRatio > 60) {
-    alerts.push({ color: 'blue', text: `<strong>Kartenlastig:</strong> ${fmtP(cardRatio)} aller Ausgaben über Kartenzahlungen — Budgetierung prüfen.` });
+    alerts.push({ color: 'blue', title: 'Kartenlastig', desc: `${fmtP(cardRatio)} aller Ausgaben über Kartenzahlungen — Budgetierung prüfen.` });
   }
   const negMonths = a.mKeys.filter((mk) => (a.months[mk]?.net ?? 0) < 0);
   if (negMonths.length >= 2) {
     alerts.push({
       color: 'red',
-      text: `<strong>${negMonths.length} negative Monate:</strong> ${negMonths.map(mLabel).join(', ')} — wiederkehrendes Problem.`,
+      title: `${negMonths.length} negative Monate`,
+      desc: `${negMonths.map(mLabel).join(', ')} — wiederkehrendes Problem.`,
     });
   }
 
   return alerts;
-}
-
-export function getTopTransactions(a: Analysis, limit = 12): EnrichedRow[] {
-  return [...a.cash].sort((x, y) => Math.abs(y._amt) - Math.abs(x._amt)).slice(0, limit);
 }

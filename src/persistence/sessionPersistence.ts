@@ -7,9 +7,9 @@ export interface PersistedFile {
   csv: string;
 }
 
+/** Sessions saved by older versions may still carry a `compare` file; it is ignored. */
 export interface PersistedSession {
   primary: PersistedFile | null;
-  compare: PersistedFile | null;
 }
 
 export async function saveSession(kv: KeyValueStore, session: PersistedSession): Promise<void> {

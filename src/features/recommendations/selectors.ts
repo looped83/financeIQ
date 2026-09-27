@@ -83,7 +83,7 @@ export function computeRecommendations(a: Analysis): Recommendation[] {
     if (topDiv && topDiv[1].total / a.totalDiv > 0.3) {
       recs.push({
         level: 'yellow', priority: 3, category: 'Dividenden', title: 'Dividenden-Klumpenrisiko',
-        desc: `${topDiv[0]} macht ${((topDiv[1].total / a.totalDiv) * 100).toFixed(1)}% aller Dividenden aus. Max. 25% pro Position empfohlen. Diversifikation in andere Sektoren/Regionen senkt das Risiko.`,
+        desc: `${topDiv[0]} macht ${fmtP((topDiv[1].total / a.totalDiv) * 100)} aller Dividenden aus. Max. 25 % pro Position empfohlen. Diversifikation in andere Sektoren/Regionen senkt das Risiko.`,
       });
     }
   }

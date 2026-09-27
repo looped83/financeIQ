@@ -1,14 +1,72 @@
-import { Chart, registerables, type ChartConfiguration } from 'chart.js';
+import {
+  ArcElement,
+  BarController,
+  BarElement,
+  CategoryScale,
+  Chart,
+  DoughnutController,
+  Filler,
+  Legend,
+  LinearScale,
+  LineController,
+  LineElement,
+  PointElement,
+  TimeScale,
+  Tooltip,
+  type ChartConfiguration,
+  type ChartType,
+} from 'chart.js';
 import 'chartjs-adapter-date-fns';
+import { COLORS } from '../theme/palette';
+import { track, untrack } from './registry';
 
-Chart.register(...registerables);
+// Register only what the app draws (bar, line, doughnut) instead of every
+// controller/scale Chart.js ships — keeps the lazily loaded chart chunk small.
+Chart.register(
+  BarController, LineController, DoughnutController,
+  BarElement, LineElement, PointElement, ArcElement,
+  CategoryScale, LinearScale, TimeScale,
+  Filler, Legend, Tooltip,
+);
 
-const registry = new WeakMap<HTMLCanvasElement, Chart>();
+// Theme once, globally, so individual chart configs only carry their data.
+const d = Chart.defaults;
+d.font.family = getComputedStyle(document.documentElement).getPropertyValue('--font').trim() || 'system-ui, sans-serif';
+d.font.size = 11;
+d.color = COLORS.textMuted;
+d.borderColor = COLORS.raised;
+d.maintainAspectRatio = false;
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) d.animation = false;
+d.elements.bar.borderRadius = 4;
+d.elements.line.borderWidth = 2;
+d.elements.line.tension = 0.3;
+d.elements.point.radius = 0;
+d.elements.point.hoverRadius = 4;
+d.elements.point.hitRadius = 8;
+d.elements.arc.borderWidth = 2;
+d.elements.arc.borderColor = COLORS.surface;
+const legend = d.plugins.legend;
+legend.align = 'start';
+legend.labels.color = COLORS.textSecondary;
+legend.labels.usePointStyle = true;
+legend.labels.pointStyle = 'rectRounded';
+legend.labels.boxWidth = 8;
+legend.labels.boxHeight = 8;
+legend.labels.padding = 14;
+const tip = d.plugins.tooltip;
+tip.backgroundColor = COLORS.raised;
+tip.borderColor = COLORS.lineStrong;
+tip.borderWidth = 1;
+tip.titleColor = COLORS.text;
+tip.bodyColor = COLORS.textSecondary;
+tip.padding = 10;
+tip.cornerRadius = 8;
+tip.boxPadding = 4;
+tip.usePointStyle = true;
 
-/** Creates (or replaces) the Chart.js instance for `canvas`, destroying any previous one first. */
-export function mountChart(canvas: HTMLCanvasElement, config: ChartConfiguration): Chart {
-  registry.get(canvas)?.destroy();
-  const chart = new Chart(canvas, config);
-  registry.set(canvas, chart);
-  return chart;
+/** Creates (or replaces) the Chart.js instance for `canvas`; `null` (canvas not rendered) is a no-op. */
+export function mountChart<T extends ChartType>(canvas: HTMLCanvasElement | null, config: ChartConfiguration<T>): void {
+  if (!canvas) return;
+  untrack(canvas);
+  track(canvas, new Chart(canvas, config));
 }

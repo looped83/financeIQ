@@ -5,62 +5,63 @@
 **FinanceIQ** ist ein CSV-Analytics-Dashboard für die Analyse von Finanztransaktionen (Trade Republic, Sparkasse, DKB u.a.). Nach Abschluss der V2-Migration (Phase 0–5) und anschließendem UI-Refactoring ist die Anwendung eine typisierte, komponentenbasierte TypeScript-App, gebaut mit Vite, deployed über GitHub Actions auf GitHub Pages.
 
 - **Sprache:** Deutsch (UI), `de-DE` Locale, Euro-Formatierung
-- **Design:** Dark Theme, responsive (Flexbox/Grid)
+- **Design:** Dark Mode (warmes Anthrazit, Akzent Orange, Systemschrift), Seitenleiste auf Desktop, Leiste unten + „Mehr“-Sheet auf Mobil
 - **Stack:** TypeScript, Vite, `lit-html` (~5kb, Template-Literal-basiert, kein virtuelles DOM), Chart.js + `chartjs-adapter-date-fns` (echte npm-Dependencies, nicht mehr CDN), Vitest
 - **Deployment:** GitHub Pages via `.github/workflows/pages-vite.yml`, das bei jedem Push auf `main` baut und deployed. Pages-Source ist auf "GitHub Actions" umgestellt und **läuft produktiv** (verifiziert: Build+Deploy grün, App vom Nutzer live getestet und funktionsfähig bestätigt).
 
-## Aktuelle Architektur (Stand nach UI-Refactoring)
+## Aktuelle Architektur (Stand nach Dark-Mode-Redesign)
 
 ```
-index.html                — dünne Shell: Upload-Screen-Markup, Topbar mit 10 Tab-Buttons,
-                             10 leere <div id="tab-N"> Container, <style>, 
-                             <script type="module" src="/src/main.ts">
+index.html                — Upload-Screen als statisches Markup (malt ohne JS/Chart.js),
+                             leere Container für Seitenleiste, Kopf, Seiten, Mobil-Navigation
 src/
-  main.ts                 — Einstiegspunkt: Store erzeugen, Upload/Drag&Drop/Reset verdrahten,
-                             Tabs lazy mounten (beim ersten Klick), Sitzung beim Start
-                             wiederherstellen (restoreSession).
-                             TAB_LOADERS-Array mit 10 Einträgen, Index = tab-N ID.
-  domain/                 — parseCSV, findCol, analyze, linReg, Formatierungs-Helper (fmt,
-                             fmtP, fmtPP, mLabel, typeLabel, …) — reine, typisierte Funktionen
-  state/                  — appState.ts (AppState-Typ), appStore.ts (createAppStore → {store,
-                             actions}), store.ts (generischer createStore<T>())
-  features/<tab>/         — je Tab: selectors.ts (reine Chart-/KPI-/Tabellen-Logik, Vitest-
-                             getestet) + <Tab>View.ts (lit-html-Komponente, abonniert den
-                             Store). Aktive Tabs:
-                               overview, timeline, yearly, monthly, monthcompare,
-                               categories, outliers, forecast, recommendations, transactions
-                             Entfernte/zusammengeführte Tabs:
-                               deepdive (in overview integriert, selectors.ts wird noch
-                                 von overview und monthly importiert)
-                               compare (komplett entfernt aus TAB_LOADERS, Code noch vorhanden)
-  features/shared/        — commonSelectors.ts (getTopMerchants, getRecurringExpenses,
-                             getFixedCostNames — von mehreren Tabs genutzt)
-  charts/                 — chartTheme.ts (BASE/xScale/yScale/darkAxes), chartManager.ts
-                             (mountChart(), WeakMap-basiert, registriert Chart.js + den
-                             Datums-Adapter einmalig)
-  persistence/            — IndexedDB-Sitzungspersistenz (siehe Phase 4 unten)
-  styles/                 — base.css (CSS-Variablen: --text, --text-muted, --text-dim)
-  dev/<tab>-preview.{html,ts} — eigenständige Vite-Entry-Seiten zum isolierten Ausprobieren
-                             einzelner Komponenten
+  main.ts                 — Einstieg: Store, Upload/Drag&Drop, Hash-Routing, Seiten lazy mounten
+                             (eine dynamische import()-Datei pro Seite), Sitzung wiederherstellen
+  shell/                  — routes.ts (6 Bereiche + Unterseiten, #/bereich/unterseite),
+                             shell.ts (Seitenleiste, Seitenkopf mit Zeitraum, Mobil-Leiste, Mehr-Sheet),
+                             gatedStore.ts (versteckte Seiten rendern nicht — kein Chart-Neuaufbau im Hintergrund)
+  ui/                     — components.ts (card, kpiGrid, segmented, barList, insight, chartBox …),
+                             icons.ts (Inline-SVG), page.ts (gemeinsamer Seiten-Lebenszyklus)
+  styles/                 — tokens.css (alle Design-Werte) + app.css (Layout & Komponenten)
+  theme/palette.ts        — Farben, die Chart.js als Strings braucht; palette.test.ts prüft den
+                             Gleichlauf mit tokens.css
+  charts/                 — chartManager.ts (registriert nur Bar/Line/Doughnut, globales Theme),
+                             chartTheme.ts (Achsen, Tooltips), registry.ts (Charts sauber abbauen)
+  domain/                 — parseCSV, analyze (= enrich + aggregate), period.ts (Zeitraum-Presets,
+                             Blättern, Labels), Formatierung (de-DE, auch Prozent: „26,3 %“)
+  state/                  — AppState mit fullAnalysis (ganze Historie), analysis (auf Zeitraum
+                             gefiltert) und period; appStore.ts, store.ts
+  features/<bereich>/     — selectors.ts (reine, getestete Logik) + <Name>View.ts (lit-html)
+  persistence/            — IndexedDB-Sitzung (nur noch die geladene Datei)
 test/fixtures/            — CSV-Fixtures für die Vitest-Suite
 ```
 
-### Tab-Reihenfolge (10 Tabs)
+### Navigation (6 Bereiche)
 
-| Index | Tab-Button       | Modul                    |
-|-------|------------------|--------------------------|
-| 0     | Übersicht        | overview/OverviewView    |
-| 1     | Zeitverlauf      | timeline/TimelineView    |
-| 2     | Jahre            | yearly/YearlyView        |
-| 3     | Monate           | monthly/MonthlyView      |
-| 4     | Monatsvergleich  | monthcompare/MonthCompareView |
-| 5     | Kategorien       | categories/CategoriesView |
-| 6     | Ausreißer        | outliers/OutliersView    |
-| 7     | Prognose         | forecast/ForecastView    |
-| 8     | Empfehlungen     | recommendations/RecommendationsView |
-| 9     | Transaktionen    | transactions/TransactionsView |
+| Route | Bereich | Modul | Zeitraum |
+|-------|---------|-------|----------|
+| `#/uebersicht` | Übersicht | overview/OverviewView | ja |
+| `#/cashflow/verlauf` | Cashflow › Verlauf | timeline/TimelineView | ja |
+| `#/cashflow/monate` | Cashflow › Monate | monthly/MonthlyView | ja |
+| `#/cashflow/prognose` | Cashflow › Prognose | forecast/ForecastView | nein (ganze Historie) |
+| `#/ausgaben` | Ausgaben | spending/SpendingView | ja |
+| `#/investments` | Investments & Dividenden | investments/InvestmentsView | ja |
+| `#/vergleich/monate` | Vergleich › Monate | monthcompare/MonthCompareView | nein |
+| `#/vergleich/jahre` | Vergleich › Jahre | yearly/YearlyView | nein |
+| `#/transaktionen` | Transaktionen | transactions/TransactionsView | ja |
 
-Jeder Tab folgt demselben Muster: `mount<Tab>View(container, store[, actions])` rendert einmalig und abonniert den Store für reaktive Re-Renders. `main.ts` mountet jeden Tab **lazy**, beim ersten Klick auf den jeweiligen Button — ein Chart.js-Canvas in einem `display:none`-Container zu mounten würde einen kaputten Chart mit Nullgröße erzeugen.
+Jede Seite nutzt `mountPage()` aus `ui/page.ts`: neu zeichnen, wenn sich die gewählten State-Slices ändern, vorher alte Charts abbauen, beim Unmount alles aufräumen. Seiten werden erst beim ersten Öffnen geladen; ist eine Seite verborgen, hält `createGatedStore` ihre Updates zurück und spielt beim Wiederanzeigen nur den letzten Stand einmal ab.
+
+### Globaler Zeitraum
+
+Der Zeitraum im Seitenkopf (‹ Label › + Presets: Gesamter Zeitraum, Letzte 12/3 Monate, Letzter Monat, je Kalenderjahr) setzt `period`. `setPeriod()` filtert `fullAnalysis.enriched` auf die Monate und ruft `aggregate()` erneut auf — die CSV wird nicht neu geparst, alle Selektoren bleiben unverändert. Presets beziehen sich auf den **letzten Monat in den Daten**, nicht auf heute. Prognose und Vergleich lesen immer `fullAnalysis`. Die früheren Jahr-/Monat-/Datumsfilter der Transaktionen sind dadurch entfallen; dort gibt es jetzt Schnellfilter (Alle, Einnahmen, Ausgaben, Investments, Dividenden), Typ, Suche und Sortierung.
+
+## Dark-Mode-Redesign (2026-09)
+
+- **Farben:** warmes Anthrazit, Orange nur für Bedienelemente (nie als Datenfarbe). Datenfarben sind auf Rot-Grün-Schwäche geprüft: Einnahmen `#39ad79`, Ausgaben `#d02b31` (Text: `#f09191`), Investiert `#3987e5`, Dividenden Gold `#c98500`. Kategorien nutzen eine feste Reihenfolge aus 6 Farben, alles darüber fällt in „Sonstige“.
+- **Entdopplung:** Kumulierter Cashflow, Netto-Cashflow und Sparquote gibt es nur noch je einmal (Cashflow › Verlauf bzw. › Monate). Die Übersicht ist ein schlankes Dashboard (4 Kennzahlen, Einnahmen vs. Ausgaben, „Wohin das Geld geht“, Kennzahlen, Wiederkehrendes, Hinweise & Empfehlungen). Risikoampel (doppelt zu den Hinweisen), Kennzahlen-Balken im Monatsvergleich (doppelt zur Tabelle), beste/schwächste Monate (in der Monatstabelle markiert) und die KPI-Kacheln der Transaktionen sind entfallen.
+- **Aufgeräumt:** Vergleichs-Tab (zweite CSV), Deep-Dive-View, Kategorien-/Ausreißer-/Empfehlungen-Views und alle `src/dev/*-preview`-Seiten entfernt; noch genutzte Logik liegt in `features/shared`, `spending`, `investments`. `design-system/` (beschrieb das alte Navy-Theme) ist durch `src/styles/tokens.css` ersetzt.
+- **Kleinere Korrekturen:** Pfeile in der Jahrestabelle zeigen bei Ausgaben die echte Richtung; Käufe/Verkäufe zählen im Monatsvergleich nicht mehr als Ausgaben; Ausreißer auf der Ausgaben-Seite nur noch Ausgaben.
 
 ## UI-Refactoring (Post-Migration)
 
@@ -76,7 +77,7 @@ Jeder Tab folgt demselben Muster: `mount<Tab>View(container, store[, actions])` 
 
 Alle Detail-Tabellen folgen dem gleichen Schema mit Delta-Pfeilen (▲/▼):
 
-- **Monate → "Monatliche Detailübersicht":** Spalten Monat, Einnahmen (▲/▼), Ausgaben (▲/▼), Netto, Sparquote, Dividenden, Investiert, Karten-Tx, Gesamt-Tx. Nutzt `buildMonthlySnapshots` und `computeDetailTableRows` aus `deepdive/selectors.ts`. Zeilen-Highlighting für besten/schlechtesten Monat (`row-best`/`row-worst`).
+- **Monate → "Monatliche Detailübersicht":** Spalten Monat, Einnahmen (▲/▼), Ausgaben (▲/▼), Netto, Sparquote, Dividenden, Investiert, Karten-Tx, Gesamt-Tx. Heute `getMonthlyDetailRows` in `monthly/selectors.ts` (rechnet direkt aus den Monatssummen). Zeilen-Highlighting für besten/schwächsten Monat (`is-best`/`is-worst`).
 - **Jahre → "Jahres-Übersicht":** Einnahmen (▲/▼ YoY) und Ausgaben (▲/▼ YoY). Gebühren in `var(--text-muted)`.
 - **Monatsvergleich → "Detailvergleich":** Fettgedruckte Labels, Werte in `var(--text-dim)`, Delta-Spalte mit ▲/▼-Pfeilen.
 
@@ -101,7 +102,7 @@ Ein Händler gilt als **Fixkosten**, wenn er (1) in mindestens 3 Monaten als Aus
 
 ### Vergleich-Tab entfernt
 
-Der eigenständige CSV-Vergleich-Tab wurde komplett entfernt (Button, Content-Div, TAB_LOADER-Eintrag). Die Monatsvergleich-Funktionalität deckt den Anwendungsfall ab. Der Feature-Code unter `features/compare/` existiert noch im Dateisystem, wird aber nicht mehr geladen.
+Der eigenständige CSV-Vergleich-Tab wurde komplett entfernt (Button, Content-Div, TAB_LOADER-Eintrag). Die Monatsvergleich-Funktionalität deckt den Anwendungsfall ab. Der Feature-Code wurde beim Redesign entfernt.
 
 ### Weitere UI-Verbesserungen
 
@@ -157,7 +158,7 @@ Banküberweisungen (Miete, Versicherung, Nebenkosten) kommen oft mit leerem `nam
 
 ## Testing
 
-- `npm test` — Vitest-Suite gegen `src/` (aktuell 221 Tests, 20 Test-Dateien). Das ist die einzige Regressionsabsicherung.
+- `npm test` — Vitest-Suite gegen `src/` (aktuell 216 Tests, 24 Test-Dateien). Das ist die einzige Regressionsabsicherung.
 - `npm run typecheck` — TypeScript-Check ohne Build (`tsc --noEmit`).
 - Fixtures unter `test/fixtures/` decken u.a. ab: Datumsfilter, Netto-Dividendenlogik (`amount + tax`), Korrekturbuchungen, BUY/SELL-Gebührenbehandlung, deutsche CSV-Spaltennamen mit Semikolon-Trennung.
 - Vor jedem Merge auf `main`: `npm run typecheck && npm test && npm run build` — der Workflow `.github/workflows/pages-vite.yml` führt genau das bei jedem Push auf `main` aus, bevor deployed wird.
@@ -182,8 +183,7 @@ CSV-Upload-Fehler sichtbar gemacht: Falls `parseCSV()`/`analyze()` eine Exceptio
 - **Wording:** "Wiederkehrende Ausgaben" statt "Abos/Abonnements" — bewusste Entscheidung
 - **CSV-Kompatibilität:** Trade Republic, Sparkasse, DKB und weitere (automatische Spalten-Erkennung über `findCol()`)
 - **`data/`-Verzeichnis:** Enthält monatliche CSV-Snapshots (Legacy) — nicht mehr aktiv genutzt
-- **`features/deepdive/`:** Selectors werden noch von `overview/` und `monthly/` importiert (`buildMonthlySnapshots`, `computeDetailTableRows`). Die View-Datei wird nicht mehr gemountet.
-- **`features/compare/`:** Code noch vorhanden, aber nicht mehr in TAB_LOADERS referenziert und kein Tab-Button mehr in `index.html`.
+- **Bekannte Schwäche (unverändert übernommen):** `analyze().subscriptions` erkennt „wiederkehrend“ an gleichem Namen + gerundetem Betrag in ≥ 2 Monaten. Bei vielen Kartenzahlungen entstehen Zufallstreffer (z. B. zweimal 45 € bei REWE) — die Summe „Wiederkehrende Ausgaben“ ist dann zu hoch. Die CV-basierte Fixkosten-Erkennung (`getFixedCostNames`) ist robuster.
 
 ## PR-Historie (chronologisch)
 
@@ -193,3 +193,4 @@ CSV-Upload-Fehler sichtbar gemacht: Falls `parseCSV()`/`analyze()` eine Exceptio
 | #34 | Post-Cutover-Fix: CSV-Upload-Fehler sichtbar machen |
 | #40 | Deep-Dive in Übersicht integriert, Emojis entfernt (gemerged) |
 | #46 | Tabellen vereinheitlicht, Detail-Tabelle nach Monate, Vergleich-Tab entfernt; Monatsvergleich-Detailsektionen + Zeitverlauf-Charts (Top-Händler, Fixkosten vs. Variable); Dividenden-Steuer seitenweit entfernt; CV-basierte Fixkosten-Erkennung + Empfänger-Extraktion aus Beschreibung (offen) |
+| — | Dark-Mode-Redesign: Tokens, App-Shell mit 6 Bereichen, globaler Zeitraum, Entdopplung, Aufräumen (Branch `claude/redesign-darkmode-3o1v8a`) |

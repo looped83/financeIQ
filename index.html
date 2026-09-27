@@ -2,211 +2,45 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FinanceIQ Dashboard</title>
-<style>
-:root{--bg:#080d18;--surface:#0f1829;--surface2:#162035;--surface3:#1c2a44;--border:#1e3050;--text:#f1f5f9;--text-muted:#8b9bb5;--text-dim:#b0bfd0;--accent:#3b82f6;--accent2:#8b5cf6;--income:#10b981;--expense:#ef4444;--invest:#3b82f6;--dividend:#8b5cf6;--warning:#f59e0b;--radius:12px;}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;overflow-x:hidden;}
-/* UPLOAD */
-#upload-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:radial-gradient(ellipse at 50% 0%,#0d1f3c 0%,var(--bg) 60%);}
-.upload-logo{font-size:2.5rem;font-weight:800;background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem;letter-spacing:-1px;}
-.upload-sub{color:var(--text-muted);font-size:1rem;margin-bottom:3rem;}
-.upload-zone{border:2px dashed var(--border);border-radius:20px;padding:4rem 5rem;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface);position:relative;max-width:560px;width:100%;}
-.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--surface2);transform:translateY(-2px);box-shadow:0 8px 40px rgba(59,130,246,.15);}
-.upload-icon{font-size:3.5rem;margin-bottom:1rem;}
-.upload-title{font-size:1.3rem;font-weight:600;margin-bottom:.5rem;}
-.upload-hint{color:var(--text-muted);font-size:.9rem;line-height:1.6;}
-.upload-hint span{color:var(--accent);font-weight:500;}
-#file-input{position:absolute;inset:0;opacity:0;cursor:pointer;}
-.upload-features{display:flex;gap:1.5rem;margin-top:2.5rem;flex-wrap:wrap;justify-content:center;}
-.upload-feat{display:flex;align-items:center;gap:.4rem;color:var(--text-muted);font-size:.85rem;}
-.upload-feat .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
-/* DASHBOARD */
-#dashboard{display:none;}
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);padding:0 1rem;gap:0;scrollbar-width:none;overflow-x:auto;}
-.topbar::-webkit-scrollbar{display:none;}
-.topbar-logo{font-size:1.1rem;font-weight:800;background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap;padding:.6rem .8rem .6rem 0;margin-right:.25rem;border-right:1px solid var(--border);}
-.topbar-reload{margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;padding:.3rem .7rem;color:var(--text-muted);font-size:.75rem;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0;}
-.topbar-reload:hover{color:var(--text);border-color:var(--accent);}
-/* TABS */
-.tab-btn{padding:.65rem 1rem;font-size:.85rem;font-weight:500;color:var(--text-muted);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;}
-.tab-btn:hover{color:var(--text);}
-.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
-.tab-content{display:none;padding:1.5rem;max-width:1400px;margin:0 auto;}
-.tab-content.active{display:block;}
-/* GRID */
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;}
-.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;}
-.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;}
-.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;}
-.g6{display:grid;grid-template-columns:repeat(6,1fr);gap:1rem;}
-@media(max-width:1100px){.g6{grid-template-columns:repeat(3,1fr);}.g5{grid-template-columns:repeat(3,1fr);}}
-@media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr);}.g3{grid-template-columns:1fr 1fr;}.g2{grid-template-columns:1fr;}}
-@media(max-width:600px){.g2,.g3,.g4,.g5,.g6{grid-template-columns:1fr;}}
-/* CARD */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem;min-width:0;}
-.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;}
-.card-title{font-size:.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
-/* KPI */
-.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.3rem;position:relative;overflow:hidden;min-width:0;}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
-.kpi.income::before{background:var(--income);}
-.kpi.expense::before{background:var(--expense);}
-.kpi.balance::before{background:linear-gradient(90deg,var(--income),var(--invest));}
-.kpi.invest::before{background:var(--invest);}
-.kpi.dividend::before{background:var(--dividend);}
-.kpi.warn::before{background:var(--warning);}
-.kpi.neutral::before{background:var(--text-muted);}
-.kpi-label{font-size:.72rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem;}
-.kpi-value{font-size:1.5rem;font-weight:800;letter-spacing:-1px;line-height:1;}
-.kpi-value.income{color:var(--income);}
-.kpi-value.expense{color:var(--expense);}
-.kpi-value.invest{color:var(--invest);}
-.kpi-value.dividend{color:var(--dividend);}
-.kpi-value.warn{color:var(--warning);}
-.kpi-sub{font-size:.72rem;color:var(--text-muted);margin-top:.3rem;}
-.kpi-trend{font-size:.72rem;margin-top:.2rem;font-weight:600;}
-.kpi-trend.up{color:var(--income);}
-.kpi-trend.down{color:var(--expense);}
-/* CHART */
-.chart-wrap{position:relative;width:100%;height:300px;}
-.chart-wrap.tall{height:400px;}
-.chart-wrap.short{height:210px;}
-.chart-wrap.xs{height:160px;}
-/* TABLE */
-.dt{width:100%;border-collapse:collapse;font-size:.81rem;}
-.dt th{text-align:left;padding:.55rem .8rem;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);font-weight:600;}
-.dt td{padding:.55rem .8rem;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text-dim);}
-.dt tr:last-child td{border-bottom:none;}
-.dt tr:hover td{background:var(--surface2);}
-.pos{color:var(--income);font-weight:600;}
-.neg{color:var(--expense);font-weight:600;}
-.neu{color:var(--invest);}
-/* BADGES */
-.badge{display:inline-flex;align-items:center;padding:.18rem .55rem;border-radius:20px;font-size:.7rem;font-weight:600;}
-.bg{background:rgba(16,185,129,.15);color:var(--income);}
-.br{background:rgba(239,68,68,.15);color:var(--expense);}
-.by{background:rgba(245,158,11,.15);color:var(--warning);}
-.bb{background:rgba(59,130,246,.15);color:var(--accent);}
-.bp{background:rgba(139,92,246,.15);color:var(--accent2);}
-/* INSIGHT ROWS */
-.insight{display:flex;align-items:flex-start;gap:.8rem;padding:.85rem;border-radius:8px;background:var(--surface2);margin-bottom:.6rem;}
-.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:.25rem;}
-.dot.green{background:var(--income);box-shadow:0 0 8px var(--income);}
-.dot.yellow{background:var(--warning);box-shadow:0 0 8px var(--warning);}
-.dot.red{background:var(--expense);box-shadow:0 0 8px var(--expense);}
-.dot.blue{background:var(--accent);box-shadow:0 0 6px var(--accent);}
-.ins-title{font-size:.84rem;font-weight:600;margin-bottom:.15rem;}
-.ins-desc{font-size:.77rem;color:var(--text-muted);line-height:1.55;}
-/* CONTROLS */
-.controls{display:flex;gap:.4rem;flex-wrap:wrap;}
-.cb{padding:.3rem .8rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-size:.76rem;cursor:pointer;transition:all .2s;}
-.cb:hover{border-color:var(--accent);color:var(--text);}
-.cb.active{background:var(--accent);border-color:var(--accent);color:#fff;}
-/* LEGEND */
-.leg{list-style:none;}
-.leg li{display:flex;align-items:center;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.8rem;}
-.leg li:last-child{border:none;}
-.leg-label{display:flex;align-items:center;gap:.5rem;}
-.leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
-/* PROGRESS */
-.pb-wrap{background:var(--surface3);border-radius:4px;height:5px;overflow:hidden;margin-top:.3rem;}
-.pb-fill{height:100%;border-radius:4px;transition:width .6s;}
-/* COMPARE */
-.compare-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;}
-.compare-title{font-size:1.2rem;font-weight:800;letter-spacing:-0.5px;}
-.cmp-kpi-row{display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.8rem;}
-.cmp-kpi-row:last-child{border:none;}
-.cmp-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:stretch;}
-.cmp-delta-rows{display:flex;flex-direction:column;gap:.3rem;}
-@media(max-width:640px){.cmp-grid{grid-template-columns:1fr;}.cmp-delta-rows{flex-direction:row;flex-wrap:wrap;justify-content:center;}.cmp-delta-rows .cmp-kpi-row{flex:1 1 auto;min-width:110px;border-bottom:none;}}
-/* UPLOAD2 */
-.upload2{border:2px dashed var(--border);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface2);position:relative;}
-.upload2:hover{border-color:var(--accent);background:var(--surface3);}
-/* FORM INPUTS */
-.tx-input{padding:.35rem .6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.78rem;font-family:inherit;outline:none;transition:border-color .2s;}
-.tx-input:focus{border-color:var(--accent);}
-.tx-input::placeholder{color:var(--text-muted);}
-.tx-select{appearance:none;-webkit-appearance:none;padding-right:1.6rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .5rem center;cursor:pointer;}
-.tx-select option{background:var(--surface);color:var(--text);}
-input[type="date"].tx-input{color-scheme:dark;}
-/* MISC */
-.gap{margin-top:1.2rem;}
-.row-best td{background:rgba(16,185,129,.07)!important;}
-.row-worst td{background:rgba(239,68,68,.07)!important;}
-.section-note{font-size:.78rem;color:var(--text-muted);margin-bottom:.8rem;padding:.5rem .8rem;background:var(--surface2);border-radius:6px;border-left:3px solid var(--accent);}
-::-webkit-scrollbar{width:5px;height:5px;}
-::-webkit-scrollbar-track{background:var(--bg);}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#131210">
+<meta name="color-scheme" content="dark">
+<title>FinanceIQ</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23f47a32'/%3E%3Cpath d='M9 22v-6M16 22V10M23 22v-10' stroke='%231a0f07' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E">
 </head>
 <body>
 
-<!-- UPLOAD -->
-<div id="upload-screen">
-  <div class="upload-logo">FinanceIQ</div>
-  <div class="upload-sub">CSV Analytics Dashboard — Finanzdaten-Analyse</div>
-  <div class="upload-zone" id="upload-zone">
-    <input type="file" id="file-input" accept=".csv">
-    <div class="upload-icon">📊</div>
-    <div class="upload-title">CSV-Datei hochladen</div>
-    <div class="upload-hint">Datei hier ablegen oder <span>klicken zum Auswählen</span><br>Trade Republic, Sparkasse, DKB & mehr</div>
-  </div>
-  <div class="upload-features">
-    <div class="upload-feat"><div class="dot green"></div>10 Analyse-Tabs</div>
-    <div class="upload-feat"><div class="dot green"></div>Jahres- &amp; Monatsvergleich</div>
-    <div class="upload-feat"><div class="dot green"></div>Prognose &amp; KI-Insights</div>
-    <div class="upload-feat"><div class="dot green"></div>Monatsvergleich mit Deltas</div>
+<!-- Upload: plain markup so it paints before any script (no chart code is loaded here) -->
+<div id="upload-screen" class="upload">
+  <div class="upload-inner">
+    <div class="brand">
+      <span class="brand-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 17v-5M12 17V7M18 17v-8"/></svg></span>
+      FinanceIQ
+    </div>
+    <p class="upload-lead">Deine Finanzen auf einen Blick – lade den CSV-Export deiner Bank oder deines Brokers.</p>
+    <label class="dropzone" id="upload-zone">
+      <input type="file" id="file-input" accept=".csv,text/csv">
+      <span class="dropzone-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></span>
+      <span class="dropzone-title">CSV-Datei hochladen</span>
+      <span class="dropzone-hint">Datei hier ablegen oder <strong>auswählen</strong></span>
+      <span class="dropzone-hint">Trade Republic, Sparkasse, DKB &amp; mehr</span>
+    </label>
+    <ul class="upload-facts">
+      <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Bleibt auf deinem Gerät</li>
+      <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Cashflow, Ausgaben &amp; Dividenden</li>
+      <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Prognose &amp; Vergleiche</li>
+    </ul>
   </div>
 </div>
 
-<!-- DASHBOARD -->
-<div id="dashboard">
-  <div class="topbar">
-    <div class="topbar-logo">FinanceIQ</div>
-    <button class="tab-btn active">Übersicht</button>
-    <button class="tab-btn">Zeitverlauf</button>
-    <button class="tab-btn">Jahre</button>
-    <button class="tab-btn">Monate</button>
-    <button class="tab-btn">Monatsvergleich</button>
-    <button class="tab-btn">Kategorien</button>
-    <button class="tab-btn">Ausreißer</button>
-    <button class="tab-btn">Prognose</button>
-    <button class="tab-btn">Empfehlungen</button>
-    <button class="tab-btn">Transaktionen</button>
-    <div class="topbar-reload" id="reset-btn">⟳ Neue Datei</div>
+<div id="app" class="app" hidden>
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="page-header" id="page-header"></header>
+    <main id="pages"></main>
   </div>
-
-  <!-- TAB 0: ÜBERSICHT -->
-  <div class="tab-content active" id="tab-0"></div>
-
-  <!-- TAB 1: ZEITVERLAUF -->
-  <div class="tab-content" id="tab-1"></div>
-
-  <!-- TAB 2: JAHRES-BREAKDOWN -->
-  <div class="tab-content" id="tab-2"></div>
-
-  <!-- TAB 3: MONATS-BREAKDOWN -->
-  <div class="tab-content" id="tab-3"></div>
-
-  <!-- TAB 4: MONATSVERGLEICH -->
-  <div class="tab-content" id="tab-4"></div>
-
-  <!-- TAB 5: KATEGORIEN -->
-  <div class="tab-content" id="tab-5"></div>
-
-  <!-- TAB 6: AUSREISSER -->
-  <div class="tab-content" id="tab-6"></div>
-
-  <!-- TAB 7: PROGNOSE -->
-  <div class="tab-content" id="tab-7"></div>
-
-  <!-- TAB 8: EMPFEHLUNGEN -->
-  <div class="tab-content" id="tab-8"></div>
-
-  <!-- TAB 9: TRANSAKTIONEN -->
-  <div class="tab-content" id="tab-9"></div>
+  <nav class="bottom-nav" id="bottom-nav" aria-label="Hauptnavigation"></nav>
+  <div id="sheet"></div>
 </div>
 
 <script type="module" src="/src/main.ts"></script>
