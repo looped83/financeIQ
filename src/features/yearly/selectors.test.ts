@@ -60,7 +60,7 @@ describe('multi-year comparison view', () => {
   it('computes year-over-year income change for every year after the first', () => {
     const cards = getYearlyKpiCards(a);
     expect(cards[0]?.yoyIncomeChange).toBeNull(); // no prior year to compare 2024 against
-    expect(cards[1]?.yoyIncomeChange).toBe('+50.0%'); // 3000 vs 2000
+    expect(cards[1]?.yoyIncomeChange).toBe('+50,0 %'); // 3000 vs 2000
     expect(cards[1]?.yoyIncomeUp).toBe(true);
   });
 

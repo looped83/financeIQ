@@ -1,27 +1,29 @@
-import { typeLabel } from '../../domain/format';
+import { monthName, typeLabel } from '../../domain/format';
 import type { EnrichedRow } from '../../domain/types';
-import type { TransactionFilters, TransactionSort } from '../../state/appState';
-
-/** Distinct years present in the data, ascending — used to populate the year filter. */
-export function getAvailableYears(rows: EnrichedRow[]): string[] {
-  return [...new Set(rows.map((r) => r._year).filter(Boolean))].sort();
-}
+import type { TransactionFilters, TransactionKind, TransactionSort } from '../../state/appState';
 
 /** Distinct display categories (typeLabel'd) present in the data, alphabetical. */
 export function getAvailableCategories(rows: EnrichedRow[]): string[] {
   return [...new Set(rows.map((r) => typeLabel(r._type)).filter(Boolean))].sort();
 }
 
+/** In/out mean cash movements; trades (buy/sell) are their own kind. */
+export function matchesKind(r: EnrichedRow, kind: TransactionKind): boolean {
+  const trade = r._isBuy || r._isSell;
+  switch (kind) {
+    case 'all': return true;
+    case 'in': return !trade && r._amt > 0;
+    case 'out': return !trade && r._amt < 0;
+    case 'invest': return trade;
+    case 'div': return r._isDiv;
+  }
+}
+
 export function filterTransactions(rows: EnrichedRow[], filters: TransactionFilters): EnrichedRow[] {
   const search = filters.search.toLowerCase().trim();
-  const fromDate = filters.from ? new Date(filters.from) : null;
-  const toDate = filters.to ? new Date(filters.to + 'T23:59:59') : null;
 
   return rows.filter((r) => {
-    if (filters.year && r._year !== filters.year) return false;
-    if (filters.month && r._month.split('-')[1] !== filters.month) return false;
-    if (fromDate && r._date < fromDate) return false;
-    if (toDate && r._date > toDate) return false;
+    if (!matchesKind(r, filters.kind)) return false;
     if (filters.category && typeLabel(r._type) !== filters.category) return false;
     if (search) {
       const haystack = [r._name, r._desc, r._type, typeLabel(r._type), r._cat, r._asset]
@@ -47,25 +49,51 @@ export function sortTransactions(rows: EnrichedRow[], sort: TransactionSort): En
   }
 }
 
-export interface TransactionKpis {
-  income: number;
-  expense: number;
-  invested: number;
-  dividend: number;
+/** Everything that came in vs. went out (trades included) — the list's summary line. */
+export function sumInOut(rows: EnrichedRow[]): { inflow: number; outflow: number } {
+  let inflow = 0, outflow = 0;
+  for (const r of rows) {
+    if (r._amt > 0) inflow += r._amt;
+    else outflow += r._amt;
+  }
+  return { inflow, outflow };
 }
 
-/** Same income/expense/invested/dividend split analyze() uses, recomputed for a filtered subset. */
-export function computeTransactionKpis(rows: EnrichedRow[]): TransactionKpis {
-  let income = 0, expense = 0, invested = 0, dividend = 0;
-  for (const r of rows) {
-    if (r._isBuy) invested += Math.abs(r._amt);
-    else if (!r._isSell) {
-      if (r._amt > 0) income += r._amt;
-      else expense += r._amt;
-    }
-    if (r._isDiv) dividend += r._amt;
+const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+
+/** Dates are parsed as UTC midnight, so the UTC parts are the booking's calendar day. */
+function dayKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** "Fr, 26. Sep 2026" */
+export function dayLabel(d: Date): string {
+  return `${WEEKDAYS[d.getUTCDay()]}, ${d.getUTCDate()}. ${monthName(String(d.getUTCMonth() + 1))} ${d.getUTCFullYear()}`;
+}
+
+export interface DayGroup {
+  key: string;
+  label: string;
+  /** Sum over ALL `filtered` rows of that day — a day split across pages still shows its full total. */
+  sum: number;
+  rows: EnrichedRow[];
+}
+
+/** Groups a (date-sorted) page into consecutive day blocks. */
+export function groupByDay(pageRows: EnrichedRow[], filtered: EnrichedRow[]): DayGroup[] {
+  const sums = new Map<string, number>();
+  for (const r of filtered) {
+    const k = dayKey(r._date);
+    sums.set(k, (sums.get(k) ?? 0) + r._amt);
   }
-  return { income, expense, invested, dividend };
+  const groups: DayGroup[] = [];
+  for (const r of pageRows) {
+    const k = dayKey(r._date);
+    const last = groups[groups.length - 1];
+    if (last?.key === k) last.rows.push(r);
+    else groups.push({ key: k, label: dayLabel(r._date), sum: sums.get(k) ?? 0, rows: [r] });
+  }
+  return groups;
 }
 
 export interface PageResult<T> {

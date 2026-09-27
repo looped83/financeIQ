@@ -8,7 +8,6 @@ import {
   computeMonthKpis,
   getMonthCategoryComparison,
   getMonthDeltaTableRows,
-  getMonthMetricBarData,
   getMonthMetricTimelineData,
 } from './selectors';
 
@@ -41,17 +40,6 @@ describe('computeMonthKpis', () => {
     const sr = kpis.find((k) => k.label === 'Sparquote')!;
     expect(sr.vA).toBe(mA.savingsRate);
     expect(sr.vB).toBe(mB.savingsRate);
-  });
-});
-
-describe('getMonthMetricBarData', () => {
-  it('returns 5 metric labels with values from both months', () => {
-    const data = getMonthMetricBarData(mA, mB, 'Feb', 'Mär');
-    expect(data.labels).toEqual(['Einnahmen', 'Ausgaben', 'Netto', 'Investiert', 'Dividenden']);
-    expect(data.valuesA).toHaveLength(5);
-    expect(data.valuesB).toHaveLength(5);
-    expect(data.valuesA[0]).toBe(mA.income);
-    expect(data.valuesA[1]).toBe(Math.abs(mA.expense));
   });
 });
 

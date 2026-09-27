@@ -1,4 +1,4 @@
-import { fmt, fmtPP, mLabel } from '../../domain/format';
+import { fmt, fmtP, fmtPP, mLabel } from '../../domain/format';
 import type { Analysis, MonthAgg } from '../../domain/types';
 import type { MonthCompareMetric } from '../../state/appState';
 import { getFixedCostNames } from '../shared/commonSelectors';
@@ -20,24 +20,6 @@ export function computeMonthKpis(a: MonthAgg, b: MonthAgg): MonthKpi[] {
   ];
 }
 
-export interface MonthMetricBarData {
-  labels: string[];
-  valuesA: number[];
-  valuesB: number[];
-}
-
-export function getMonthMetricBarData(a: MonthAgg, b: MonthAgg, labelA: string, labelB: string): MonthMetricBarData {
-  const metrics = ['Einnahmen', 'Ausgaben', 'Netto', 'Investiert', 'Dividenden'];
-  const pick = (m: MonthAgg): number[] => [
-    m.income,
-    Math.abs(m.expense),
-    m.net,
-    m.invested,
-    m.dividend,
-  ];
-  return { labels: metrics, valuesA: pick(a), valuesB: pick(b) };
-}
-
 export interface MonthCategoryDelta {
   labels: string[];
   deltasA: number[];
@@ -50,7 +32,7 @@ export function getMonthCategoryComparison(analysis: Analysis, monthA: string, m
 
   for (const row of analysis.enriched) {
     if (row._amt >= 0) continue;
-    if (row._isDiv || row._isInterest) continue;
+    if (row._isDiv || row._isInterest || row._isBuy || row._isSell) continue;
     const cat = row._cat || 'Sonstiges';
     if (row._month === monthA) catA[cat] = (catA[cat] ?? 0) + Math.abs(row._amt);
     if (row._month === monthB) catB[cat] = (catB[cat] ?? 0) + Math.abs(row._amt);
@@ -113,7 +95,7 @@ export function computeMonthInsights(
     ins.push({
       color: srDelta >= 0 ? 'green' : 'yellow',
       title: `Sparquote ${srDelta >= 0 ? 'verbessert' : 'gesunken'}`,
-      desc: `${labelB}: ${b.savingsRate.toFixed(1)}% vs. ${labelA}: ${a.savingsRate.toFixed(1)}% — ${srDelta >= 0 ? '+' : ''}${srDelta.toFixed(1)} Prozentpunkte.`,
+      desc: `${labelB}: ${fmtP(b.savingsRate)} vs. ${labelA}: ${fmtP(a.savingsRate)} — ${fmtPP(srDelta).replace(' %', '')} Prozentpunkte.`,
     });
   }
 
@@ -133,7 +115,7 @@ export function computeMonthInsights(
     ins.push({
       color: 'blue',
       title: `${txB} Transaktionen in ${labelB}`,
-      desc: `${labelA} hatte ${txA} Transaktionen — ${txChg >= 0 ? '+' : ''}${txChg.toFixed(0)}% Veränderung.`,
+      desc: `${labelA} hatte ${txA} Transaktionen — ${fmtPP(txChg)} Veränderung.`,
     });
   }
 
@@ -158,9 +140,9 @@ export function getMonthDeltaTableRows(a: MonthAgg, b: MonthAgg, analysis: Analy
     const p = isRate ? d : (k.vA ? (d / Math.abs(k.vA)) * 100 : 0);
     return {
       label: k.label,
-      vA: isRate ? `${k.vA.toFixed(1)}%` : fmt(k.vA),
-      vB: isRate ? `${k.vB.toFixed(1)}%` : fmt(k.vB),
-      delta: isRate ? `${d >= 0 ? '+' : ''}${d.toFixed(1)} PP` : `${d >= 0 ? '+' : ''}${fmt(d)}`,
+      vA: isRate ? fmtP(k.vA) : fmt(k.vA),
+      vB: isRate ? fmtP(k.vB) : fmt(k.vB),
+      delta: isRate ? fmtPP(d).replace(' %', ' Pp.') : `${d >= 0 ? '+' : ''}${fmt(d)}`,
       deltaPositive: d >= 0,
       deltaPct: isRate ? '—' : fmtPP(p),
       deltaPctPositive: p >= 0,

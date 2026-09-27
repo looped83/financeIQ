@@ -11,7 +11,6 @@ function fixture(name: string) {
 }
 
 const analysisA = analyze(parseCSV(fixture('dividends-and-corrections.csv')));
-const analysisB = analyze(parseCSV(fixture('german-bank-semicolon.csv')));
 
 describe('appStore', () => {
   it('starts in the documented initial state', () => {
@@ -43,55 +42,64 @@ describe('appStore', () => {
     expect(store.getState()).toEqual(initialAppState());
   });
 
-  it('setTimelineView / setForecastMonths / setDeepDiveMonth update only their own field', () => {
+  it('setTimelineView / setForecastMonths update only their own field', () => {
     const { store, actions } = createAppStore();
     actions.setTimelineView('monthly');
     actions.setForecastMonths(6);
-    actions.setDeepDiveMonth('2024-03');
 
     const state = store.getState();
     expect(state.timelineView).toBe('monthly');
     expect(state.forecastMonths).toBe(6);
-    expect(state.deepDiveSelectedMonth).toBe('2024-03');
   });
 
-  it('loadCompareFile sets the compare analysis/fileName but leaves metric untouched', () => {
+  it('loadFile starts on the whole history: analysis is fullAnalysis', () => {
     const { store, actions } = createAppStore();
-    actions.setCompareMetric('expense');
-
-    actions.loadCompareFile(analysisB, 'vorjahr.csv');
-
-    const state = store.getState();
-    expect(state.compare.analysis).toBe(analysisB);
-    expect(state.compare.fileName).toBe('vorjahr.csv');
-    expect(state.compare.metric).toBe('expense'); // unchanged — matches index.html today
+    actions.loadFile(analysisA, 'export.csv');
+    expect(store.getState().fullAnalysis).toBe(analysisA);
+    expect(store.getState().period).toBeNull();
   });
 
-  it('resetCompare clears the compare analysis/fileName but still leaves metric untouched', () => {
+  it('setPeriod narrows analysis to the period and keeps fullAnalysis intact', () => {
     const { store, actions } = createAppStore();
-    actions.setCompareMetric('net');
-    actions.loadCompareFile(analysisB, 'vorjahr.csv');
+    actions.loadFile(analysisA, 'export.csv');
+    actions.setTransactionPage(2);
 
-    actions.resetCompare();
+    actions.setPeriod({ from: '2024-03', to: '2024-03' });
 
     const state = store.getState();
-    expect(state.compare.analysis).toBeNull();
-    expect(state.compare.fileName).toBe('');
-    expect(state.compare.metric).toBe('net');
+    expect(state.fullAnalysis).toBe(analysisA);
+    expect(state.analysis!.mKeys).toEqual(['2024-03']);
+    expect(state.analysis!.enriched.every((r) => r._month === '2024-03')).toBe(true);
+    expect(state.transactions.page).toBe(0);
+
+    actions.setPeriod(null);
+    expect(store.getState().analysis).toBe(analysisA);
+  });
+
+  it('setPeriod is a no-op without data or for the same period', () => {
+    const { store, actions } = createAppStore();
+    actions.setPeriod({ from: '2024-03', to: '2024-03' });
+    expect(store.getState().period).toBeNull();
+
+    actions.loadFile(analysisA, 'export.csv');
+    actions.setPeriod({ from: '2024-03', to: '2024-03' });
+    const narrowed = store.getState().analysis;
+    actions.setPeriod({ from: '2024-03', to: '2024-03' });
+    expect(store.getState().analysis).toBe(narrowed);
   });
 
   it('setTransactionFilters merges the patch and resets pagination to page 0', () => {
     const { store, actions } = createAppStore();
     actions.setTransactionPage(3);
 
-    actions.setTransactionFilters({ year: '2024' });
-    expect(store.getState().transactions.filters.year).toBe('2024');
+    actions.setTransactionFilters({ kind: 'out' });
+    expect(store.getState().transactions.filters.kind).toBe('out');
     expect(store.getState().transactions.page).toBe(0);
 
     actions.setTransactionPage(2);
     actions.setTransactionFilters({ category: 'Kartenzahlungen' });
     const filters = store.getState().transactions.filters;
-    expect(filters.year).toBe('2024'); // previous patch preserved
+    expect(filters.kind).toBe('out'); // previous patch preserved
     expect(filters.category).toBe('Kartenzahlungen');
     expect(store.getState().transactions.page).toBe(0);
   });
@@ -118,14 +126,14 @@ describe('appStore', () => {
 
   it('resetTransactionFilters clears filters, sort, and page together', () => {
     const { store, actions } = createAppStore();
-    actions.setTransactionFilters({ search: 'x', year: '2024' });
+    actions.setTransactionFilters({ search: 'x', kind: 'div' });
     actions.setTransactionSort('amount-asc');
     actions.setTransactionPage(5);
 
     actions.resetTransactionFilters();
 
     expect(store.getState().transactions).toEqual({
-      filters: { year: '', month: '', from: '', to: '', category: '', search: '' },
+      filters: { kind: 'all', category: '', search: '' },
       sort: 'date-desc',
       page: 0,
     });

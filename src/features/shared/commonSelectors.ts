@@ -1,5 +1,6 @@
-import { fmt } from '../../domain/format';
+import { fmt, typeLabel } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
+import { foldToSeries } from '../../theme/palette';
 
 export interface MerchantRow {
   name: string;
@@ -8,7 +9,7 @@ export interface MerchantRow {
   total: string;
 }
 
-/** Top card-payment merchants by total spend. Used by both Übersicht and Kategorien. */
+/** Top card-payment merchants by total spend (Ausgaben). */
 export function getTopMerchants(a: Analysis, limit = 10): MerchantRow[] {
   return Object.entries(a.merchants)
     .sort((x, y) => y[1].total - x[1].total)
@@ -65,7 +66,7 @@ export interface RecurringExpensesSummary {
   totalPerYear: string;
 }
 
-/** Recurring same-name/same-amount expenses across 2+ months. Used by Übersicht and Ausreißer. */
+/** Recurring same-name/same-amount expenses across 2+ months (Übersicht summary, Ausgaben list). */
 export function getRecurringExpenses(a: Analysis, limit = 8): RecurringExpensesSummary {
   const totalPerMonth = a.subscriptions.reduce((s, x) => s + x.amt, 0);
   return {
@@ -78,4 +79,26 @@ export function getRecurringExpenses(a: Analysis, limit = 8): RecurringExpensesS
     totalPerMonth: fmt(totalPerMonth),
     totalPerYear: fmt(totalPerMonth * 12),
   };
+}
+
+export interface SpendBreakdown {
+  /** Largest first, folded to the series palette plus a trailing "Sonstige". */
+  entries: [string, number][];
+  total: number;
+}
+
+/**
+ * Where the money went, by payee or by transaction type. Dividend/interest
+ * corrections are excluded, like in `expCat`. A payee without a name falls
+ * back to its type label so nameless card payments don't vanish.
+ */
+export function getSpendBreakdown(a: Analysis, by: 'payee' | 'type'): SpendBreakdown {
+  const totals = new Map<string, number>();
+  for (const r of a.exp) {
+    if (r._isDiv || r._isInterest) continue;
+    const key = by === 'payee' ? r._name || typeLabel(r._type) : typeLabel(r._type);
+    totals.set(key, (totals.get(key) ?? 0) + Math.abs(r._amt));
+  }
+  const entries = foldToSeries([...totals]);
+  return { entries, total: entries.reduce((s, [, v]) => s + v, 0) };
 }

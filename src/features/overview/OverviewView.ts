@@ -1,368 +1,186 @@
-import { html, render, type TemplateResult } from 'lit-html';
-import { unsafeHTML } from 'lit-html/directives/unsafe-html.js';
-import type { ChartConfiguration } from 'chart.js';
-import { BASE, darkAxes, xScale, yScale } from '../../charts/chartTheme';
+import { html, nothing, type TemplateResult } from 'lit-html';
 import { mountChart } from '../../charts/chartManager';
-import { fmt, mLabel, PAL } from '../../domain/format';
+import { axes, INDEX_TOOLTIP } from '../../charts/chartTheme';
+import { fmt, fmtP } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
-import { subscribeSelected, type Store } from '../../state/store';
-import {
-  computeAlerts,
-  computeFinancialRatios,
-  computeOverviewRates,
-  getAllMonthsTrendData,
-  getIncomeSources,
-  getLast6MonthsChartData,
-  getOverviewKpis,
-  getRecurringExpenses,
-  getTopExpenseCategoriesData,
-  getTopMerchants,
-  getVolumeByTypeChartData,
-  type KpiCard,
-} from './selectors';
-import {
-  buildMonthlySnapshots,
-  computeBestWorstMonths,
-  computeDeepDiveChartsData,
-  computeTrends,
-} from '../deepdive/selectors';
+import type { Store, Unsubscribe } from '../../state/store';
+import { COLORS, seriesColor } from '../../theme/palette';
+import { barList, card, chartBox, getCanvas, insight, kpiGrid, segmented, statusIcon } from '../../ui/components';
+import { hasData, mountPage, noData } from '../../ui/page';
+import { href } from '../../shell/routes';
+import { computeRecommendations } from '../recommendations/selectors';
+import { getRecurringExpenses, getSpendBreakdown } from '../shared/commonSelectors';
+import { buildMonthlySnapshots, computeTrends } from '../shared/monthlySnapshots';
+import { getCumulativeIncExpChartData, getMonthlyIncomeExpenseData } from '../timeline/selectors';
+import { computeAlerts, computeFinancialRatios, computeOverviewRates, getOverviewKpis } from './selectors';
 
-export function mountOverviewView(container: HTMLElement, store: Store<AppState>): () => void {
-  return subscribeSelected(store, (s) => [s.analysis], (state) => {
-    render(view(state.analysis), container);
-    if (state.analysis) mountCharts(container, state.analysis);
+type TrendMode = 'monthly' | 'cumulative';
+type SpendBy = 'payee' | 'type';
+type HintTab = 'hints' | 'recs';
+
+/** Page-local view state — not worth a store slice, lost on reload by design. */
+const ui = { trend: 'monthly' as TrendMode, spendBy: 'payee' as SpendBy, hints: 'hints' as HintTab, allHints: false };
+const HINTS_SHOWN = 4;
+
+export function mountOverviewView(container: HTMLElement, store: Store<AppState>): Unsubscribe {
+  return mountPage(container, store, (s) => [s.analysis], (state, redraw) => {
+    const a = state.analysis;
+    if (!hasData(a)) return { view: noData() };
+    const set = <K extends keyof typeof ui>(k: K, v: (typeof ui)[K]) => {
+      ui[k] = v;
+      if (k === 'hints') ui.allHints = false;
+      redraw();
+    };
+    const spend = getSpendBreakdown(a, ui.spendBy);
+    return { view: view(a, spend, set), charts: () => charts(container, a, spend) };
   });
 }
 
-function view(a: Analysis | null): TemplateResult {
-  if (!a) return html`<p style="color:var(--text-muted)">Keine Daten geladen.</p>`;
-
+function view(
+  a: Analysis,
+  spend: ReturnType<typeof getSpendBreakdown>,
+  set: <K extends keyof typeof ui>(k: K, v: (typeof ui)[K]) => void,
+): TemplateResult {
   const rates = computeOverviewRates(a);
-  const kpis = getOverviewKpis(a, rates);
-  const ratios = computeFinancialRatios(a, rates);
-  const merchants = getTopMerchants(a, 10);
-  const incomeSources = getIncomeSources(a);
-  const recurring = getRecurringExpenses(a, 8);
-  const alerts = computeAlerts(a, rates);
-
-  const snapshots = buildMonthlySnapshots(a);
-  const hasSnapshots = snapshots.length >= 2;
-  const trends = hasSnapshots ? computeTrends(snapshots) : [];
-  const { best, worst } = hasSnapshots ? computeBestWorstMonths(snapshots) : { best: [], worst: [] };
+  const recurring = getRecurringExpenses(a, 6);
 
   return html`
-    <div class="g6" style="margin-bottom:1.2rem;">${kpis.map(kpiCard)}</div>
+    ${kpiGrid(getOverviewKpis(a, rates))}
 
-    <div class="g2" style="margin-bottom:1.2rem;">
-      ${chartCard('Letzte 6 Monate — Einnahmen vs. Ausgaben', 'ov-bar')}
-      ${chartCard('Volumen nach Transaktionstyp', 'ov-donut')}
-    </div>
-    <div class="g2" style="margin-bottom:1.2rem;">
-      ${hasSnapshots ? html`
-        <div class="card">
-          <div class="card-header"><span class="card-title">Netto-Cashflow & Sparquote</span></div>
-          <div class="chart-wrap tall"><canvas data-chart="ov-dd-net"></canvas></div>
-        </div>
-      ` : chartCard('Netto-Cashflow & Sparquote', 'ov-dd-net')}
-      <div class="card">
-        <div class="card-header"><span class="card-title">Top-5 Ausgabenkategorien</span></div>
-        <div class="chart-wrap tall"><canvas data-chart="ov-catbar"></canvas></div>
-      </div>
-    </div>
+    <div class="grid">
+      ${card({
+        title: 'Einnahmen vs. Ausgaben',
+        sub: `Ø Netto ${a.avgNet >= 0 ? '+' : ''}${fmt(a.avgNet)} pro Monat`,
+        actions: segmented('Darstellung', [
+          { value: 'monthly', label: 'Monatlich' },
+          { value: 'cumulative', label: 'Kumuliert' },
+        ], ui.trend, (v) => set('trend', v)),
+      }, chartBox('ov-trend', 'Einnahmen und Ausgaben je Monat'))}
 
-    <div class="g2" style="margin-bottom:1.2rem;">
-      ${hasSnapshots ? html`
-        <div class="card">
-          <div class="card-header"><span class="card-title">Kumulierter Netto-Cashflow</span></div>
-          <div class="chart-wrap"><canvas data-chart="ov-dd-cumnet"></canvas></div>
-        </div>
-      ` : ''}
-      <div class="card">
-        <div class="card-header"><span class="card-title">Einnahmen vs. Ausgaben — Gesamttrend</span></div>
-        <div class="chart-wrap"><canvas data-chart="ov-trend"></canvas></div>
-      </div>
-    </div>
-
-    ${hasSnapshots ? html`
-      <div class="card" style="margin-bottom:1.2rem;">
-        <div class="card-header"><span class="card-title">Ausgaben nach Kategorie im Zeitverlauf</span></div>
-        <div class="chart-wrap"><canvas data-chart="ov-dd-catstack"></canvas></div>
-      </div>
-    ` : ''}
-
-    <div class="g2" style="margin-bottom:1.2rem;">
-      <div class="card">
-        <div class="card-header"><span class="card-title">Finanz-Kennzahlen</span></div>
-        <div>${ratios.map((r) => html`
-          <div style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
-            <span style="color:var(--text-muted)">${r.label}</span>
-            <strong style="color:${r.good ? 'var(--income)' : 'var(--text-dim)'}">${r.value}</strong>
+      ${card({
+        title: 'Wohin das Geld geht',
+        sub: ui.spendBy === 'payee' ? 'Größte Empfänger' : 'Nach Buchungstyp',
+        actions: segmented('Gruppierung', [
+          { value: 'payee', label: 'Empfänger' },
+          { value: 'type', label: 'Typ' },
+        ], ui.spendBy, (v) => set('spendBy', v)),
+      }, html`
+        <div class="donut-wrap">
+          <div class="donut">
+            <canvas data-chart="ov-donut" role="img" aria-label="Ringdiagramm der Ausgaben"></canvas>
+            <div class="donut-center"><span>Gesamt</span><strong>${fmt(spend.total, 0)}</strong></div>
           </div>
-        `)}</div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Top-Händler / Empfänger</span></div>
-        <div style="overflow-x:auto">
-          <table class="dt">
-            <thead><tr><th>Händler</th><th>Zahlungen</th><th>Gesamt</th></tr></thead>
-            <tbody>${merchants.map((m) => html`
-              <tr><td>${m.name}</td><td>${m.count}×</td><td class="neg">${m.total}</td></tr>
-            `)}</tbody>
-          </table>
+          ${barList(spend.entries.map(([label, v], i) => ({
+            label, value: fmt(v), share: fmtP(spend.total ? (v / spend.total) * 100 : 0), color: seriesColor(i),
+          })))}
         </div>
-      </div>
+      `)}
     </div>
 
-    <div class="g2" style="margin-bottom:1.2rem;">
-      <div class="card">
-        <div class="card-header"><span class="card-title">Einnahmenquellen</span></div>
-        <div>
-          ${incomeSources.length === 0
-            ? html`<div style="padding:.5rem;color:var(--text-muted);font-size:.82rem;">Keine Einnahmen erkannt.</div>`
-            : incomeSources.map((s) => html`
-                <div style="display:grid;grid-template-columns:minmax(0,1fr) 56px auto 42px;align-items:center;gap:.7rem;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
-                  <div style="min-width:0;"><span style="color:var(--text)">${s.label}</span> <span style="color:var(--text-muted);font-size:.72rem;">(${s.count}×)</span></div>
-                  <div style="background:var(--surface3);border-radius:3px;height:4px;overflow:hidden;">
-                    <div style="width:${s.pct}%;height:100%;background:var(--income);border-radius:3px;"></div>
-                  </div>
-                  <strong class="pos" style="text-align:right;white-space:nowrap;">${s.total}</strong>
-                  <span style="color:var(--text-muted);text-align:right;white-space:nowrap;">${s.pctLabel}</span>
-                </div>
+    <div class="grid grid--3">
+      ${card({ title: 'Finanz-Kennzahlen' }, html`
+        <ul class="rows">
+          ${computeFinancialRatios(a, rates).map((r) => html`
+            <li>
+              <span class="row-label">${r.label}</span>
+              <span class="row-value">${r.good === null ? nothing : statusIcon(r.good ? 'good' : 'warn')}${r.value}</span>
+            </li>
+          `)}
+        </ul>
+      `)}
+
+      ${card({ title: 'Wiederkehrende Ausgaben', actions: html`<a class="more" href=${href('ausgaben')}>Alle</a>` },
+        recurring.rows.length === 0
+          ? html`<p class="muted">Keine wiederkehrenden Zahlungen erkannt.</p>`
+          : html`
+            <ul class="rows">
+              ${recurring.rows.map((r) => html`
+                <li>
+                  <div class="row-main"><div class="row-title">${r.name}</div><div class="row-sub">in ${r.monthCount} Monaten</div></div>
+                  <span class="row-value">${r.perMonth}<small>/ Monat</small></span>
+                </li>
               `)}
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Wiederkehrende Ausgaben</span></div>
-        <div>
-          ${recurring.rows.length === 0
-            ? html`<div style="padding:.5rem;color:var(--text-muted);font-size:.82rem;">Keine wiederkehrenden Zahlungen erkannt.</div>`
-            : html`
-                ${recurring.rows.map((s) => html`
-                  <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
-                    <div style="flex:1;min-width:0;"><span style="color:var(--text)">${s.name}</span> <span style="color:var(--text-muted);font-size:.72rem;">(${s.monthCount} Monate)</span></div>
-                    <div style="display:flex;align-items:center;gap:.6rem;flex-shrink:0;white-space:nowrap;">
-                      <span class="neg">${s.perMonth}/Mo</span>
-                      <span style="color:var(--text-muted);font-size:.72rem;">≈ ${s.perYear}/Jahr</span>
-                    </div>
-                  </div>
-                `)}
-                <div style="padding:.5rem 0;font-size:.78rem;color:var(--text-muted);border-top:1px solid rgba(255,255,255,.08);margin-top:.3rem;">
-                  Gesamt: <strong style="color:var(--expense)">${recurring.totalPerMonth}/Mo</strong>
-                  (≈ ${recurring.totalPerYear}/Jahr)
-                </div>
-              `}
-        </div>
-      </div>
-    </div>
+            </ul>
+            <div class="card-foot"><span>Gesamt</span><span class="num"><strong>${recurring.totalPerMonth}</strong> / Monat · ≈ ${recurring.totalPerYear} / Jahr</span></div>
+          `)}
 
-    ${hasSnapshots ? html`
-      <div class="g2" style="margin-bottom:1.2rem;">
-        <div class="card">
-          <div class="card-header"><span class="card-title">Beste Monate</span></div>
-          <div>
-            ${best.map((m, i) => html`
-              <div class="insight"><div class="dot green"></div><div style="flex:1">
-                <div class="ins-title" style="display:flex;align-items:center;gap:.5rem">#${i + 1} ${mLabel(m.month)}
-                  <span class="badge bg">Netto: ${m.net}</span></div>
-                <div class="ins-desc">Einnahmen: ${m.income} | Ausgaben: ${m.expense} | Sparquote: ${m.savingsRate}</div>
-              </div></div>
-            `)}
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title">Schwächste Monate</span></div>
-          <div>
-            ${worst.map((m, i) => html`
-              <div class="insight"><div class="dot ${m.netValue < 0 ? 'red' : 'yellow'}"></div><div style="flex:1">
-                <div class="ins-title" style="display:flex;align-items:center;gap:.5rem">#${i + 1} ${mLabel(m.month)}
-                  <span class="badge ${m.netValue < 0 ? 'br' : 'by'}">Netto: ${m.net}</span></div>
-                <div class="ins-desc">Einnahmen: ${m.income} | Ausgaben: ${m.expense} | Sparquote: ${m.savingsRate}</div>
-              </div></div>
-            `)}
-          </div>
-        </div>
-      </div>
-    ` : ''}
-
-    <div class="card" style="margin-bottom:1.2rem;">
-      <div class="card-header"><span class="card-title">Trends & Auffälligkeiten</span></div>
-      <div>
-        ${hasSnapshots && trends.length > 0 ? trends.map((t) => html`
-          <div class="insight"><div class="dot ${t.color}"></div><div style="flex:1">
-            <div class="ins-title">${t.title}</div><div class="ins-desc">${t.desc}</div></div></div>
-        `) : ''}
-        ${alerts.length === 0 && (!hasSnapshots || trends.length === 0)
-          ? html`<div class="ins-desc" style="padding:.5rem">Keine besonderen Auffälligkeiten.</div>`
-          : alerts.map((al) => {
-              const m = al.text.match(/^<strong>(.+?):?<\/strong>\s*(.+)$/);
-              const title = m ? m[1] : '';
-              const desc = m ? m[2] : al.text;
-              return html`
-                <div class="insight"><div class="dot ${al.color}"></div><div style="flex:1">
-                  ${title ? html`<div class="ins-title">${title}</div>` : ''}
-                  <div class="ins-desc">${unsafeHTML(desc)}</div></div></div>
-              `;
-            })}
-      </div>
-    </div>
-
-  `;
-}
-
-function kpiCard(k: KpiCard): TemplateResult {
-  return html`
-    <div class="kpi ${k.cls}">
-      <div class="kpi-label">${k.label}</div>
-      <div class="kpi-value ${k.cls}">${k.value}</div>
-      <div class="kpi-sub">${k.sub}</div>
+      ${hintsCard(a, rates, set)}
     </div>
   `;
 }
 
-function chartCard(title: string, chartKey: string): TemplateResult {
-  return html`
-    <div class="card">
-      <div class="card-header"><span class="card-title">${title}</span></div>
-      <div class="chart-wrap short"><canvas data-chart=${chartKey}></canvas></div>
+function hintsCard(
+  a: Analysis,
+  rates: ReturnType<typeof computeOverviewRates>,
+  set: <K extends keyof typeof ui>(k: K, v: (typeof ui)[K]) => void,
+): TemplateResult {
+  const items = ui.hints === 'hints'
+    ? [
+        ...computeAlerts(a, rates),
+        ...(a.mKeys.length >= 2 ? computeTrends(buildMonthlySnapshots(a)) : []),
+      ]
+    : computeRecommendations(a).map((r) => ({ color: r.level, title: r.title, desc: r.desc }));
+  const shown = ui.allHints ? items : items.slice(0, HINTS_SHOWN);
+
+  return card({
+    title: 'Hinweise',
+    actions: segmented('Art', [
+      { value: 'hints', label: 'Auffälligkeiten' },
+      { value: 'recs', label: 'Empfehlungen' },
+    ], ui.hints, (v) => set('hints', v)),
+  }, html`
+    <div class="insights">
+      ${shown.length ? shown.map((i) => insight(i.color, i.title, i.desc)) : html`<p class="muted">Keine besonderen Auffälligkeiten.</p>`}
     </div>
-  `;
+    ${items.length > HINTS_SHOWN
+      ? html`<button type="button" class="more" @click=${() => set('allHints', !ui.allHints)}>
+          ${ui.allHints ? 'Weniger anzeigen' : `Alle ${items.length} anzeigen`}</button>`
+      : nothing}
+  `);
 }
 
-function getCanvas(container: HTMLElement, key: string): HTMLCanvasElement | null {
-  return container.querySelector<HTMLCanvasElement>(`[data-chart="${key}"]`);
-}
+function charts(root: HTMLElement, a: Analysis, spend: ReturnType<typeof getSpendBreakdown>): void {
+  if (ui.trend === 'monthly') {
+    const d = getMonthlyIncomeExpenseData(a);
+    mountChart(getCanvas(root, 'ov-trend'), {
+      type: 'bar',
+      data: {
+        labels: d.labels,
+        datasets: [
+          { label: 'Einnahmen', data: d.income, backgroundColor: COLORS.income, maxBarThickness: 16 },
+          { label: 'Ausgaben', data: d.expense, backgroundColor: COLORS.expense, maxBarThickness: 16 },
+        ],
+      },
+      options: { ...INDEX_TOOLTIP, scales: axes(), datasets: { bar: { categoryPercentage: 0.7, barPercentage: 0.92 } } },
+    });
+  } else {
+    const d = getCumulativeIncExpChartData(a);
+    mountChart(getCanvas(root, 'ov-trend'), {
+      type: 'line',
+      data: {
+        labels: d.labels,
+        datasets: [
+          { label: 'Einnahmen (kumuliert)', data: d.cumInc, borderColor: COLORS.income, backgroundColor: COLORS.income },
+          { label: 'Ausgaben (kumuliert)', data: d.cumExp, borderColor: COLORS.expense, backgroundColor: COLORS.expense },
+        ],
+      },
+      options: { ...INDEX_TOOLTIP, scales: axes() },
+    });
+  }
 
-function mountCharts(container: HTMLElement, a: Analysis): void {
-  const last6 = getLast6MonthsChartData(a);
-  mountChart(getCanvas(container, 'ov-bar')!, {
-    type: 'bar',
-    data: {
-      labels: last6.labels,
-      datasets: [
-        { label: 'Einnahmen', data: last6.income, backgroundColor: 'rgba(16,185,129,.7)', borderRadius: 4 },
-        { label: 'Ausgaben', data: last6.expense, backgroundColor: 'rgba(239,68,68,.7)', borderRadius: 4 },
-      ],
-    },
-    options: {
-      ...BASE,
-      interaction: { mode: 'index', intersect: false },
-      scales: darkAxes(),
-      plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } } },
-    } as ChartConfiguration<'bar'>['options'],
-  });
-
-  const volume = getVolumeByTypeChartData(a);
-  mountChart(getCanvas(container, 'ov-donut')!, {
+  mountChart(getCanvas(root, 'ov-donut'), {
     type: 'doughnut',
     data: {
-      labels: volume.labels,
-      datasets: [{ data: volume.values, backgroundColor: PAL.slice(0, volume.labels.length), borderWidth: 0 }],
+      labels: spend.entries.map(([l]) => l),
+      datasets: [{ data: spend.entries.map(([, v]) => v), backgroundColor: spend.entries.map((_, i) => seriesColor(i)) }],
     },
     options: {
-      ...BASE,
-      cutout: '65%',
-      plugins: { legend: { position: 'right', labels: { color: '#b0bfd0', font: { size: 10 }, boxWidth: 10 } } },
-    } as ChartConfiguration<'doughnut'>['options'],
-  });
-
-  const trendData = getAllMonthsTrendData(a);
-  const trendCanvas = getCanvas(container, 'ov-trend');
-  if (trendCanvas) {
-    mountChart(trendCanvas, {
-      type: 'line',
-      data: {
-        labels: trendData.labels,
-        datasets: [
-          { label: 'Einnahmen', data: trendData.income, borderColor: '#10b981', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#10b981', tension: 0.3, fill: { target: 'origin', above: 'rgba(16,185,129,.08)' } },
-          { label: 'Ausgaben', data: trendData.expense, borderColor: '#ef4444', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#ef4444', tension: 0.3, fill: { target: 'origin', above: 'rgba(239,68,68,.08)' } },
-        ],
+      cutout: '72%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => ` ${fmt(Number(c.parsed))} · ${fmtP(spend.total ? (Number(c.parsed) / spend.total) * 100 : 0)}` } },
       },
-      options: {
-        ...BASE,
-        interaction: { mode: 'index', intersect: false },
-        scales: darkAxes(),
-        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } } },
-      } as ChartConfiguration<'line'>['options'],
-    });
-  }
-
-  const topCats = getTopExpenseCategoriesData(a, 5);
-  mountChart(getCanvas(container, 'ov-catbar')!, {
-    type: 'bar',
-    data: {
-      labels: topCats.labels,
-      datasets: [{ data: topCats.values, backgroundColor: PAL.slice(0, 5).map((c) => c + 'CC'), borderRadius: 4 }],
     },
-    options: {
-      ...BASE,
-      indexAxis: 'y',
-      scales: { x: yScale(), y: { ...xScale(), ticks: { color: '#b0bfd0', font: { size: 9 } } } },
-      plugins: { ...BASE.plugins, legend: { display: false }, tooltip: { callbacks: { label: (c) => fmt(c.parsed.x ?? 0) } } },
-    } as ChartConfiguration<'bar'>['options'],
   });
-
-  // Deep-Dive charts (only if enough months)
-  const snapshots = buildMonthlySnapshots(a);
-  if (snapshots.length < 2) return;
-  const dd = computeDeepDiveChartsData(snapshots);
-
-  const netCanvas = getCanvas(container, 'ov-dd-net');
-  if (netCanvas) {
-    mountChart(netCanvas, {
-      type: 'bar',
-      data: {
-        labels: dd.labels,
-        datasets: [
-          { label: 'Netto-Cashflow', data: dd.net, backgroundColor: dd.net.map((v) => (v >= 0 ? 'rgba(16,185,129,.7)' : 'rgba(239,68,68,.7)')), borderRadius: 4, yAxisID: 'y' },
-          { label: 'Sparquote %', data: dd.savingsRate, type: 'line', borderColor: '#f59e0b', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#f59e0b', tension: 0.3, yAxisID: 'y1' },
-        ],
-      },
-      options: {
-        ...BASE, interaction: { mode: 'index', intersect: false },
-        scales: {
-          x: xScale(), y: yScale(),
-          y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#f59e0b', font: { size: 10 }, callback: (v) => Number(v).toFixed(0) + '%' } },
-        },
-        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => (c.datasetIndex === 0 ? `Netto: ${fmt(c.parsed.y ?? 0)}` : `Sparquote: ${Number(c.parsed.y ?? 0).toFixed(1)}%`) } } },
-      } as ChartConfiguration<'bar'>['options'],
-    });
-  }
-
-  const cumCanvas = getCanvas(container, 'ov-dd-cumnet');
-  if (cumCanvas) {
-    mountChart(cumCanvas, {
-      type: 'line',
-      data: {
-        labels: dd.labels,
-        datasets: [
-          { label: 'Kum. Netto', data: dd.cumNet, borderColor: '#3b82f6', borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#3b82f6', fill: { target: 'origin', above: 'rgba(16,185,129,.08)', below: 'rgba(239,68,68,.08)' }, tension: 0.3 },
-        ],
-      },
-      options: {
-        ...BASE, scales: darkAxes(),
-        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `Kumuliert: ${fmt(c.parsed.y ?? 0)}` } } },
-      } as ChartConfiguration<'line'>['options'],
-    });
-  }
-
-  const catStackCanvas = getCanvas(container, 'ov-dd-catstack');
-  if (catStackCanvas) {
-    mountChart(catStackCanvas, {
-      type: 'bar',
-      data: {
-        labels: dd.labels,
-        datasets: dd.categoryStack.map((series, i) => ({
-          label: series.label, data: series.data, backgroundColor: PAL[i % PAL.length] + 'CC', borderRadius: 2,
-        })),
-      },
-      options: {
-        ...BASE, scales: { x: xScale(), y: yScale() },
-        plugins: {
-          ...BASE.plugins, legend: { labels: { color: '#b0bfd0', font: { size: 9 }, boxWidth: 8 } },
-          tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } },
-        },
-      } as ChartConfiguration<'bar'>['options'],
-    });
-  }
 }

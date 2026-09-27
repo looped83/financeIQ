@@ -4,8 +4,8 @@ import { analyze } from '../../domain/analyze';
 import {
   computeMainChartData,
   getCumulativeIncExpChartData,
-  getDividendChartData,
-  getInvestChartData,
+  getIncomeSources,
+  getMonthlyIncomeExpenseData,
   getMonthlyNetChartData,
 } from './selectors';
 
@@ -70,24 +70,16 @@ describe('computeMainChartData — daily view', () => {
 });
 
 describe('getMonthlyNetChartData', () => {
-  it('colors positive months green and would color negative months red', () => {
-    const data = getMonthlyNetChartData(a);
-    expect(data.values).toEqual([2000, 1850, 2200]);
-    expect(data.colors.every((c) => c === 'rgba(16,185,129,.7)')).toBe(true);
+  it('reports the net cashflow of every month', () => {
+    expect(getMonthlyNetChartData(a).values).toEqual([2000, 1850, 2200]);
   });
 });
 
-describe('getDividendChartData', () => {
-  it('reports dividend income per month, zero where none occurred', () => {
-    expect(getDividendChartData(a).values).toEqual([0, 50, 0]);
-  });
-});
-
-describe('getInvestChartData', () => {
-  it('negates buys (drawn downward) and reports sells as positive', () => {
-    const data = getInvestChartData(a);
-    expect(data.buys).toEqual([-500, -0, -0]);
-    expect(data.sells).toEqual([0, 200, 0]);
+describe('getMonthlyIncomeExpenseData', () => {
+  it('reports income and absolute expense per month', () => {
+    const d = getMonthlyIncomeExpenseData(a);
+    expect(d.income).toEqual([3000, 3050, 3000]);
+    expect(d.expense).toEqual([1000, 1200, 800]);
   });
 });
 
@@ -96,5 +88,14 @@ describe('getCumulativeIncExpChartData', () => {
     const data = getCumulativeIncExpChartData(a);
     expect(data.cumInc).toEqual([3000, 6050, 9050]); // dividend rolls into income too
     expect(data.cumExp).toEqual([1000, 2200, 3000]);
+  });
+});
+
+describe('getIncomeSources', () => {
+  it('groups income by type label with its share of all income', () => {
+    const sources = getIncomeSources(a);
+    expect(sources.map((s) => s.label)).toEqual(['Eingehend', 'Dividenden']);
+    expect(sources[0]?.count).toBe(3);
+    expect(sources[0]?.total).toBe('9.000,00 €');
   });
 });

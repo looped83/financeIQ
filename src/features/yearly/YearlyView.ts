@@ -1,11 +1,13 @@
-import { html, render, type TemplateResult } from 'lit-html';
-import type { ChartConfiguration } from 'chart.js';
+import { html, type TemplateResult } from 'lit-html';
 import { mountChart } from '../../charts/chartManager';
-import { BASE, darkAxes } from '../../charts/chartTheme';
+import { axes, INDEX_TOOLTIP } from '../../charts/chartTheme';
 import { fmt } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { AppState } from '../../state/appState';
-import { subscribeSelected, type Store } from '../../state/store';
+import type { Store, Unsubscribe } from '../../state/store';
+import { COLORS } from '../../theme/palette';
+import { card, chartBox, deltaMark, getCanvas, kpiGrid } from '../../ui/components';
+import { hasData, mountPage, noData } from '../../ui/page';
 import {
   computeQuarterlyBreakdown,
   getQuarterlyChartData,
@@ -13,144 +15,79 @@ import {
   getYearlyKpiCards,
   getYearlyTableRows,
   isMultiYear,
+  type QuarterKey,
 } from './selectors';
 
-function deltaArrow(direction: 'up' | 'down' | null): TemplateResult | '' {
-  if (!direction) return '';
-  const color = direction === 'up' ? 'var(--income)' : 'var(--expense)';
-  const arrow = direction === 'up' ? '▲' : '▼';
-  return html`<span style="font-size:.68rem;color:${color}">${arrow}</span>`;
-}
-
-export function mountYearlyView(container: HTMLElement, store: Store<AppState>): () => void {
-  return subscribeSelected(store, (s) => [s.analysis], (state) => {
-    render(view(state.analysis), container);
-    if (state.analysis) mountCharts(container, state.analysis);
+/** Years are compared across the whole history, independent of the global period. */
+export function mountYearlyView(container: HTMLElement, store: Store<AppState>): Unsubscribe {
+  return mountPage(container, store, (s) => [s.fullAnalysis], (state) => {
+    const a = state.fullAnalysis;
+    if (!hasData(a)) return { view: noData() };
+    const multi = isMultiYear(a);
+    return { view: multi ? multiYear(a) : singleYear(a), charts: () => chart(container, a, multi) };
   });
 }
 
-function view(a: Analysis | null): TemplateResult {
-  if (!a) return html`<p style="color:var(--text-muted)">Keine Daten geladen.</p>`;
-  return isMultiYear(a) ? multiYearView(a) : singleYearView(a);
-}
-
-function singleYearView(a: Analysis): TemplateResult {
-  const breakdown = computeQuarterlyBreakdown(a);
+function singleYear(a: Analysis): TemplateResult {
+  const b = computeQuarterlyBreakdown(a);
   return html`
-    <div class="section-note">Datensatz enthält nur <strong>${breakdown.year}</strong> — Quartalsansicht. Lade eine mehrjährige CSV für den Jahresvergleich.</div>
-    <div class="g4" style="margin-bottom:1.2rem;">
-      ${(['Q1', 'Q2', 'Q3', 'Q4'] as const).map((q) => {
-        const qa = breakdown.quarters[q];
-        const cls = qa.net >= 0 ? 'income' : 'expense';
-        return html`
-          <div class="kpi ${cls}">
-            <div class="kpi-label">${q} ${breakdown.year}</div>
-            <div class="kpi-value ${cls}">${fmt(qa.net)}</div>
-            <div class="kpi-sub">Einnahmen: ${fmt(qa.income)}</div>
-            <div class="kpi-sub">Ausgaben: ${fmt(Math.abs(qa.expense))}</div>
-          </div>
-        `;
-      })}
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Quartals-Breakdown ${breakdown.year}</span></div>
-      <div class="chart-wrap tall"><canvas data-chart="yr-q"></canvas></div>
-    </div>
+    ${kpiGrid((['Q1', 'Q2', 'Q3', 'Q4'] as QuarterKey[]).map((q) => {
+      const qa = b.quarters[q];
+      return { label: `${q} ${b.year}`, value: fmt(qa.net), sub: `Ein ${fmt(qa.income)} · Aus ${fmt(Math.abs(qa.expense))}` };
+    }))}
+    ${card({ title: `Quartale ${b.year}`, sub: 'Die Daten umfassen nur ein Jahr – für den Jahresvergleich eine mehrjährige CSV laden.' },
+      chartBox('yr-chart', 'Kennzahlen je Quartal', 'lg'))}
   `;
 }
 
-function multiYearView(a: Analysis): TemplateResult {
-  const cards = getYearlyKpiCards(a);
+function multiYear(a: Analysis): TemplateResult {
   const rows = getYearlyTableRows(a);
-  const gridClass = `g${Math.min(cards.length, 4)}`;
-
   return html`
-    <div class="${gridClass}" style="margin-bottom:1.2rem;">
-      ${cards.map((c) => html`
-        <div class="kpi ${c.netPositive ? 'balance' : 'expense'}">
-          <div class="kpi-label">${c.year}</div>
-          <div class="kpi-value ${c.netPositive ? 'invest' : 'expense'}">${c.net}</div>
-          <div class="kpi-sub">Einnahmen: ${c.income}</div>
-          <div class="kpi-sub">Ausgaben: ${c.expense}</div>
-          ${c.yoyIncomeChange !== null
-            ? html`<div class="kpi-trend ${c.yoyIncomeUp ? 'up' : 'down'}">${c.yoyIncomeChange} Einnahmen YoY</div>`
-            : ''}
-        </div>
-      `)}
-    </div>
-    <div class="card" style="margin-bottom:1.2rem;">
-      <div class="card-header"><span class="card-title">Jahresvergleich — Alle Kennzahlen</span></div>
-      <div class="chart-wrap tall"><canvas data-chart="yr-bar"></canvas></div>
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Jahres-Übersicht</span></div>
-      <div style="overflow-x:auto">
-        <table class="dt">
-          <thead><tr><th>Jahr</th><th>Einnahmen</th><th>Ausgaben</th><th>Netto</th><th>Investiert</th><th>Dividenden</th><th>Gebühren</th><th>Sparquote</th></tr></thead>
+    ${kpiGrid(getYearlyKpiCards(a).map((c) => ({
+      label: c.year,
+      value: c.net,
+      sub: c.yoyIncomeChange ? `Einnahmen ${c.yoyIncomeChange} ggü. Vorjahr` : `Einnahmen ${c.income}`,
+      status: c.yoyIncomeChange ? (c.yoyIncomeUp ? 'good' : 'warn') : undefined,
+    })))}
+
+    ${card({ title: 'Jahresvergleich' }, chartBox('yr-chart', 'Kennzahlen je Jahr', 'lg'))}
+
+    ${card({ title: 'Jahresübersicht', sub: 'Hervorgehoben: bestes und schwächstes Jahr nach Netto' }, html`
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr>
+            <th scope="col">Jahr</th><th scope="col">Einnahmen</th><th scope="col">Ausgaben</th><th scope="col">Netto</th>
+            <th scope="col">Investiert</th><th scope="col">Dividenden</th><th scope="col">Gebühren</th><th scope="col">Sparquote</th>
+          </tr></thead>
           <tbody>${rows.map((r) => html`
-            <tr class=${r.isBest ? 'row-best' : r.isWorst ? 'row-worst' : ''}>
-              <td><strong>${r.year}</strong></td>
-              <td class="pos">${r.income} ${deltaArrow(r.incomeDelta)}</td><td class="neg">${r.expense} ${deltaArrow(r.expenseDelta)}</td>
+            <tr class=${r.isBest ? 'is-best' : r.isWorst ? 'is-worst' : ''}>
+              <td>${r.year}</td>
+              <td>${r.income}${deltaMark(r.incomeDelta, 'up')}</td>
+              <td>${r.expense}${deltaMark(r.expenseDelta, 'down')}</td>
               <td class=${r.netPositive ? 'pos' : 'neg'}>${r.net}</td>
-              <td class="neu">${r.invested}</td><td style="color:var(--dividend)">${r.dividend}</td>
-              <td style="color:var(--text-muted)">${r.fees}</td>
-              <td class=${r.savingsRateCls}>${r.savingsRate}</td>
-            </tr>
-          `)}</tbody>
+              <td>${r.invested}</td><td>${r.dividend}</td><td>${r.fees}</td>
+              <td class=${r.savingsRateCls === 'pos' ? 'pos' : r.savingsRateCls === 'neg' ? 'neg' : ''}>${r.savingsRate}</td>
+            </tr>`)}</tbody>
         </table>
       </div>
-    </div>
+    `)}
   `;
 }
 
-function getCanvas(container: HTMLElement, key: string): HTMLCanvasElement | null {
-  return container.querySelector<HTMLCanvasElement>(`[data-chart="${key}"]`);
-}
-
-function mountCharts(container: HTMLElement, a: Analysis): void {
-  if (isMultiYear(a)) {
-    const canvas = getCanvas(container, 'yr-bar');
-    if (!canvas) return;
-    const data = getYearlyChartData(a);
-    mountChart(canvas, {
-      type: 'bar',
-      data: {
-        labels: data.labels,
-        datasets: [
-          { label: 'Einnahmen', data: data.income, backgroundColor: 'rgba(16,185,129,.75)', borderRadius: 4 },
-          { label: 'Ausgaben', data: data.expense, backgroundColor: 'rgba(239,68,68,.75)', borderRadius: 4 },
-          { label: 'Investiert', data: data.invested, backgroundColor: 'rgba(59,130,246,.75)', borderRadius: 4 },
-          { label: 'Dividenden', data: data.dividend, backgroundColor: 'rgba(139,92,246,.75)', borderRadius: 4 },
-        ],
-      },
-      options: {
-        ...BASE,
-        interaction: { mode: 'index', intersect: false },
-        scales: darkAxes(),
-        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } } },
-      } as ChartConfiguration<'bar'>['options'],
-    });
-  } else {
-    const canvas = getCanvas(container, 'yr-q');
-    if (!canvas) return;
-    const data = getQuarterlyChartData(computeQuarterlyBreakdown(a));
-    mountChart(canvas, {
-      type: 'bar',
-      data: {
-        labels: data.labels,
-        datasets: [
-          { label: 'Einnahmen', data: data.income, backgroundColor: 'rgba(16,185,129,.75)', borderRadius: 4 },
-          { label: 'Ausgaben', data: data.expense, backgroundColor: 'rgba(239,68,68,.75)', borderRadius: 4 },
-          { label: 'Investiert', data: data.invested, backgroundColor: 'rgba(59,130,246,.75)', borderRadius: 4 },
-          { label: 'Dividenden', data: data.dividend, backgroundColor: 'rgba(139,92,246,.75)', borderRadius: 4 },
-        ],
-      },
-      options: {
-        ...BASE,
-        interaction: { mode: 'index', intersect: false },
-        scales: darkAxes(),
-        plugins: { ...BASE.plugins, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y ?? 0)}` } } },
-      } as ChartConfiguration<'bar'>['options'],
-    });
-  }
+function chart(root: HTMLElement, a: Analysis, multi: boolean): void {
+  const d = multi ? getYearlyChartData(a) : getQuarterlyChartData(computeQuarterlyBreakdown(a));
+  const bar = { maxBarThickness: 22 };
+  mountChart(getCanvas(root, 'yr-chart'), {
+    type: 'bar',
+    data: {
+      labels: d.labels,
+      datasets: [
+        { label: 'Einnahmen', data: d.income, backgroundColor: COLORS.income, ...bar },
+        { label: 'Ausgaben', data: d.expense, backgroundColor: COLORS.expense, ...bar },
+        { label: 'Investiert', data: d.invested, backgroundColor: COLORS.invest, ...bar },
+        { label: 'Dividenden', data: d.dividend, backgroundColor: COLORS.dividend, ...bar },
+      ],
+    },
+    options: { ...INDEX_TOOLTIP, scales: axes(), datasets: { bar: { categoryPercentage: 0.7, barPercentage: 0.92 } } },
+  });
 }

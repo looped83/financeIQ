@@ -113,6 +113,7 @@ export interface YearlyTableRow {
   income: string;
   incomeDelta: 'up' | 'down' | null;
   expense: string;
+  /** 'up' = spending rose (bad), 'down' = it fell (good). */
   expenseDelta: 'up' | 'down' | null;
   net: string;
   netPositive: boolean;
@@ -146,7 +147,7 @@ export function getYearlyTableRows(a: Analysis): YearlyTableRow[] {
       income: fmt(yr.income),
       incomeDelta: deltaDir(yr.income, prev?.income ?? null),
       expense: fmt(Math.abs(yr.expense)),
-      expenseDelta: deltaDir(-Math.abs(yr.expense), prev ? -Math.abs(prev.expense) : null),
+      expenseDelta: deltaDir(Math.abs(yr.expense), prev ? Math.abs(prev.expense) : null),
       net: fmt(yr.net),
       netPositive: yr.net >= 0,
       invested: fmt(yr.invested),

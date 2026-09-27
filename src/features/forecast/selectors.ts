@@ -63,10 +63,10 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
   const kpis: ForecastKpi[] = [
     {
       label: 'Monatlicher Trend', value: fmt(slope), cls: slope >= 0 ? 'income' : 'expense',
-      sub: slope >= 0 ? 'Wachsend ↑' : 'Abnehmend ↓',
+      sub: slope >= 0 ? 'Netto-Cashflow wächst' : 'Netto-Cashflow sinkt',
     },
     {
-      label: `Proj. Zuwachs (${months}M)`, value: fmt(projEnd - a.netBal), cls: 'invest',
+      label: `Erwarteter Zuwachs (${months} Mon.)`, value: fmt(projEnd - a.netBal), cls: 'invest',
       sub: `Prognosewert: ${fmt(projEnd)}`,
     },
     {
@@ -87,15 +87,15 @@ export function computeForecast(a: Analysis, months: number): ForecastResult {
   const scenarios: ForecastScenario[] = [
     {
       color: 'green', title: 'Optimistisches Szenario',
-      desc: `Bei +0.5σ Wachstum: <strong>${fmt(optCum)}</strong> nach ${months} Monaten (+${fmt(optCum - a.netBal)} zum Ist).`,
+      desc: `Bei +0,5 σ Wachstum: ${fmt(optCum)} nach ${months} Monaten (+${fmt(optCum - a.netBal)} zum Ist).`,
     },
     {
       color: 'blue', title: 'Basisszenario (Lineartrend)',
-      desc: `Auf Basis historischer Daten: <strong>${fmt(projEnd)}</strong> nach ${months} Monaten.`,
+      desc: `Auf Basis historischer Daten: ${fmt(projEnd)} nach ${months} Monaten.`,
     },
     {
       color: 'yellow', title: 'Pessimistisches Szenario',
-      desc: `Bei -0.5σ: <strong>${fmt(pesCum)}</strong> nach ${months} Monaten. Ausgaben-Puffer einplanen.`,
+      desc: `Bei −0,5 σ: ${fmt(pesCum)} nach ${months} Monaten. Ausgaben-Puffer einplanen.`,
     },
   ];
 

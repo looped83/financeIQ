@@ -1,10 +1,11 @@
+import { aggregate } from '../domain/analyze';
+import { inPeriod, samePeriod, type Period } from '../domain/period';
 import type { Analysis } from '../domain/types';
 import { createStore, type Store } from './store';
 import {
   initialAppState,
   initialTransactionFilters,
   type AppState,
-  type CompareMetric,
   type MonthCompareMetric,
   type TimelineView,
   type TransactionFilters,
@@ -12,24 +13,19 @@ import {
 } from './appState';
 
 /**
- * Chart.js instances (G.charts in index.html today) are deliberately NOT
- * part of this state: they're imperative handles to <canvas> elements, not
- * serializable app data. That bookkeeping belongs to whatever owns the DOM
- * in Phase 3 (a component's own effect/cleanup), not the data store.
+ * Chart.js instances are deliberately NOT part of this state: they're
+ * imperative handles to <canvas> elements, owned by the views that draw them.
  */
 export interface AppActions {
-  /** Loads a new primary CSV — replaces the whole session (mirrors initDashboard()). */
+  /** Loads a new CSV — replaces the whole session, period back to the whole history. */
   loadFile(analysis: Analysis, fileName: string): void;
-  /** Back to the empty/upload-screen state (mirrors resetDashboard()). */
+  /** Back to the empty/upload-screen state. */
   resetAll(): void;
+  /** Narrows `analysis` to `period` (null = whole history). */
+  setPeriod(period: Period): void;
 
   setTimelineView(view: TimelineView): void;
   setForecastMonths(months: number): void;
-  setDeepDiveMonth(month: string): void;
-
-  loadCompareFile(analysis: Analysis, fileName: string): void;
-  resetCompare(): void;
-  setCompareMetric(metric: CompareMetric): void;
 
   setMonthCompareA(month: string): void;
   setMonthCompareB(month: string): void;
@@ -46,11 +42,21 @@ export function createAppStore(): { store: Store<AppState>; actions: AppActions 
 
   const actions: AppActions = {
     loadFile(analysis, fileName) {
-      store.setState({ ...initialAppState(), analysis, fileName });
+      store.setState({ ...initialAppState(), fullAnalysis: analysis, analysis, fileName });
     },
 
     resetAll() {
       store.setState(initialAppState());
+    },
+
+    setPeriod(period) {
+      store.setState((s) => {
+        if (!s.fullAnalysis || samePeriod(s.period, period)) return s;
+        const analysis = period
+          ? aggregate(s.fullAnalysis.enriched.filter((r) => inPeriod(r._month, period)))
+          : s.fullAnalysis;
+        return { ...s, period, analysis, transactions: { ...s.transactions, page: 0 } };
+      });
     },
 
     setTimelineView(view) {
@@ -59,25 +65,6 @@ export function createAppStore(): { store: Store<AppState>; actions: AppActions 
 
     setForecastMonths(months) {
       store.setState((s) => ({ ...s, forecastMonths: months }));
-    },
-
-    setDeepDiveMonth(month) {
-      store.setState((s) => ({ ...s, deepDiveSelectedMonth: month }));
-    },
-
-    loadCompareFile(analysis, fileName) {
-      // Note: metric is intentionally left as-is — matches today's behavior,
-      // where G.cmpMetric survives across compare loads/resets and is only
-      // reset by a full resetAll().
-      store.setState((s) => ({ ...s, compare: { ...s.compare, analysis, fileName } }));
-    },
-
-    resetCompare() {
-      store.setState((s) => ({ ...s, compare: { ...s.compare, analysis: null, fileName: '' } }));
-    },
-
-    setCompareMetric(metric) {
-      store.setState((s) => ({ ...s, compare: { ...s.compare, metric } }));
     },
 
     setMonthCompareA(month) {
@@ -98,16 +85,13 @@ export function createAppStore(): { store: Store<AppState>; actions: AppActions 
         transactions: {
           ...s.transactions,
           filters: { ...s.transactions.filters, ...patch },
-          page: 0, // any filter change restarts pagination, mirroring applyTxFilters()
+          page: 0, // any filter change restarts pagination
         },
       }));
     },
 
     setTransactionSort(sort) {
-      store.setState((s) => ({
-        ...s,
-        transactions: { ...s.transactions, sort, page: 0 },
-      }));
+      store.setState((s) => ({ ...s, transactions: { ...s.transactions, sort, page: 0 } }));
     },
 
     setTransactionPage(page) {

@@ -1,0 +1,83 @@
+/* ============================================================================
+   FinanceIQ — Design tokens (dark, warm anthracite + orange accent)
+   Every color Chart.js needs is mirrored in src/theme/palette.ts; the test
+   src/theme/palette.test.ts fails if a shared value drifts. Contrast ratios
+   are measured against --surface (the card background).
+   ============================================================================ */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces — page → card → inset/hover */
+  --bg: #131210;
+  --surface: #1b1a18;
+  --surface-2: #211f1d;      /* group rows, insight rows, insets */
+  --raised: #242220;         /* hover fill, sheet */
+  --line: #2a2825;           /* card borders, dividers */
+  --line-strong: #2f2c29;    /* control borders */
+  --axis: #3a3733;           /* chart baseline */
+
+  /* Text */
+  --text: #f3f0eb;           /* 15.3:1 */
+  --text-2: #c3bdb3;         /*  9.3:1 */
+  --text-3: #948d83;         /*  5.3:1 */
+  --text-disabled: #5a554f;
+
+  /* Accent — interactive only, never a data series */
+  --accent: #f47a32;         /* 6.4:1 */
+  --accent-text: #f7925a;    /* 7.6:1 */
+  --accent-soft: rgba(244, 122, 50, 0.13);
+  --accent-line: rgba(244, 122, 50, 0.45);
+  --on-accent: #1a0f07;      /* text on --accent, 6.9:1 (white would be 2.7:1) */
+
+  /* Meaning — money in/out, investing, dividends, attention.
+     Chart marks: income/expense/invest/dividend pass the red–green colour-blindness
+     check next to each other (ΔE ≥ 11) and ≥ 3:1 on --surface. Text uses the
+     *-text steps where the mark color would fall below 4.5:1. */
+  --income: #39ad79;         /* 6.2:1 — marks and text */
+  --expense: #d02b31;        /* 3.4:1 — marks only; text: --expense-text */
+  --invest: #3987e5;         /* 4.8:1 */
+  --dividend: #c98500;       /* 5.7:1 — gold */
+  --warning: #fab219;        /* 9.5:1 — always paired with an icon */
+  --other: #736d64;          /* "Sonstige" in charts */
+  --income-soft: rgba(57, 173, 121, 0.14);
+  --expense-soft: rgba(208, 43, 49, 0.16);
+  --invest-soft: rgba(57, 135, 229, 0.16);
+  --dividend-soft: rgba(201, 133, 0, 0.16);
+  --warning-soft: rgba(250, 178, 25, 0.14);
+  --income-text: #6fd394;    /* badge text on --income-soft */
+  --expense-text: #f09191;   /* 7.6:1 */
+  --invest-text: #86b6ef;
+  --dividend-text: #e0a53a;  /* 8.0:1 */
+
+  /* Type — system font, zero bytes to download */
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --fs-xs: 0.75rem;          /* 12px — meta, axis, badges */
+  --fs-sm: 0.8125rem;        /* 13px — labels, controls */
+  --fs-md: 0.875rem;         /* 14px — body, rows */
+  --fs-lg: 0.9375rem;        /* 15px — card titles */
+  --fs-xl: 1.25rem;          /* 20px — mobile KPI values */
+  --fs-2xl: 1.625rem;        /* 26px — page title, KPI values */
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 650;
+
+  /* Space, radii, motion */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --r-sm: 7px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+  --ease: 0.15s ease;
+  --sidebar-w: 240px;
+  --control-h: 40px;
+}
+
+@media (max-width: 900px) {
+  :root { --control-h: 44px; }
+}

@@ -6,12 +6,13 @@ import { analyze } from '../../domain/analyze';
 import { initialTransactionFilters } from '../../state/appState';
 import {
   computePaginationItems,
-  computeTransactionKpis,
+  dayLabel,
   filterTransactions,
   getAvailableCategories,
-  getAvailableYears,
+  groupByDay,
   paginate,
   sortTransactions,
+  sumInOut,
 } from './selectors';
 
 function fixture(name: string) {
@@ -21,11 +22,7 @@ function fixture(name: string) {
 const a = analyze(parseCSV(fixture('dividends-and-corrections.csv')));
 const rows = a.enriched; // 8 rows: tx-001..tx-008, spanning 2024-02 and 2024-03
 
-describe('getAvailableYears / getAvailableCategories', () => {
-  it('lists distinct years ascending', () => {
-    expect(getAvailableYears(rows)).toEqual(['2024']);
-  });
-
+describe('getAvailableCategories', () => {
   it('lists distinct display categories alphabetically', () => {
     expect(getAvailableCategories(rows)).toEqual([
       'Dividenden', 'Eingehend', 'Kartenzahlungen', 'Käufe', 'Steuerkorrektur', 'Verkäufe',
@@ -38,16 +35,14 @@ describe('filterTransactions', () => {
     expect(filterTransactions(rows, initialTransactionFilters())).toHaveLength(8);
   });
 
-  it('filters by month regardless of year filter', () => {
-    const result = filterTransactions(rows, { ...initialTransactionFilters(), month: '03' });
-    expect(result.map((r) => r.transaction_id)).toEqual(['tx-007', 'tx-008']);
-  });
-
-  it('filters by a date range (inclusive of the "to" day)', () => {
-    const result = filterTransactions(rows, {
-      ...initialTransactionFilters(), from: '2024-02-01', to: '2024-02-05',
-    });
-    expect(result.map((r) => r.transaction_id)).toEqual(['tx-001', 'tx-002']);
+  it('filters by kind: cash in/out, trades and dividends', () => {
+    const ids = (kind: 'in' | 'out' | 'invest' | 'div') =>
+      filterTransactions(rows, { ...initialTransactionFilters(), kind }).map((r) => r.transaction_id);
+    const trades = rows.filter((r) => r._isBuy || r._isSell).map((r) => r.transaction_id);
+    expect(ids('invest')).toEqual(trades);
+    expect(ids('div')).toEqual(['tx-003', 'tx-004']);
+    const inOut = [...ids('in'), ...ids('out'), ...ids('invest')].sort();
+    expect(inOut).toEqual(rows.map((r) => r.transaction_id).sort()); // every row lands in exactly one
   });
 
   it('filters by category (typeLabel of _type)', () => {
@@ -62,7 +57,7 @@ describe('filterTransactions', () => {
 
   it('combines multiple filters with AND semantics', () => {
     const result = filterTransactions(rows, {
-      ...initialTransactionFilters(), year: '2024', category: 'Steuerkorrektur', search: 'reversal',
+      ...initialTransactionFilters(), category: 'Steuerkorrektur', search: 'reversal',
     });
     expect(result.map((r) => r.transaction_id)).toEqual(['tx-008']);
   });
@@ -94,22 +89,29 @@ describe('sortTransactions', () => {
   });
 });
 
-describe('computeTransactionKpis', () => {
-  it('matches the hand-computed totals from the analyze() fixture tests', () => {
-    // income: 2000 (salary) + 85 (net dividend) + 30 (tax refund) = 2115
-    // expense: -45.50 (card) + -15 (dividend correction) + -30 (tax debit) = -90.50
-    const kpis = computeTransactionKpis(rows);
-    expect(kpis.income).toBeCloseTo(2115.0, 3);
-    expect(kpis.expense).toBeCloseTo(-90.5, 3);
-    expect(kpis.invested).toBeCloseTo(1000.0, 3); // BUY, gross
-    expect(kpis.dividend).toBeCloseTo(70.0, 3); // 85 + -15, net
+describe('sumInOut', () => {
+  it('splits every amount by sign, trades included', () => {
+    const { inflow, outflow } = sumInOut(rows);
+    const total = rows.reduce((s, r) => s + r._amt, 0);
+    expect(inflow + outflow).toBeCloseTo(total, 6);
+    expect(inflow).toBeGreaterThan(0);
+    expect(outflow).toBeLessThan(0);
+  });
+});
+
+describe('dayLabel / groupByDay', () => {
+  it('formats the booking day in German', () => {
+    expect(dayLabel(new Date('2026-09-26'))).toBe('Sa, 26. Sep 2026');
   });
 
-  it('recomputes correctly for an already-filtered subset', () => {
-    const marchOnly = filterTransactions(rows, { ...initialTransactionFilters(), month: '03' });
-    const kpis = computeTransactionKpis(marchOnly);
-    expect(kpis.income).toBeCloseTo(30.0, 3);
-    expect(kpis.expense).toBeCloseTo(-30.0, 3);
+  it('groups consecutive rows by day and sums the whole filtered day', () => {
+    const sorted = sortTransactions(rows, 'date-desc');
+    const groups = groupByDay(sorted.slice(0, 3), sorted);
+    expect(groups.flatMap((g) => g.rows)).toEqual(sorted.slice(0, 3));
+    for (const g of groups) {
+      const dayTotal = sorted.filter((r) => r._date.toISOString().startsWith(g.key)).reduce((s, r) => s + r._amt, 0);
+      expect(g.sum).toBeCloseTo(dayTotal, 6);
+    }
   });
 });
 

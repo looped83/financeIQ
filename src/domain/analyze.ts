@@ -52,6 +52,11 @@ function payeeFromDescription(desc: string): string {
 }
 
 export function analyze(rows: RawRow[]): Analysis {
+  return aggregate(enrich(rows));
+}
+
+/** Parses the raw CSV rows into typed transactions (dated on/after MIN_DATE), sorted by date. */
+export function enrich(rows: RawRow[]): EnrichedRow[] {
   const amtCol = findCol(rows, ['amount', 'betrag', 'value', 'wert']);
   const dateCol = findCol(rows, ['date', 'datum', 'buchungsdatum', 'valuta']);
   const typeCol = findCol(rows, ['type', 'typ', 'buchungstext', 'transaction_type']);
@@ -89,10 +94,17 @@ export function analyze(rows: RawRow[]): Analysis {
     };
   });
 
-  const enriched: EnrichedRow[] = withDate
+  return withDate
     .filter((r): r is EnrichedRow => r._date !== null && r._date >= MIN_DATE)
     .sort((a, b) => a._date.getTime() - b._date.getTime());
+}
 
+/**
+ * Builds every aggregate the dashboard shows from already-enriched, date-sorted
+ * transactions. Split from enrich() so a sub-range (the global period, a single
+ * month) can be re-aggregated without re-parsing the CSV.
+ */
+export function aggregate(enriched: EnrichedRow[]): Analysis {
   const cash = enriched.filter((r) => !r._isBuy && !r._isSell);
   const inc = cash.filter((r) => r._amt > 0);
   const exp = cash.filter((r) => r._amt < 0);

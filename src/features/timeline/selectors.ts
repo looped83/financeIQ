@@ -1,7 +1,6 @@
-import { mLabel } from '../../domain/format';
+import { fmt, fmtP, mLabel, typeLabel } from '../../domain/format';
 import type { Analysis } from '../../domain/types';
 import type { TimelineView } from '../../state/appState';
-import { getFixedCostNames } from '../shared/commonSelectors';
 
 export interface DatedPoint {
   x: string;
@@ -75,113 +74,28 @@ export function computeMainChartData(a: Analysis, view: TimelineView): MainChart
   return { isDate: false, labels: qKeys, cumData, maData };
 }
 
-export interface MonthlyBarChartData {
-  labels: string[];
-  values: number[];
-  colors: string[];
-}
-
-export function getMonthlyNetChartData(a: Analysis): MonthlyBarChartData {
-  const values = a.mKeys.map((m) => a.months[m]?.net ?? 0);
-  return {
-    labels: a.mKeys.map(mLabel),
-    values,
-    colors: values.map((v) => (v >= 0 ? 'rgba(16,185,129,.7)' : 'rgba(239,68,68,.7)')),
-  };
-}
-
 export interface SingleSeriesChartData {
   labels: string[];
   values: number[];
 }
 
-export function getDividendChartData(a: Analysis): SingleSeriesChartData {
-  return { labels: a.mKeys.map(mLabel), values: a.mKeys.map((m) => a.months[m]?.dividend ?? 0) };
+export function getMonthlyNetChartData(a: Analysis): SingleSeriesChartData {
+  return { labels: a.mKeys.map(mLabel), values: a.mKeys.map((m) => a.months[m]?.net ?? 0) };
 }
 
-export interface InvestChartData {
+export interface IncomeExpenseData {
   labels: string[];
-  buys: number[];
-  sells: number[];
+  income: number[];
+  expense: number[];
 }
 
-/** Buys are negated to draw as downward bars, matching the original. */
-export function getInvestChartData(a: Analysis): InvestChartData {
+/** Income and (absolute) expense per month. */
+export function getMonthlyIncomeExpenseData(a: Analysis): IncomeExpenseData {
   return {
     labels: a.mKeys.map(mLabel),
-    buys: a.mKeys.map((m) => -(a.months[m]?.invested ?? 0)),
-    sells: a.mKeys.map((m) => a.months[m]?.sold ?? 0),
+    income: a.mKeys.map((m) => a.months[m]?.income ?? 0),
+    expense: a.mKeys.map((m) => Math.abs(a.months[m]?.expense ?? 0)),
   };
-}
-
-// ── Top-Händler im Zeitverlauf (Stacked Bar) ──
-
-export interface MerchantTimelineData {
-  labels: string[];
-  merchants: string[];
-  series: number[][];
-}
-
-export function getMerchantTimelineData(a: Analysis, limit = 6): MerchantTimelineData {
-  const totals = new Map<string, number>();
-  for (const r of a.enriched) {
-    if (r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
-    const name = r._name || 'Sonstiges';
-    totals.set(name, (totals.get(name) ?? 0) + Math.abs(r._amt));
-  }
-
-  const topNames = [...totals.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([n]) => n);
-
-  const labels = a.mKeys.map(mLabel);
-  const series = topNames.map((name) =>
-    a.mKeys.map((mk) => {
-      let sum = 0;
-      for (const r of a.enriched) {
-        if (r._month === mk && r._amt < 0 && !r._isDiv && !r._isInterest && !r._isBuy && !r._isSell) {
-          if ((r._name || 'Sonstiges') === name) sum += Math.abs(r._amt);
-        }
-      }
-      return sum;
-    }),
-  );
-
-  return { labels, merchants: topNames, series };
-}
-
-// ── Fixkosten vs. variable Ausgaben (Stacked Area) ──
-
-export interface FixVarTimelineData {
-  labels: string[];
-  fixed: number[];
-  variable: number[];
-}
-
-export function getFixVarTimelineData(a: Analysis): FixVarTimelineData {
-  const recurringNames = getFixedCostNames(a);
-
-  const labels = a.mKeys.map(mLabel);
-  const fixed: number[] = [];
-  const variable: number[] = [];
-
-  for (const mk of a.mKeys) {
-    let f = 0, v = 0;
-    for (const r of a.enriched) {
-      if (r._month !== mk || r._amt >= 0 || r._isDiv || r._isInterest || r._isBuy || r._isSell) continue;
-      const name = r._name || '';
-      if (recurringNames.has(name)) {
-        f += Math.abs(r._amt);
-      } else {
-        v += Math.abs(r._amt);
-      }
-    }
-    fixed.push(f);
-    variable.push(v);
-  }
-
-  return { labels, fixed, variable };
 }
 
 export interface CumulativeIncExpChartData {
@@ -204,4 +118,29 @@ export function getCumulativeIncExpChartData(a: Analysis): CumulativeIncExpChart
       return cumE;
     }),
   };
+}
+
+export interface IncomeSourceRow {
+  label: string;
+  count: number;
+  total: string;
+  pct: number;
+  pctLabel: string;
+}
+
+/** Income grouped by transaction type, largest first, with its share of all income. */
+export function getIncomeSources(a: Analysis): IncomeSourceRow[] {
+  const byType: Record<string, { total: number; count: number }> = {};
+  for (const r of a.inc) {
+    const t = typeLabel(r._type);
+    const entry = (byType[t] ??= { total: 0, count: 0 });
+    entry.total += r._amt;
+    entry.count++;
+  }
+  return Object.entries(byType)
+    .sort((x, y) => y[1].total - x[1].total)
+    .map(([label, v]) => {
+      const pct = a.totalInc > 0 ? (v.total / a.totalInc) * 100 : 0;
+      return { label, count: v.count, total: fmt(v.total), pct: Math.min(pct, 100), pctLabel: fmtP(pct) };
+    });
 }

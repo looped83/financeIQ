@@ -3,19 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseCSV } from '../../domain/csv';
 import { analyze } from '../../domain/analyze';
-import {
-  computeAlerts,
-  computeFinancialRatios,
-  computeOverviewRates,
-  getIncomeSources,
-  getLast6MonthsChartData,
-  getOverviewKpis,
-  getRecurringExpenses,
-  getTopExpenseCategoriesData,
-  getTopMerchants,
-  getTopTransactions,
-  getVolumeByTypeChartData,
-} from './selectors';
+import { computeAlerts, computeFinancialRatios, computeOverviewRates, getOverviewKpis } from './selectors';
 
 function fixture(name: string) {
   return readFileSync(fileURLToPath(new URL(`../../../test/fixtures/${name}`, import.meta.url)), 'utf8');
@@ -42,79 +30,26 @@ describe('computeOverviewRates', () => {
 });
 
 describe('getOverviewKpis', () => {
-  it('returns 6 KPI cards with the totals from the fixture', () => {
+  it('returns the 4 headline tiles with the totals from the fixture', () => {
     const kpis = getOverviewKpis(a, computeOverviewRates(a));
-    expect(kpis).toHaveLength(6);
-    expect(kpis.map((k) => k.label)).toEqual([
-      'Gesamteinnahmen', 'Gesamtausgaben', 'Netto-Saldo', 'Investiert', 'Dividenden', 'Sparquote',
-    ]);
+    expect(kpis.map((k) => k.label)).toEqual(['Einnahmen', 'Ausgaben', 'Netto-Saldo', 'Dividenden (netto)']);
     expect(kpis[0]?.value).toBe('2.115,00 €');
-    expect(kpis[2]?.sub).toBe('Positiv ✓');
+    expect(kpis[2]?.value).toBe('+2.024,50 €');
   });
 
-  it('flags savings rate class by threshold (>=20 income, >=10 warn, else expense)', () => {
+  it('judges the savings rate against the 15 % mark', () => {
     const kpis = getOverviewKpis(a, computeOverviewRates(a));
-    // fixture's savings rate is ~95.7% -> well above 20
-    expect(kpis[5]?.cls).toBe('income');
-  });
-});
-
-describe('getLast6MonthsChartData', () => {
-  it('returns per-month income/expense series (fixture only has 2 months, both included)', () => {
-    const data = getLast6MonthsChartData(a);
-    expect(data.labels).toHaveLength(2);
-    expect(data.income).toEqual([2085, 30]); // Feb: 2000+85, Mar: 30 (tax refund)
-    expect(data.expense).toEqual([60.5, 30]); // Feb: 45.50+15, Mar: 30
-  });
-});
-
-describe('getVolumeByTypeChartData', () => {
-  it('sorts transaction types by total volume descending', () => {
-    const data = getVolumeByTypeChartData(a);
-    expect(data.labels[0]).toBe('Eingehend'); // TRANSFER_INBOUND, 2000 — largest single row
-    expect(data.labels.length).toBeLessThanOrEqual(8);
-  });
-});
-
-describe('getTopExpenseCategoriesData', () => {
-  it('excludes dividends from expense categories (per the domain-layer fix)', () => {
-    const data = getTopExpenseCategoriesData(a);
-    expect(data.labels).not.toContain('Dividenden');
-    expect(data.labels).toContain('Kartenzahlungen');
+    expect(kpis[2]?.status).toBe('good'); // fixture's savings rate is ~95.7 %
   });
 });
 
 describe('computeFinancialRatios', () => {
-  it('returns exactly 9 ratio rows including best/worst month', () => {
+  it('returns 9 rows; informational ones carry no judgement', () => {
     const rows = computeFinancialRatios(a, computeOverviewRates(a));
     expect(rows).toHaveLength(9);
-    const bestMonth = rows.find((r) => r.label === 'Bester Monat');
-    expect(bestMonth?.value).toContain('Feb'); // Feb has the higher net (2024.50 vs 0)
-  });
-});
-
-describe('getTopMerchants / getIncomeSources / getRecurringExpenses / getTopTransactions', () => {
-  it('getTopMerchants falls back to "Unbekannt" for a nameless CARD_TRANSACTION row', () => {
-    const merchants = getTopMerchants(a);
-    expect(merchants).toEqual([{ name: 'Unbekannt', count: 1, avg: '45,50 €', total: '45,50 €' }]);
-  });
-
-  it('getIncomeSources groups income by type label with percentage share', () => {
-    const sources = getIncomeSources(a);
-    const salary = sources.find((s) => s.label === 'Eingehend');
-    expect(salary?.count).toBe(1);
-    expect(salary?.total).toBe('2.000,00 €');
-  });
-
-  it('getRecurringExpenses is empty for the fixture (no name repeats across 2+ months)', () => {
-    const summary = getRecurringExpenses(a);
-    expect(summary.rows).toEqual([]);
-  });
-
-  it('getTopTransactions ranks cash rows by absolute amount, excluding BUY/SELL', () => {
-    // |tx-001|=2000, |tx-003|=85, |tx-002|=45.50, |tx-004|=15 — top 3 by |amount|
-    const top = getTopTransactions(a, 3);
-    expect(top.map((r) => r.transaction_id)).toEqual(['tx-001', 'tx-003', 'tx-002']);
+    expect(rows.find((r) => r.label === 'Bester Monat')?.value).toContain('Feb'); // 2024.50 vs 0
+    expect(rows.find((r) => r.label === 'Ø Buchungen pro Monat')?.good).toBeNull();
+    expect(rows.find((r) => r.label === 'Sparquote')?.good).toBe(true);
   });
 });
 
@@ -123,8 +58,8 @@ describe('computeAlerts', () => {
     const alerts = computeAlerts(a, computeOverviewRates(a));
     expect(alerts).toHaveLength(2);
     expect(alerts[0]?.color).toBe('green');
-    expect(alerts[0]?.text).toContain('Passives Einkommen');
-    expect(alerts[1]?.text).toContain('Sparplan aktiv');
+    expect(alerts[0]?.title).toBe('Passives Einkommen');
+    expect(alerts[1]?.title).toBe('Sparplan aktiv');
   });
 
   it('fires the negative-balance alert when expenses exceed income', () => {
@@ -133,7 +68,7 @@ describe('computeAlerts', () => {
       { date: '2024-01-10', type: 'CARD_TRANSACTION', amount: -800 },
     ])));
     const alerts = computeAlerts(neg, computeOverviewRates(neg));
-    expect(alerts.some((al) => al.text.includes('Negativer Saldo'))).toBe(true);
+    expect(alerts.some((al) => al.title === 'Negativer Saldo')).toBe(true);
   });
 
   it('fires the "2+ negative months" alert independently of the balance alert', () => {
@@ -146,7 +81,7 @@ describe('computeAlerts', () => {
       { date: '2024-03-10', type: 'CARD_TRANSACTION', amount: -900 },
     ])));
     const alerts = computeAlerts(rows, computeOverviewRates(rows));
-    expect(alerts.some((al) => al.text.includes('2 negative Monate'))).toBe(true);
+    expect(alerts.some((al) => al.title === '2 negative Monate')).toBe(true);
   });
 
   it('fires the 3-month rising-expenses trend alert', () => {
@@ -161,7 +96,7 @@ describe('computeAlerts', () => {
       { date: '2024-04-10', type: 'CARD_TRANSACTION', amount: -1500 },
     ])));
     const alerts = computeAlerts(rows, computeOverviewRates(rows));
-    expect(alerts.some((al) => al.text.includes('Steigende Ausgaben'))).toBe(true);
+    expect(alerts.some((al) => al.title === 'Steigende Ausgaben')).toBe(true);
   });
 
   it('produces no alerts for a small, unremarkable dataset', () => {

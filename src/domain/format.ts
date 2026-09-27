@@ -37,11 +37,11 @@ export function fmtN(v: number): string {
 }
 
 export function fmtP(v: number): string {
-  return v.toFixed(1) + '%';
+  return numFmt(1).format(v) + ' %';
 }
 
 export function fmtPP(v: number): string {
-  return (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+  return (v >= 0 ? '+' : '') + fmtP(v);
 }
 
 export function fmtD(d: Date | null): string {
@@ -51,7 +51,7 @@ export function fmtD(d: Date | null): string {
 /** Formats a "YYYY-MM" month key as a short German label, e.g. "2024-03" -> "Mär 24". */
 export function mLabel(mk: string): string {
   const [y, m] = mk.split('-');
-  return new Date(Number(y), Number(m) - 1).toLocaleDateString('de-DE', { month: 'short', year: '2-digit' });
+  return y && m ? `${monthName(m)} ${y.slice(2)}` : mk;
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -60,8 +60,3 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'S
 export function monthName(mn: string): string {
   return MONTH_NAMES[parseInt(mn, 10) - 1] || mn;
 }
-
-export const PAL = [
-  '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4',
-  '#ec4899', '#84cc16', '#f97316', '#6366f1', '#14b8a6', '#a855f7',
-];
